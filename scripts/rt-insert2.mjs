@@ -1,0 +1,10 @@
+﻿import { createClient } from "@supabase/supabase-js";
+import { readFileSync } from "node:fs";
+const env=Object.fromEntries(readFileSync(".env.local","utf8").split(/\r?\n/).filter(l=>l&&!l.startsWith("#")&&l.includes("=")).map(l=>{const i=l.indexOf("=");return[l.slice(0,i).trim(),l.slice(i+1).trim()];}));
+const a=createClient(env.NEXT_PUBLIC_SUPABASE_URL,env.SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false}});
+const {data:c}=await a.from("contacts").select("id").eq("wa_id","601110018198").single();
+const {data:conv}=await a.from("conversations").select("id").eq("contact_id",c.id).single();
+const now=new Date().toISOString();
+await a.from("messages").insert({conversation_id:conv.id,direction:"inbound",type:"text",body:"LIVE UPDATE works! No refresh needed.",status:"received",created_at:now});
+await a.from("conversations").update({last_message_at:now,last_inbound_at:now}).eq("id",conv.id);
+console.log("inserted at",now);
