@@ -1,0 +1,116 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+import { Lock } from "lucide-react";
+import { cn, formatTime } from "@/lib/utils";
+import type { Message } from "@/lib/types";
+import type { NoteWithAuthor } from "@/lib/data/notes";
+
+type Item =
+  | { kind: "message"; at: string; data: Message }
+  | { kind: "note"; at: string; data: NoteWithAuthor };
+
+export function Timeline({
+  messages,
+  notes,
+  memberNames,
+}: {
+  messages: Message[];
+  notes: NoteWithAuthor[];
+  memberNames: Record<string, string>;
+}) {
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const items: Item[] = [
+    ...messages.map((m) => ({ kind: "message" as const, at: m.created_at, data: m })),
+    ...notes.map((n) => ({ kind: "note" as const, at: n.created_at, data: n })),
+  ].sort((a, b) => a.at.localeCompare(b.at));
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ block: "end" });
+  }, [items.length]);
+
+  if (items.length === 0) {
+    return (
+      <div className="flex flex-1 items-center justify-center text-sm text-slate-400">
+        No messages yet.
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-1 flex-col gap-2 overflow-y-auto bg-slate-50 px-6 py-4">
+      {items.map((item) =>
+        item.kind === "message" ? (
+          <MessageBubble key={`m-${item.data.id}`} m={item.data} />
+        ) : (
+          <NoteCard
+            key={`n-${item.data.id}`}
+            note={item.data}
+            memberNames={memberNames}
+          />
+        ),
+      )}
+      <div ref={bottomRef} />
+    </div>
+  );
+}
+
+function MessageBubble({ m }: { m: Message }) {
+  const outbound = m.direction === "outbound";
+  return (
+    <div className={cn("flex", outbound ? "justify-end" : "justify-start")}>
+      <div
+        className={cn(
+          "max-w-[75%] rounded-2xl px-3 py-2 text-sm shadow-sm",
+          outbound
+            ? "rounded-br-sm bg-emerald-600 text-white"
+            : "rounded-bl-sm bg-white text-slate-800",
+        )}
+      >
+        <p className="whitespace-pre-wrap break-words">{m.body}</p>
+        <p
+          className={cn(
+            "mt-1 text-right text-[10px]",
+            outbound ? "text-emerald-100" : "text-slate-400",
+          )}
+          suppressHydrationWarning
+        >
+          {formatTime(m.created_at)}
+          {outbound && m.status ? ` · ${m.status}` : ""}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function NoteCard({
+  note,
+  memberNames,
+}: {
+  note: NoteWithAuthor;
+  memberNames: Record<string, string>;
+}) {
+  return (
+    <div className="flex justify-center">
+      <div className="max-w-[85%] rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 shadow-sm">
+        <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium text-amber-700">
+          <Lock className="h-3 w-3" />
+          Internal note · {note.author?.full_name ?? "Someone"}
+        </div>
+        <p className="whitespace-pre-wrap break-words">{note.body}</p>
+        {note.mentions.length > 0 && (
+          <p className="mt-1 text-[11px] text-amber-600">
+            Notifying:{" "}
+            {note.mentions
+              .map((id) => memberNames[id] ?? "Unknown")
+              .join(", ")}
+          </p>
+        )}
+        <p className="mt-1 text-right text-[10px] text-amber-500" suppressHydrationWarning>
+          {formatTime(note.created_at)}
+        </p>
+      </div>
+    </div>
+  );
+}

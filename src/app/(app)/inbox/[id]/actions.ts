@@ -117,3 +117,72 @@ export async function sendTemplateReply(
   );
   return { ok: true };
 }
+
+// ---------------------------------------------------------------------------
+//  Collaboration: assignment, status, internal notes
+// ---------------------------------------------------------------------------
+
+export type ActionState = { ok: boolean; error?: string };
+
+/** Assign (or unassign with null) a conversation to a team member. */
+export async function assignConversation(
+  conversationId: string,
+  assigneeId: string | null,
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const { error } = await supabase
+    .from("conversations")
+    .update({ assigned_to: assigneeId })
+    .eq("id", conversationId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** Open or close a conversation. */
+export async function setConversationStatus(
+  conversationId: string,
+  status: "open" | "closed",
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const { error } = await supabase
+    .from("conversations")
+    .update({ status })
+    .eq("id", conversationId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** Add an internal note (never sent to the customer). `mentions` = profile ids. */
+export async function addNote(
+  conversationId: string,
+  body: string,
+  mentions: string[] = [],
+): Promise<ActionState> {
+  const text = body.trim();
+  if (!text) return { ok: false, error: "Note is empty." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const { error } = await supabase.from("notes").insert({
+    conversation_id: conversationId,
+    author_id: user.id,
+    body: text,
+    mentions,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}

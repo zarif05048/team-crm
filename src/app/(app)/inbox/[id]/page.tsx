@@ -2,9 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
-import { MessageThread } from "@/components/inbox/message-thread";
+import { Timeline } from "@/components/inbox/timeline";
 import { Composer } from "@/components/inbox/composer";
+import { ThreadToolbar } from "@/components/inbox/thread-toolbar";
 import { getConversation, getMessages } from "@/lib/data/conversations";
+import { getNotes } from "@/lib/data/notes";
+import { getTeamMembers } from "@/lib/data/team";
 import { isWindowOpen } from "@/lib/types";
 
 export default async function ThreadPage({
@@ -16,12 +19,20 @@ export default async function ThreadPage({
   const conversation = await getConversation(id);
   if (!conversation) notFound();
 
-  const messages = await getMessages(id);
+  const [messages, notes, members] = await Promise.all([
+    getMessages(id),
+    getNotes(id),
+    getTeamMembers(),
+  ]);
+
   const name =
     conversation.contact.name ??
     conversation.contact.profile_name ??
     conversation.contact.wa_id;
   const windowOpen = isWindowOpen(conversation.last_inbound_at);
+  const memberNames = Object.fromEntries(
+    members.map((m) => [m.id, m.full_name ?? m.email ?? "Unknown"]),
+  );
 
   return (
     <div className="flex flex-1 flex-col">
@@ -53,9 +64,20 @@ export default async function ThreadPage({
         </span>
       </header>
 
-      <MessageThread messages={messages} />
+      <ThreadToolbar
+        conversationId={conversation.id}
+        assignedTo={conversation.assigned_to}
+        status={conversation.status}
+        members={members}
+      />
 
-      <Composer conversationId={conversation.id} windowOpen={windowOpen} />
+      <Timeline messages={messages} notes={notes} memberNames={memberNames} />
+
+      <Composer
+        conversationId={conversation.id}
+        windowOpen={windowOpen}
+        members={members}
+      />
     </div>
   );
 }

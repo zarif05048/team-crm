@@ -48,6 +48,11 @@ export function RealtimeRefresh() {
           { event: "*", schema: "public", table: "conversations" },
           refresh,
         )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "notes" },
+          refresh,
+        )
         .subscribe((status) => {
           // Visible in the browser console for debugging.
           console.log("[realtime] inbox channel:", status);
