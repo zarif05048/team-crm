@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { sendText, sendTemplate } from "@/lib/whatsapp/send";
 import { isWindowOpen } from "@/lib/types";
 
@@ -183,6 +184,82 @@ export async function addNote(
     body: text,
     mentions,
   });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** Move a conversation to a lead-pipeline stage. */
+export async function setStage(
+  conversationId: string,
+  stage: "new" | "contacted" | "qualified" | "won" | "lost",
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const { error } = await supabase
+    .from("conversations")
+    .update({ stage })
+    .eq("id", conversationId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/**
+ * Add a tag (by name) to a conversation, creating the tag if needed.
+ * Tag creation is admin-only under RLS, so we use the service-role client here
+ * after confirming the caller is signed in.
+ */
+export async function addTag(
+  conversationId: string,
+  tagName: string,
+): Promise<ActionState> {
+  const name = tagName.trim();
+  if (!name) return { ok: false, error: "Tag is empty." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const admin = createAdminClient();
+  const palette = ["#0ea5e9", "#8b5cf6", "#f59e0b", "#10b981", "#ef4444", "#ec4899"];
+  const color = palette[Math.floor(Math.random() * palette.length)];
+
+  const { data: tag, error: tagErr } = await admin
+    .from("tags")
+    .upsert({ name, color }, { onConflict: "name" })
+    .select("id")
+    .single();
+  if (tagErr || !tag) return { ok: false, error: tagErr?.message ?? "Tag failed." };
+
+  const { error: linkErr } = await admin
+    .from("conversation_tags")
+    .upsert({ conversation_id: conversationId, tag_id: tag.id });
+  if (linkErr) return { ok: false, error: linkErr.message };
+  return { ok: true };
+}
+
+/** Remove a tag from a conversation. */
+export async function removeTag(
+  conversationId: string,
+  tagId: string,
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("conversation_tags")
+    .delete()
+    .eq("conversation_id", conversationId)
+    .eq("tag_id", tagId);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }

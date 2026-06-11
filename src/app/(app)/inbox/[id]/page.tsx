@@ -5,6 +5,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Timeline } from "@/components/inbox/timeline";
 import { Composer } from "@/components/inbox/composer";
 import { ThreadToolbar } from "@/components/inbox/thread-toolbar";
+import { TagBar } from "@/components/inbox/tag-bar";
 import { getConversation, getMessages } from "@/lib/data/conversations";
 import { getNotes } from "@/lib/data/notes";
 import { getTeamMembers } from "@/lib/data/team";
@@ -68,8 +69,11 @@ export default async function ThreadPage({
         conversationId={conversation.id}
         assignedTo={conversation.assigned_to}
         status={conversation.status}
+        stage={conversation.stage}
         members={members}
       />
+
+      <TagBar conversationId={conversation.id} tags={conversation.tags} />
 
       <Timeline messages={messages} notes={notes} memberNames={memberNames} />
 

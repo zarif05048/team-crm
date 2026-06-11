@@ -59,7 +59,7 @@ export function ConversationList({
                   {outbound && <span className="text-slate-400">You: </span>}
                   {preview}
                 </p>
-                <div className="mt-1 flex items-center gap-1.5">
+                <div className="mt-1 flex flex-wrap items-center gap-1.5">
                   {c.assignee && (
                     <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
                       {c.assignee.full_name ?? "Assigned"}
@@ -70,6 +70,15 @@ export function ConversationList({
                       {c.stage}
                     </span>
                   )}
+                  {c.tags.map((t) => (
+                    <span
+                      key={t.id}
+                      className="rounded px-1.5 py-0.5 text-[10px] font-medium text-white"
+                      style={{ backgroundColor: t.color }}
+                    >
+                      {t.name}
+                    </span>
+                  ))}
                 </div>
               </div>
             </Link>

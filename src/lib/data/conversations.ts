@@ -1,12 +1,28 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Conversation, Contact, WhatsappNumber, Message } from "@/lib/types";
+import type {
+  Conversation,
+  Contact,
+  WhatsappNumber,
+  Message,
+  Tag,
+} from "@/lib/types";
 
 export interface ConversationRow extends Conversation {
   contact: Contact;
   whatsapp_number: Pick<WhatsappNumber, "id" | "display_name" | "phone_display">;
   assignee: { id: string; full_name: string | null } | null;
   last_message: Pick<Message, "body" | "direction" | "created_at"> | null;
+  tags: Tag[];
   unread: number;
+}
+
+// Shape Supabase returns for the embedded conversation_tags(tags(...)) join.
+type TagJoin = { tag: Tag | null } | { tags: Tag | null };
+function flattenTags(rows: TagJoin[] | undefined): Tag[] {
+  if (!rows) return [];
+  return rows
+    .map((r) => ("tag" in r ? r.tag : r.tags))
+    .filter((t): t is Tag => !!t);
 }
 
 /**
@@ -22,7 +38,8 @@ export async function getConversations(): Promise<ConversationRow[]> {
       `*,
        contact:contacts(*),
        whatsapp_number:whatsapp_numbers(id, display_name, phone_display),
-       assignee:profiles!conversations_assigned_to_fkey(id, full_name)`,
+       assignee:profiles!conversations_assigned_to_fkey(id, full_name),
+       conversation_tags(tag:tags(*))`,
     )
     .order("last_message_at", { ascending: false })
     .limit(200);
@@ -52,11 +69,14 @@ export async function getConversations(): Promise<ConversationRow[]> {
     }
   }
 
-  return (convos as unknown as ConversationRow[]).map((c) => ({
-    ...c,
-    last_message: lastByConvo.get(c.id) ?? null,
-    unread: 0,
-  }));
+  return (convos as unknown as (ConversationRow & { conversation_tags?: TagJoin[] })[]).map(
+    (c) => ({
+      ...c,
+      last_message: lastByConvo.get(c.id) ?? null,
+      tags: flattenTags(c.conversation_tags),
+      unread: 0,
+    }),
+  );
 }
 
 /** Full message history for one conversation, oldest first. */
@@ -85,10 +105,19 @@ export async function getConversation(
       `*,
        contact:contacts(*),
        whatsapp_number:whatsapp_numbers(id, display_name, phone_display),
-       assignee:profiles!conversations_assigned_to_fkey(id, full_name)`,
+       assignee:profiles!conversations_assigned_to_fkey(id, full_name),
+       conversation_tags(tag:tags(*))`,
     )
     .eq("id", conversationId)
     .maybeSingle();
   if (error || !data) return null;
-  return { ...(data as unknown as ConversationRow), last_message: null, unread: 0 };
+  const row = data as unknown as ConversationRow & {
+    conversation_tags?: TagJoin[];
+  };
+  return {
+    ...row,
+    last_message: null,
+    tags: flattenTags(row.conversation_tags),
+    unread: 0,
+  };
 }

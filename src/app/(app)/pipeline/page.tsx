@@ -1,21 +1,20 @@
-import { KanbanSquare } from "lucide-react";
+import { getConversations } from "@/lib/data/conversations";
+import { PipelineBoard } from "@/components/pipeline/pipeline-board";
+import { RealtimeRefresh } from "@/components/inbox/realtime-refresh";
 
-export default function PipelinePage() {
+export default async function PipelinePage() {
+  const conversations = await getConversations();
+
   return (
-    <div className="flex flex-1 flex-col">
-      <header className="flex h-14 items-center border-b border-slate-200 bg-white px-6">
-        <h1 className="text-base font-semibold text-slate-900">Pipeline</h1>
+    <div className="flex h-full flex-col">
+      <RealtimeRefresh />
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6">
+        <h1 className="text-base font-semibold text-slate-900">Lead pipeline</h1>
+        <span className="text-xs text-slate-400">
+          Drag a card between columns to change its stage
+        </span>
       </header>
-      <div className="flex flex-1 flex-col items-center justify-center text-center">
-        <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
-          <KanbanSquare className="h-7 w-7" />
-        </div>
-        <p className="font-medium text-slate-700">Lead pipeline</p>
-        <p className="mt-1 max-w-xs text-sm text-slate-500">
-          Drag leads through New → Contacted → Qualified → Won/Lost. Coming on
-          Day 5.
-        </p>
-      </div>
+      <PipelineBoard conversations={conversations} />
     </div>
   );
 }
