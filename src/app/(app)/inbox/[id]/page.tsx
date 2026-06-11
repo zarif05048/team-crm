@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { MessageThread } from "@/components/inbox/message-thread";
+import { Composer } from "@/components/inbox/composer";
 import { getConversation, getMessages } from "@/lib/data/conversations";
 import { isWindowOpen } from "@/lib/types";
 
@@ -54,14 +55,7 @@ export default async function ThreadPage({
 
       <MessageThread messages={messages} />
 
-      {/* Composer (send wiring comes on Day 3) */}
-      <footer className="border-t border-slate-200 bg-white p-3">
-        <div className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-400">
-          {windowOpen
-            ? "Type a reply… (sending is wired up on Day 3)"
-            : "Outside 24h window — an approved template will be required (Day 3)"}
-        </div>
-      </footer>
+      <Composer conversationId={conversation.id} windowOpen={windowOpen} />
     </div>
   );
 }

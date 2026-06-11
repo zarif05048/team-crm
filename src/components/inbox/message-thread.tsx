@@ -1,7 +1,17 @@
+"use client";
+
+import { useEffect, useRef } from "react";
 import { cn, formatTime } from "@/lib/utils";
 import type { Message } from "@/lib/types";
 
 export function MessageThread({ messages }: { messages: Message[] }) {
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Keep the newest message in view (on load and as messages arrive).
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ block: "end" });
+  }, [messages.length]);
+
   if (messages.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center text-sm text-slate-400">
@@ -41,6 +51,7 @@ export function MessageThread({ messages }: { messages: Message[] }) {
           </div>
         );
       })}
+      <div ref={bottomRef} />
     </div>
   );
 }
