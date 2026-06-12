@@ -20,12 +20,14 @@ planned later). Built with the **official Meta WhatsApp Cloud API**.
       inbox with conversation list + thread view.
 - [x] **Live realtime inbox**: messages appear instantly via Supabase Realtime,
       no page refresh (brought forward from Day 4).
-- [ ] **Day 3 — Outbound replies**: send via Graph API, multi-number routing,
+- [x] **Day 3 — Outbound replies**: send via Graph API, multi-number routing,
       24h-window template handling.
-- [ ] **Day 4 — Collaboration**: assignment, internal notes, @mentions.
-- [ ] **Day 5 — Pipeline**: contact profiles, lead stages, tags.
-- [ ] **Day 6 — Admin**: team management, roles, canned replies.
-- [ ] **Day 7 — Launch**: permanent hosting + token, real number, onboarding.
+- [x] **Day 4 — Collaboration**: assignment, internal notes, @mentions.
+- [x] **Day 5 — Pipeline**: contact profiles, lead stages, tags.
+- [x] **Day 6 — Admin**: team management, roles, canned replies.
+- [x] **Day 7 — Launch**: permanent hosting (Vercel) + long-lived token, clean
+      data, onboarding. Live at https://team-crm-one.vercel.app — see
+      [`LAUNCH.md`](LAUNCH.md).
 
 ## Setup
 
