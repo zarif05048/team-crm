@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
-import { Send, Lock, MessageSquare, StickyNote } from "lucide-react";
+import { Send, Lock, MessageSquare, StickyNote, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { CannedReply } from "@/lib/types";
 import {
   sendReply,
   sendTemplateReply,
@@ -22,16 +23,24 @@ export function Composer({
   conversationId,
   windowOpen,
   members,
+  cannedReplies,
 }: {
   conversationId: string;
   windowOpen: boolean;
   members: Member[];
+  cannedReplies: CannedReply[];
 }) {
   const [mode, setMode] = useState<Mode>("reply");
   const [text, setText] = useState("");
   const [mentions, setMentions] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [showCanned, setShowCanned] = useState(false);
   const [pending, start] = useTransition();
+
+  const insertCanned = (body: string) => {
+    setText((t) => (t.trim() ? `${t} ${body}` : body));
+    setShowCanned(false);
+  };
 
   // Detect a trailing "@query" to drive the mention autocomplete (note mode).
   const mentionQuery = useMemo(() => {
@@ -156,6 +165,39 @@ export function Composer({
                 </li>
               ))}
             </ul>
+          )}
+
+          {/* Quick replies (reply mode) */}
+          {!isNote && cannedReplies.length > 0 && (
+            <div className="relative mb-2">
+              <button
+                type="button"
+                onClick={() => setShowCanned((s) => !s)}
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100"
+              >
+                <Zap className="h-3.5 w-3.5" /> Quick replies
+              </button>
+              {showCanned && (
+                <ul className="absolute bottom-full z-10 mb-1 max-h-64 w-72 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                  {cannedReplies.map((r) => (
+                    <li key={r.id}>
+                      <button
+                        type="button"
+                        onClick={() => insertCanned(r.body)}
+                        className="block w-full border-b border-slate-50 px-3 py-2 text-left hover:bg-slate-50"
+                      >
+                        <span className="text-sm font-medium text-slate-700">
+                          {r.title}
+                        </span>
+                        <span className="block truncate text-xs text-slate-400">
+                          {r.body}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           )}
 
           <div className="flex items-end gap-2">

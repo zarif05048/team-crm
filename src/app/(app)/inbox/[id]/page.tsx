@@ -9,6 +9,7 @@ import { TagBar } from "@/components/inbox/tag-bar";
 import { getConversation, getMessages } from "@/lib/data/conversations";
 import { getNotes } from "@/lib/data/notes";
 import { getTeamMembers } from "@/lib/data/team";
+import { getCannedReplies } from "@/lib/data/canned";
 import { isWindowOpen } from "@/lib/types";
 
 export default async function ThreadPage({
@@ -20,10 +21,11 @@ export default async function ThreadPage({
   const conversation = await getConversation(id);
   if (!conversation) notFound();
 
-  const [messages, notes, members] = await Promise.all([
+  const [messages, notes, members, cannedReplies] = await Promise.all([
     getMessages(id),
     getNotes(id),
     getTeamMembers(),
+    getCannedReplies(),
   ]);
 
   const name =
@@ -81,6 +83,7 @@ export default async function ThreadPage({
         conversationId={conversation.id}
         windowOpen={windowOpen}
         members={members}
+        cannedReplies={cannedReplies}
       />
     </div>
   );
