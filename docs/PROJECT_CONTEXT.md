@@ -36,6 +36,16 @@ All features built, tested live, deployed:
 
 ## Architecture
 
+> **Database isolation (2026-06-22):** the CRM has its **OWN dedicated Supabase
+> project** (ref `ewwzmyzegmjoiqstbjbn`), NOT the shared `asdxdpheddvialhovogn`
+> project used by the Weight Tracker + NCD apps. They shared one project until
+> 2026-06-22, which caused all ~1,470 `<IC>@patient.hijraa` patient logins (and
+> staff/doctor) to land in the CRM `profiles` table as "Agent" team members — the
+> `handle_new_user` trigger fires on every `auth.users` insert. Splitting the CRM
+> into its own project fixed the polluted team list AND the auth gap (a patient
+> could otherwise log into the CRM with their IC/password). Keep the CRM on its
+> own project; never re-point it at the patient-apps project.
+
 - Inbound: customer → Meta → `POST /api/webhooks/whatsapp` (signature-verified) →
   `lib/whatsapp/ingest.ts` upserts number/contact/conversation, dedupes by
   `wa_message_id`, sets `last_inbound_at` (drives 24h window) → Supabase →
