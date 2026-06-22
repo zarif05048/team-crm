@@ -49,14 +49,21 @@ All features built, tested live, deployed:
 
 ## Meta / WhatsApp specifics (identifiers, not secrets)
 
-- Meta app id: `1013631327812903`; WABA id: `100179786166143`
-- Test number `+1 555-060-4423`, phone_number_id `110684731762540`
+- Meta app id: `1013631327812903`
+- **LIVE production number `+60 11-2965 0884`** ("Marketing Hijraa Dungun-Paka"),
+  phone_number_id `1244016635452219`, in WABA **"Marketing Hijraa" = `3054756001402326`**
+  (business `234860424837223` "Klinik Perubatan Hijraa 24 Jam Dungun"). Connected
+  2026-06-22; #131030 ("recipient not in allowed list") resolved by leaving the test number.
+- Old test number `+1 555-060-4423` (phone_number_id `110684731762540`, WABA
+  `100179786166143`) is **retired** — removed from CRM DB + app unsubscribed from that WABA.
 - Webhook points at Vercel via **`override_callback_uri`** on
-  `POST /{WABA}/subscribed_apps` (`scripts/set-webhook-override.mjs`) — no tunnel.
-- Token: currently a **60-day long-lived token** (expires **2026-08-10**), made via
-  `scripts/exchange-token.mjs` (fb_exchange_token). A **never-expiring System User
-  token** is pending: Meta requires a *second admin* to approve the token request
-  (Business Settings → Requests). Owner must add a teammate as admin to approve.
+  `POST /{WABA}/subscribed_apps` (`scripts/set-webhook-override.mjs`) — set on the
+  Marketing Hijraa WABA. No tunnel.
+- Token: **never-expiring System User token** is now live (system user "CRM Connector",
+  `expires_at: 0`, scopes whatsapp_business_management + whatsapp_business_messaging).
+  The system user must have BOTH the app AND the WhatsApp account assigned as assets
+  (assign the WABA via WhatsApp accounts → Marketing Hijraa → Assign access → Full control).
+- Unverified-business cap = **2 phone numbers** total per business (verification lifts to 20).
 - Subscribing the app to the WABA (`subscribed_apps`) is required to receive — not
   just subscribing the `messages` webhook field.
 
@@ -79,11 +86,13 @@ All features built, tested live, deployed:
 
 ## Outstanding / roadmap
 
-1. **Permanent token** — add a 2nd Meta admin to approve the pending system-user token.
-2. **Real business number** — currently the +1 test number; a real number can't also
-   be on the consumer WhatsApp app.
+1. ~~Permanent token~~ ✅ DONE (2026-06-22) — never-expiring System User token live.
+2. ~~Real business number~~ ✅ DONE (2026-06-22) — +60 11-2965 0884 live on Cloud API.
 3. **Rotate** the Supabase/Vercel keys that were shared in chat (hygiene).
-4. **Phase 2 channels** (deferred): Facebook Messenger ✅ + Instagram DM ✅ are doable
+4. **Business verification** still "In review" — only caps daily limit (250/day unverified
+   → 1,000+ once approved) and the 2-number cap (→ 20). Does not block messaging.
+5. **Template (closed-window) path** coded but never tested live.
+6. **Phase 2 channels** (deferred): Facebook Messenger ✅ + Instagram DM ✅ are doable
    (same Meta app/webhook). TikTok DM = possible for Malaysia but needs Messaging
    Partner approval. Google = **no live chat** (Business Messages shut down 2024);
    only review read/reply via Business Profile API.
