@@ -81,6 +81,12 @@ export async function sendReply(
   if ("error" in loaded) return { ok: false, error: loaded.error };
   const { user, conv } = loaded;
 
+  // Bridged (unofficial marketing number) thread: no Meta API and no 24h-window
+  // rule — queue the reply for the marketing-sender program to deliver.
+  if (conv.whatsapp_number.phone_number_id.startsWith("unofficial:")) {
+    return sendViaBridge(conversationId, user.id, conv.contact.wa_id, text);
+  }
+
   if (!isWindowOpen(conv.last_inbound_at)) {
     return {
       ok: false,
@@ -97,6 +103,57 @@ export async function sendReply(
   if (!result.ok) return { ok: false, error: result.error };
 
   await recordOutbound(conversationId, user.id, "text", text, result.waMessageId);
+  return { ok: true };
+}
+
+/**
+ * Queue a reply for the unofficial marketing number: record the message in the
+ * thread immediately, and let the sender program (which holds the WhatsApp
+ * session) deliver it within a few seconds via bridge_outbox.
+ */
+async function sendViaBridge(
+  conversationId: string,
+  userId: string,
+  waId: string,
+  text: string,
+): Promise<SendState> {
+  const admin = createAdminClient();
+  const now = new Date().toISOString();
+
+  const { data: msg, error: msgErr } = await admin
+    .from("messages")
+    .insert({
+      conversation_id: conversationId,
+      direction: "outbound",
+      type: "text",
+      body: text,
+      status: "sent",
+      sent_by: userId,
+      created_at: now,
+    })
+    .select("id")
+    .single();
+  if (msgErr) return { ok: false, error: msgErr.message };
+
+  const { error: obErr } = await admin.from("bridge_outbox").insert({
+    message_id: msg.id,
+    conversation_id: conversationId,
+    wa_id: waId,
+    body: text,
+  });
+  if (obErr) {
+    return {
+      ok: false,
+      error:
+        "Bridge queue missing — run the 2026-07-06_bridge_outbox.sql migration in Supabase.",
+    };
+  }
+
+  await admin
+    .from("conversations")
+    .update({ last_message_at: now, bot_enabled: false })
+    .eq("id", conversationId);
+
   return { ok: true };
 }
 

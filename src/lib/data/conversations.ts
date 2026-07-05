@@ -9,7 +9,8 @@ import type {
 
 export interface ConversationRow extends Conversation {
   contact: Contact;
-  whatsapp_number: Pick<WhatsappNumber, "id" | "display_name" | "phone_display">;
+  whatsapp_number: Pick<WhatsappNumber, "id" | "display_name" | "phone_display"> &
+    Partial<Pick<WhatsappNumber, "phone_number_id">>; // selected by getConversation (bridged-thread detection)
   assignee: { id: string; full_name: string | null } | null;
   last_message: Pick<Message, "body" | "direction" | "created_at"> | null;
   tags: Tag[];
@@ -104,7 +105,7 @@ export async function getConversation(
     .select(
       `*,
        contact:contacts(*),
-       whatsapp_number:whatsapp_numbers(id, display_name, phone_display),
+       whatsapp_number:whatsapp_numbers(id, display_name, phone_display, phone_number_id),
        assignee:profiles!conversations_assigned_to_fkey(id, full_name),
        conversation_tags(tag:tags(*))`,
     )

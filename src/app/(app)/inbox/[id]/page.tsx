@@ -32,7 +32,10 @@ export default async function ThreadPage({
     conversation.contact.name ??
     conversation.contact.profile_name ??
     conversation.contact.wa_id;
-  const windowOpen = isWindowOpen(conversation.last_inbound_at);
+  // Bridged threads (unofficial marketing number, delivered by the sender
+  // program) have no Meta 24h-window rule — always open for free-text replies.
+  const bridged = conversation.whatsapp_number.phone_number_id?.startsWith("unofficial:") ?? false;
+  const windowOpen = bridged || isWindowOpen(conversation.last_inbound_at);
   const memberNames = Object.fromEntries(
     members.map((m) => [m.id, m.full_name ?? m.email ?? "Unknown"]),
   );
@@ -63,7 +66,7 @@ export default async function ThreadPage({
               : "rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700"
           }
         >
-          {windowOpen ? "24h window open" : "Window closed"}
+          {bridged ? "Marketing line" : windowOpen ? "24h window open" : "Window closed"}
         </span>
       </header>
 
