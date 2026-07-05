@@ -140,7 +140,7 @@ export async function runBotReply(trigger: BotTrigger): Promise<void> {
     const replyText = await converse(supabase, trigger.conversationId, messages);
     if (!replyText) return;
     console.log(
-      `[bot] reply for ${trigger.conversationId}: ${replyText.slice(0, 300)}`,
+      `[bot] reply for ${trigger.conversationId}: ${replyText.slice(0, 800)}`,
     );
 
     const result = await sendText(number.phone_number_id, contact.wa_id, replyText);
