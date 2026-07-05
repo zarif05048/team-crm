@@ -191,7 +191,7 @@ async function converse(
 
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
     const response = await anthropic.messages.create({
-      model: "claude-opus-4-8",
+      model: "claude-sonnet-5",
       max_tokens: 1024,
       system: [
         {

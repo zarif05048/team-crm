@@ -100,7 +100,7 @@ All features built, tested live, deployed:
 ## AI auto-reply bot (added 2026-07-05)
 
 Patient-facing FAQ bot on the WhatsApp line, powered by the Claude API
-(`claude-opus-4-8`, `@anthropic-ai/sdk`).
+(`claude-sonnet-5` — owner's choice for cost; `@anthropic-ai/sdk`).
 
 - Flow: webhook ingest → `after()` (post-200) → `src/lib/ai/bot.ts:runBotReply`
   → waits 2.5s to batch rapid messages → only the run for the *newest* inbound
