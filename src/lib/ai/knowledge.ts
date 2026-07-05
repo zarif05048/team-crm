@@ -96,8 +96,8 @@ dibincang dengan doktor — jemput datang konsultasi.
 - STD Screening: RM300 (termasuk Syphilis, Chlamydia, Gonorrhea, HIV,
   Hepatitis B&C, HSV — layan pertanyaan ini dengan budi bahasa & kerahsiaan)
 - Allergy Test: RM400 (36 ujian) · RM450 (54 ujian) · RM500 (107 ujian)
-- Pakej checkup di atas dari katalog Dungun; untuk buat di Paka, rekod tempahan
-  dan staf akan sahkan ketersediaan.
+- Semua pakej checkup di atas ditawarkan di KEDUA-DUA cawangan (Dungun & Paka),
+  harga sama.
 
 ## Panel & insurans (30+ panel)
 PM Care, TNB, e-MAS, Etiqa, HealthConnect, UiTM, PERKESO HSP, PEKA B40,
