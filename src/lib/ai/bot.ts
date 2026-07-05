@@ -32,7 +32,7 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: "book_appointment",
     description:
-      "Record a booking request for the clinic staff to confirm. Call this once you have the patient's name, the service they want, and their preferred date/time. Do not call it with missing fields — ask the patient first.",
+      "Record a booking request for the clinic staff to confirm. Call this once you have the patient's name, the service, the branch (Dungun or Paka), and their preferred date/time. Do not call it with missing fields — ask the patient first.",
     input_schema: {
       type: "object",
       properties: {
@@ -41,6 +41,11 @@ const TOOLS: Anthropic.Tool[] = [
           type: "string",
           description:
             "Service requested, e.g. house call, khatan, health screening, ultrasound, vaksin",
+        },
+        branch: {
+          type: "string",
+          enum: ["Dungun", "Paka"],
+          description: "Which branch the patient wants",
         },
         preferred_time: {
           type: "string",
@@ -51,7 +56,7 @@ const TOOLS: Anthropic.Tool[] = [
           description: "Any other details the patient gave (optional)",
         },
       },
-      required: ["patient_name", "service", "preferred_time"],
+      required: ["patient_name", "service", "branch", "preferred_time"],
     },
   },
   {
@@ -258,6 +263,7 @@ async function executeTool(
         `📅 Booking request (via AI bot)\n` +
         `Name: ${input.patient_name}\n` +
         `Service: ${input.service}\n` +
+        `Branch: ${input.branch ?? "?"}\n` +
         `Preferred time: ${input.preferred_time}` +
         (input.extra_notes ? `\nNotes: ${input.extra_notes}` : "");
       await supabase.from("notes").insert({

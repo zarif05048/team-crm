@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/sidebar";
+import { AttentionAlerts } from "@/components/notifications/attention-alerts";
 import type { Profile } from "@/lib/types";
 
 export default async function AppLayout({
@@ -27,6 +28,7 @@ export default async function AppLayout({
     <div className="flex h-screen overflow-hidden">
       <Sidebar profile={profile as Profile} />
       <main className="flex flex-1 flex-col overflow-hidden">{children}</main>
+      <AttentionAlerts />
     </div>
   );
 }
