@@ -2,13 +2,20 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { UserCircle2, CheckCircle2, RotateCcw, KanbanSquare } from "lucide-react";
+import {
+  UserCircle2,
+  CheckCircle2,
+  RotateCcw,
+  KanbanSquare,
+  Bot,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { STAGE_ORDER, STAGE_LABELS, type LeadStage } from "@/lib/types";
 import {
   assignConversation,
   setConversationStatus,
   setStage,
+  setBotEnabled,
 } from "@/app/(app)/inbox/[id]/actions";
 
 interface Member {
@@ -22,12 +29,14 @@ export function ThreadToolbar({
   assignedTo,
   status,
   stage,
+  botEnabled,
   members,
 }: {
   conversationId: string;
   assignedTo: string | null;
   status: "open" | "closed";
   stage: LeadStage;
+  botEnabled: boolean;
   members: Member[];
 }) {
   const router = useRouter();
@@ -53,6 +62,13 @@ export function ThreadToolbar({
         conversationId,
         status === "open" ? "closed" : "open",
       );
+      router.refresh();
+    });
+  };
+
+  const toggleBot = () => {
+    start(async () => {
+      await setBotEnabled(conversationId, !botEnabled);
       router.refresh();
     });
   };
@@ -87,6 +103,25 @@ export function ThreadToolbar({
           </option>
         ))}
       </select>
+
+      <button
+        type="button"
+        onClick={toggleBot}
+        disabled={pending}
+        title={
+          botEnabled
+            ? "AI auto-reply is ON — click to pause the bot for this chat"
+            : "AI auto-reply is OFF — click to let the bot answer this chat"
+        }
+        className={
+          botEnabled
+            ? "flex h-8 items-center gap-1.5 rounded-lg bg-violet-100 px-2.5 text-xs font-medium text-violet-700 hover:bg-violet-200 disabled:opacity-50"
+            : "flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-500 hover:bg-slate-100 disabled:opacity-50"
+        }
+      >
+        <Bot className="h-4 w-4" />
+        {botEnabled ? "AI on" : "AI off"}
+      </button>
 
       <div className="ml-auto flex items-center gap-2">
         <span

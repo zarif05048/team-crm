@@ -1,25 +1,35 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { extractContent, type WaWebhookBody, type WaValue } from "./types";
+import type { BotTrigger } from "@/lib/ai/bot";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
 /**
  * Process a full WhatsApp webhook body: store inbound messages and apply
  * delivery-status updates. Uses the service-role client (bypasses RLS).
+ * Returns one trigger per newly stored inbound message so the webhook route
+ * can schedule AI bot replies (duplicates from Meta retries are excluded).
  */
-export async function ingestWebhook(body: WaWebhookBody): Promise<void> {
-  if (body.object !== "whatsapp_business_account") return;
+export async function ingestWebhook(body: WaWebhookBody): Promise<BotTrigger[]> {
+  const triggers: BotTrigger[] = [];
+  if (body.object !== "whatsapp_business_account") return triggers;
   const supabase = createAdminClient();
 
   for (const entry of body.entry ?? []) {
     for (const change of entry.changes ?? []) {
       if (change.field !== "messages") continue;
-      await ingestValue(supabase, change.value, entry.id);
+      await ingestValue(supabase, change.value, entry.id, triggers);
     }
   }
+  return triggers;
 }
 
-async function ingestValue(supabase: Admin, value: WaValue, wabaId: string) {
+async function ingestValue(
+  supabase: Admin,
+  value: WaValue,
+  wabaId: string,
+  triggers: BotTrigger[],
+) {
   const phoneNumberId = value.metadata?.phone_number_id;
   if (!phoneNumberId) return;
 
@@ -57,6 +67,10 @@ async function ingestValue(supabase: Admin, value: WaValue, wabaId: string) {
     });
     if (insErr && insErr.code !== "23505") {
       console.error("[whatsapp] insert message failed:", insErr.message);
+    }
+    // Newly stored (not a Meta retry) → candidate for an AI bot reply.
+    if (!insErr) {
+      triggers.push({ conversationId, waMessageId: msg.id });
     }
 
     // Bump conversation timestamps (last_inbound_at drives the 24h window).

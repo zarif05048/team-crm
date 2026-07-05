@@ -58,6 +58,15 @@ async function recordOutbound(
     .from("conversations")
     .update({ last_message_at: now })
     .eq("id", conversationId);
+
+  // A manual staff reply means staff own this thread — pause the AI bot so it
+  // doesn't talk over them. Re-enable any time from the thread toolbar.
+  const { error: botErr } = await supabase
+    .from("conversations")
+    .update({ bot_enabled: false })
+    .eq("id", conversationId)
+    .eq("bot_enabled", true);
+  if (botErr) console.warn("[actions] pause bot failed:", botErr.message);
 }
 
 /** Send a free-text reply — only allowed inside the 24h window. */
@@ -202,6 +211,25 @@ export async function setStage(
   const { error } = await supabase
     .from("conversations")
     .update({ stage })
+    .eq("id", conversationId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** Turn the AI auto-reply bot on/off for a conversation. */
+export async function setBotEnabled(
+  conversationId: string,
+  enabled: boolean,
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const { error } = await supabase
+    .from("conversations")
+    .update({ bot_enabled: enabled })
     .eq("id", conversationId);
   if (error) return { ok: false, error: error.message };
   return { ok: true };

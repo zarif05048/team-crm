@@ -46,6 +46,7 @@ export interface Conversation {
   assigned_to: string | null;
   status: ConversationStatus;
   stage: LeadStage;
+  bot_enabled: boolean;
   last_message_at: string;
   last_inbound_at: string | null;
   created_at: string;
@@ -61,6 +62,7 @@ export interface Message {
   media_url: string | null;
   status: string | null;
   sent_by: string | null;
+  sent_by_bot: boolean;
   created_at: string;
 }
 

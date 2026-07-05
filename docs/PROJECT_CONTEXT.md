@@ -93,6 +93,35 @@ All features built, tested live, deployed:
   `en-US` + `suppressHydrationWarning` on time elements.
 - Supabase new-style keys (`sb_publishable_` / `sb_secret_`) are in use.
 - Email confirmation is OFF in Supabase (instant team logins).
+- **Free-tier Supabase pauses after ~1 week idle** — DNS for the project host
+  stops resolving ("fetch failed" everywhere). Owner must click "Restore
+  project" in the Supabase dashboard.
+
+## AI auto-reply bot (added 2026-07-05)
+
+Patient-facing FAQ bot on the WhatsApp line, powered by the Claude API
+(`claude-opus-4-8`, `@anthropic-ai/sdk`).
+
+- Flow: webhook ingest → `after()` (post-200) → `src/lib/ai/bot.ts:runBotReply`
+  → waits 2.5s to batch rapid messages → only the run for the *newest* inbound
+  message replies → Claude call with clinic knowledge + last 30 messages →
+  reply sent via existing `sendText`, recorded with `sent_by_bot = true`.
+- Knowledge pack + system prompt: `src/lib/ai/knowledge.ts` (owner-editable;
+  facts drafted from the clinic website; `[SAHKAN]` marks unconfirmed items).
+  Guardrails: no medical advice/diagnosis/prices; emergencies → come in / 999;
+  redirects to official clinic line 013-9237548.
+- Tools: `book_appointment` (writes a 📅 note, tags `booking`, stage→qualified)
+  and `alert_staff` (note + `needs-staff`/`urgent` tag + disables bot = handoff).
+- Bot on/off: `conversations.bot_enabled` (default true). Manual staff reply
+  or template reply pauses it (in `recordOutbound`); toolbar "AI on/off"
+  button (violet, Bot icon) re-enables. Bot messages render violet with 🤖 AI.
+- Requires `ANTHROPIC_API_KEY` env (empty = bot silently disabled, CRM
+  unaffected). Migration: `supabase/migrations/2026-07-05_ai_bot.sql`
+  (also folded into `schema.sql`).
+- Webhook route sets `maxDuration = 60` for the after() work.
+- Dev helper: `scripts/send-signed-webhook.mjs` (HMAC-signed local webhook
+  test; the older `send-test-webhook.mjs` is unsigned and now 401s since
+  META_APP_SECRET is set).
 
 ## Outstanding / roadmap
 

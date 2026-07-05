@@ -58,13 +58,16 @@ export function Timeline({
 
 function MessageBubble({ m }: { m: Message }) {
   const outbound = m.direction === "outbound";
+  const fromBot = outbound && m.sent_by_bot;
   return (
     <div className={cn("flex", outbound ? "justify-end" : "justify-start")}>
       <div
         className={cn(
           "max-w-[75%] rounded-2xl px-3 py-2 text-sm shadow-sm",
           outbound
-            ? "rounded-br-sm bg-emerald-600 text-white"
+            ? fromBot
+              ? "rounded-br-sm bg-violet-600 text-white"
+              : "rounded-br-sm bg-emerald-600 text-white"
             : "rounded-bl-sm bg-white text-slate-800",
         )}
       >
@@ -72,10 +75,15 @@ function MessageBubble({ m }: { m: Message }) {
         <p
           className={cn(
             "mt-1 text-right text-[10px]",
-            outbound ? "text-emerald-100" : "text-slate-400",
+            outbound
+              ? fromBot
+                ? "text-violet-200"
+                : "text-emerald-100"
+              : "text-slate-400",
           )}
           suppressHydrationWarning
         >
+          {fromBot ? "🤖 AI · " : ""}
           {formatTime(m.created_at)}
           {outbound && m.status ? ` · ${m.status}` : ""}
         </p>

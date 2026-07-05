@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
+import { after } from "next/server";
 import { verifySignature } from "@/lib/whatsapp/verify";
 import { ingestWebhook } from "@/lib/whatsapp/ingest";
+import { runBotReply } from "@/lib/ai/bot";
 import type { WaWebhookBody } from "@/lib/whatsapp/types";
 
 // This route must run on Node.js (uses node:crypto) and never be cached.
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// The AI bot reply runs in after() once the 200 is returned to Meta; give it
+// room for the batching delay + Claude call + WhatsApp send.
+export const maxDuration = 60;
 
 /**
  * GET — Meta's webhook verification handshake.
@@ -44,7 +49,15 @@ export async function POST(request: Request) {
   }
 
   try {
-    await ingestWebhook(body);
+    const triggers = await ingestWebhook(body);
+    if (triggers.length > 0) {
+      // Reply after Meta gets its 200 — keeps the webhook fast and retry-free.
+      after(async () => {
+        for (const trigger of triggers) {
+          await runBotReply(trigger);
+        }
+      });
+    }
   } catch (err) {
     // Swallow errors after a 200 would be ideal, but we log + still 200 so Meta
     // doesn't hammer retries for a transient DB issue.

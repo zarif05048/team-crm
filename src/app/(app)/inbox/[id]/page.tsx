@@ -72,6 +72,7 @@ export default async function ThreadPage({
         assignedTo={conversation.assigned_to}
         status={conversation.status}
         stage={conversation.stage}
+        botEnabled={conversation.bot_enabled ?? true}
         members={members}
       />
 
