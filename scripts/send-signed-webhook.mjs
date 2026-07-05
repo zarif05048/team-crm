@@ -16,6 +16,9 @@ const env = Object.fromEntries(
     }),
 );
 
+const wamid = "wamid.BOTTEST_" + Date.now();
+const text = process.argv[2] ?? "Assalamualaikum, klinik buka ke sekarang?";
+
 const body = JSON.stringify({
   object: "whatsapp_business_account",
   entry: [
@@ -36,10 +39,10 @@ const body = JSON.stringify({
             messages: [
               {
                 from: "60100000001",
-                id: "wamid.BOTTEST_1",
+                id: wamid,
                 timestamp: String(Math.floor(Date.now() / 1000)),
                 type: "text",
-                text: { body: "Assalamualaikum, klinik buka ke sekarang?" },
+                text: { body: text },
               },
             ],
           },
@@ -73,5 +76,5 @@ await new Promise((r) => setTimeout(r, 800));
 const { data } = await admin
   .from("messages")
   .select("id, direction, body, conversation_id")
-  .eq("wa_message_id", "wamid.BOTTEST_1");
+  .eq("wa_message_id", wamid);
 console.log("stored message:", JSON.stringify(data));
