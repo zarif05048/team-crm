@@ -13,10 +13,63 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendText } from "@/lib/whatsapp/send";
+import { sendText, sendImage } from "@/lib/whatsapp/send";
 import { BOT_SYSTEM_PROMPT } from "./knowledge";
 
 type Admin = ReturnType<typeof createAdminClient>;
+
+/** Who/where the bot is talking to — needed by tools that send media. */
+interface SendContext {
+  waId: string;
+  phoneNumberId: string;
+}
+
+/** Poster/leaflet images the bot can send (served from /public/leaflets). */
+const LEAFLETS: Record<string, { file: string; caption: string }> = {
+  mounjaro_packages: {
+    file: "mounjaro-packages.jpeg",
+    caption: "Pakej Rawatan Turun Berat Badan — Mounjaro (Klinik Hijraa Dungun & Paka)",
+  },
+  wegovy_packages: {
+    file: "wegovy-packages.jpeg",
+    caption: "Pakej Rawatan Turun Berat Badan — Wegovy (Klinik Hijraa Dungun & Paka)",
+  },
+  mounjaro_info: {
+    file: "mounjaro-info.jpeg",
+    caption: "Risalah Maklumat Pesakit — Mounjaro (tirzepatide)",
+  },
+  wegovy_info: {
+    file: "wegovy-info.jpeg",
+    caption: "Risalah Maklumat Pesakit — Wegovy (semaglutide)",
+  },
+  flexible_payment: {
+    file: "flexible-payment.jpeg",
+    caption: "Bayaran fleksibel/ansuran — Atome, Shopee PayLater, Maybank Ezy",
+  },
+  sunat_promo: {
+    file: "sunat-promo.png",
+    caption: "Jom Sunat — RM250 (clamp/laser), Klinik Hijraa Dungun & Paka",
+  },
+  health_screening: {
+    file: "health-screening.png",
+    caption: "Pakej Regular Health Screening — Basic RM100 · Essential RM150 · Premium RM200",
+  },
+  cancer_screening: {
+    file: "cancer-screening.png",
+    caption: "Pakej Cancer Screening — Lelaki RM300 · Wanita RM310",
+  },
+  std_screening: {
+    file: "std-screening.png",
+    caption: "Pakej STD Screening — RM300",
+  },
+  allergy_packages: {
+    file: "allergy-packages.png",
+    caption: "Pakej Allergy Test — RM400 (36) · RM450 (54) · RM500 (107)",
+  },
+};
+
+const LEAFLET_BASE =
+  process.env.PUBLIC_BASE_URL ?? "https://team-crm-one.vercel.app";
 
 export interface BotTrigger {
   conversationId: string;
@@ -57,6 +110,23 @@ const TOOLS: Anthropic.Tool[] = [
         },
       },
       required: ["patient_name", "service", "branch", "preferred_time"],
+    },
+  },
+  {
+    name: "send_leaflet",
+    description:
+      "Send one of the clinic's poster/leaflet images to the patient on WhatsApp. Use when the topic matches a leaflet (prices/packages/medicine info) — send the image, then give a short text summary. At most 2 leaflets per reply; never resend one already sent in this conversation.",
+    input_schema: {
+      type: "object",
+      properties: {
+        leaflet: {
+          type: "string",
+          enum: Object.keys(LEAFLETS),
+          description:
+            "Which leaflet to send: mounjaro_packages / wegovy_packages (prices), mounjaro_info / wegovy_info (patient leaflet: how it works, side effects), flexible_payment (installments), sunat_promo (khatan), health_screening / cancer_screening / std_screening / allergy_packages (checkup packages)",
+        },
+      },
+      required: ["leaflet"],
     },
   },
   {
@@ -137,7 +207,16 @@ export async function runBotReply(trigger: BotTrigger): Promise<void> {
       phone_number_id: string;
     };
 
-    const replyText = await converse(supabase, trigger.conversationId, messages);
+    const sendCtx: SendContext = {
+      waId: contact.wa_id,
+      phoneNumberId: number.phone_number_id,
+    };
+    const replyText = await converse(
+      supabase,
+      trigger.conversationId,
+      sendCtx,
+      messages,
+    );
     if (!replyText) return;
     console.log(
       `[bot] reply for ${trigger.conversationId}: ${replyText.slice(0, 800)}`,
@@ -193,6 +272,7 @@ function toClaudeMessages(
 async function converse(
   supabase: Admin,
   conversationId: string,
+  sendCtx: SendContext,
   messages: Anthropic.MessageParam[],
 ): Promise<string | null> {
   const anthropic = new Anthropic();
@@ -237,7 +317,7 @@ async function converse(
     messages.push({ role: "assistant", content: response.content });
     const results: Anthropic.ToolResultBlockParam[] = [];
     for (const tool of toolUses) {
-      const output = await executeTool(supabase, conversationId, tool);
+      const output = await executeTool(supabase, conversationId, sendCtx, tool);
       results.push({
         type: "tool_result",
         tool_use_id: tool.id,
@@ -254,10 +334,45 @@ async function converse(
 async function executeTool(
   supabase: Admin,
   conversationId: string,
+  sendCtx: SendContext,
   tool: Anthropic.ToolUseBlock,
 ): Promise<string> {
   try {
     const input = tool.input as Record<string, string | undefined>;
+    console.log(`[bot] tool ${tool.name}:`, JSON.stringify(input));
+    if (tool.name === "send_leaflet") {
+      const leaflet = LEAFLETS[input.leaflet ?? ""];
+      if (!leaflet) return `Unknown leaflet: ${input.leaflet}`;
+      const url = `${LEAFLET_BASE}/leaflets/${leaflet.file}`;
+      const result = await sendImage(
+        sendCtx.phoneNumberId,
+        sendCtx.waId,
+        url,
+        leaflet.caption,
+      );
+      if (!result.ok) {
+        console.error("[bot] leaflet send failed:", result.error);
+        return "Sending the image failed — continue with a text-only answer.";
+      }
+      const now = new Date().toISOString();
+      await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        wa_message_id: result.waMessageId ?? null,
+        direction: "outbound",
+        type: "image",
+        body: `📄 ${leaflet.caption}`,
+        media_url: url,
+        status: "sent",
+        sent_by: null,
+        sent_by_bot: true,
+        created_at: now,
+      });
+      await supabase
+        .from("conversations")
+        .update({ last_message_at: now })
+        .eq("id", conversationId);
+      return "Leaflet image sent to the patient. Now send a short text follow-up.";
+    }
     if (tool.name === "book_appointment") {
       const body =
         `📅 Booking request (via AI bot)\n` +

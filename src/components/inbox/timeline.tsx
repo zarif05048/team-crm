@@ -71,6 +71,14 @@ function MessageBubble({ m }: { m: Message }) {
             : "rounded-bl-sm bg-white text-slate-800",
         )}
       >
+        {m.media_url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={m.media_url}
+            alt={m.body ?? "Image"}
+            className="mb-1 max-h-64 w-full rounded-lg object-contain"
+          />
+        )}
         <p className="whitespace-pre-wrap break-words">{m.body}</p>
         <p
           className={cn(

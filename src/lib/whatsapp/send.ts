@@ -55,6 +55,21 @@ export function sendText(
   });
 }
 
+/** Send an image by public URL (Meta fetches the link). 24h window rules apply. */
+export function sendImage(
+  phoneNumberId: string,
+  to: string,
+  link: string,
+  caption?: string,
+): Promise<SendResult> {
+  return postMessage(phoneNumberId, {
+    recipient_type: "individual",
+    to,
+    type: "image",
+    image: { link, ...(caption ? { caption } : {}) },
+  });
+}
+
 /**
  * Send an approved template message (used to re-open a conversation outside the
  * 24h window). `components` carries variable parameters when the template needs them.
