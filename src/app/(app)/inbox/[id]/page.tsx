@@ -18,15 +18,15 @@ export default async function ThreadPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const conversation = await getConversation(id);
+  const [conversation, messages, notes, members, cannedReplies] =
+    await Promise.all([
+      getConversation(id),
+      getMessages(id),
+      getNotes(id),
+      getTeamMembers(),
+      getCannedReplies(),
+    ]);
   if (!conversation) notFound();
-
-  const [messages, notes, members, cannedReplies] = await Promise.all([
-    getMessages(id),
-    getNotes(id),
-    getTeamMembers(),
-    getCannedReplies(),
-  ]);
 
   const name =
     conversation.contact.name ??

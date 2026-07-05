@@ -80,6 +80,10 @@ All features built, tested live, deployed:
 ## Deploy / run
 
 - Local dev (Windows): `npm install` then `npm run dev` (Node at `C:\Program Files\nodejs`).
+- **Functions region is pinned to `sin1` (Singapore) in `vercel.json`** — same
+  region as the Supabase project (`ap-southeast-1`). Before 2026-07-06 functions
+  ran in the default `iad1` (US East), making every page navigation cross the
+  Pacific several times (~1s+ per conversation click). Don't remove this file.
 - Deploy: `vercel deploy --prod --yes --token=<VERCEL_TOKEN> --scope=zarif-teamcrm1`.
 - **Set Vercel env vars via `scripts/set-vercel-env.mjs` (REST API), NOT the CLI** —
   piping values to `vercel env add` in PowerShell mangles them.

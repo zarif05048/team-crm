@@ -52,12 +52,16 @@ export async function getConversations(): Promise<ConversationRow[]> {
   if (!convos?.length) return [];
 
   // Fetch the most recent message per conversation in one query, map in JS.
+  // Capped: the listed conversations are the 200 most recently active, so
+  // their previews live in the newest slice of messages — without the cap
+  // this query grows unbounded with total message history.
   const ids = convos.map((c) => c.id);
   const { data: msgs } = await supabase
     .from("messages")
     .select("conversation_id, body, direction, created_at")
     .in("conversation_id", ids)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(1500);
 
   const lastByConvo = new Map<string, Pick<Message, "body" | "direction" | "created_at">>();
   for (const m of msgs ?? []) {
