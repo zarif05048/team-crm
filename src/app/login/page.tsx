@@ -21,7 +21,7 @@ export default function LoginPage() {
           <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-white">
             <MessageCircle className="h-6 w-6" />
           </div>
-          <h1 className="text-xl font-semibold text-slate-900">Team CRM</h1>
+          <h1 className="text-xl font-semibold text-slate-900">Marketing CRM</h1>
           <p className="text-sm text-slate-500">
             {mode === "signin"
               ? "Sign in to your shared inbox"

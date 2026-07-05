@@ -30,7 +30,7 @@ export function Sidebar({ profile }: { profile: Profile }) {
           <MessageCircle className="h-5 w-5" />
         </div>
         <span className="hidden text-base font-semibold text-slate-900 lg:block">
-          Team CRM
+          Marketing CRM
         </span>
       </div>
 
