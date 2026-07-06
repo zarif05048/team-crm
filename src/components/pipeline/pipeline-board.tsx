@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/ui/avatar";
+import { LineBadge } from "@/components/ui/line-badge";
 import { cn } from "@/lib/utils";
 import { setStage } from "@/app/(app)/inbox/[id]/actions";
 import {
@@ -114,6 +115,9 @@ function PipelineCard({ c }: { c: ConversationRow }) {
           {c.last_message.body}
         </p>
       )}
+      <div className="mt-2 flex flex-wrap gap-1">
+        <LineBadge displayName={c.whatsapp_number?.display_name} />
+      </div>
       {c.tags.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
           {c.tags.map((t) => (

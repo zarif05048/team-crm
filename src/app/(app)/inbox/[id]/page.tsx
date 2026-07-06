@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
+import { LineBadge } from "@/components/ui/line-badge";
 import { Timeline } from "@/components/inbox/timeline";
 import { Composer } from "@/components/inbox/composer";
 import { ThreadToolbar } from "@/components/inbox/thread-toolbar";
@@ -53,7 +54,10 @@ export default async function ThreadPage({
         </Link>
         <Avatar name={name} className="h-9 w-9" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-slate-900">{name}</p>
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-semibold text-slate-900">{name}</p>
+            <LineBadge displayName={conversation.whatsapp_number.display_name} />
+          </div>
           <p className="truncate text-xs text-slate-400">
             +{conversation.contact.wa_id} · via{" "}
             {conversation.whatsapp_number.display_name}
@@ -66,7 +70,7 @@ export default async function ThreadPage({
               : "rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700"
           }
         >
-          {bridged ? "Marketing line" : windowOpen ? "24h window open" : "Window closed"}
+          {bridged ? "Always open" : windowOpen ? "24h window open" : "Window closed"}
         </span>
       </header>
 

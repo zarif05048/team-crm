@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Avatar } from "@/components/ui/avatar";
+import { LineBadge } from "@/components/ui/line-badge";
 import { cn, formatTime } from "@/lib/utils";
 import type { ConversationRow } from "@/lib/data/conversations";
 
@@ -60,6 +61,7 @@ export function ConversationList({
                   {preview}
                 </p>
                 <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                  <LineBadge displayName={c.whatsapp_number?.display_name} />
                   {c.assignee && (
                     <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
                       {c.assignee.full_name ?? "Assigned"}
