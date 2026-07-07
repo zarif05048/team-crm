@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Lock } from "lucide-react";
+import { AlertCircle, Check, CheckCheck, Lock } from "lucide-react";
 import { cn, formatTime } from "@/lib/utils";
 import type { Message } from "@/lib/types";
 import type { NoteWithAuthor } from "@/lib/data/notes";
@@ -82,7 +82,7 @@ function MessageBubble({ m }: { m: Message }) {
         <p className="whitespace-pre-wrap break-words">{m.body}</p>
         <p
           className={cn(
-            "mt-1 text-right text-[10px]",
+            "mt-1 flex items-center justify-end gap-1 text-right text-[10px]",
             outbound
               ? fromBot
                 ? "text-violet-200"
@@ -93,11 +93,32 @@ function MessageBubble({ m }: { m: Message }) {
         >
           {fromBot ? "🤖 AI · " : ""}
           {formatTime(m.created_at)}
-          {outbound && m.status ? ` · ${m.status}` : ""}
+          {outbound && <Ticks status={m.status} />}
         </p>
       </div>
     </div>
   );
+}
+
+/**
+ * WhatsApp-style delivery ticks: ✓ sent, ✓✓ delivered, blue ✓✓ read.
+ * Failed shows a red alert. Bubbles are colored, so "blue" reads as a bright
+ * cyan that pops on both the brand-blue and violet (bot) backgrounds.
+ */
+function Ticks({ status }: { status: string | null }) {
+  if (status === "failed") {
+    return <AlertCircle className="h-3.5 w-3.5 text-red-300" aria-label="failed" />;
+  }
+  if (status === "read") {
+    return <CheckCheck className="h-3.5 w-3.5 text-cyan-300" aria-label="read" />;
+  }
+  if (status === "delivered") {
+    return <CheckCheck className="h-3.5 w-3.5 opacity-80" aria-label="delivered" />;
+  }
+  if (status === "sent" || status === "pending") {
+    return <Check className="h-3.5 w-3.5 opacity-80" aria-label="sent" />;
+  }
+  return null;
 }
 
 function NoteCard({
