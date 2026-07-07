@@ -8,7 +8,7 @@ import {
   Users,
   Settings,
   LogOut,
-  MessageCircle,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Profile } from "@/lib/types";
@@ -24,14 +24,18 @@ export function Sidebar({ profile }: { profile: Profile }) {
   const pathname = usePathname();
 
   return (
-    <aside className="flex w-16 flex-col items-center border-r border-slate-200 bg-white py-4 lg:w-60 lg:items-stretch lg:px-3">
-      <div className="mb-6 flex items-center gap-2 px-2 lg:px-2">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 text-white">
-          <MessageCircle className="h-5 w-5" />
+    <aside className="flex w-16 flex-col items-center bg-gradient-to-b from-brand-950 via-brand-900 to-brand-800 py-4 text-white lg:w-60 lg:items-stretch lg:px-3">
+      {/* Brand — Hijraa heartbeat mark on the royal blue */}
+      <div className="mb-8 flex items-center gap-2.5 px-2">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-accent-400 to-brand-500 shadow-lg shadow-brand-950/40">
+          <Activity className="h-5 w-5 text-white" strokeWidth={2.5} />
         </div>
-        <span className="hidden text-base font-semibold text-slate-900 lg:block">
-          Marketing CRM
-        </span>
+        <div className="hidden lg:block">
+          <p className="text-base font-bold leading-tight tracking-tight">Hijraa</p>
+          <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-accent-400">
+            Marketing CRM
+          </p>
+        </div>
       </div>
 
       <nav className="flex flex-1 flex-col gap-1">
@@ -45,12 +49,15 @@ export function Sidebar({ profile }: { profile: Profile }) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  "relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
                   active
-                    ? "bg-emerald-50 text-emerald-700"
-                    : "text-slate-600 hover:bg-slate-100",
+                    ? "bg-white/10 text-white shadow-inner"
+                    : "text-brand-100/70 hover:bg-white/5 hover:text-white",
                 )}
               >
+                {active && (
+                  <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-accent-400" />
+                )}
                 <Icon className="h-5 w-5 shrink-0" />
                 <span className="hidden lg:block">{item.label}</span>
               </Link>
@@ -58,17 +65,17 @@ export function Sidebar({ profile }: { profile: Profile }) {
           })}
       </nav>
 
-      <div className="mt-auto border-t border-slate-100 pt-3">
+      <div className="mt-auto border-t border-white/10 pt-3">
         <div className="hidden px-3 pb-2 lg:block">
-          <p className="truncate text-sm font-medium text-slate-800">
+          <p className="truncate text-sm font-medium text-white">
             {profile.full_name ?? profile.email}
           </p>
-          <p className="text-xs capitalize text-slate-400">{profile.role}</p>
+          <p className="text-xs capitalize text-brand-200/60">{profile.role}</p>
         </div>
         <form action="/auth/signout" method="post">
           <button
             type="submit"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-brand-100/70 transition-colors hover:bg-white/5 hover:text-white"
           >
             <LogOut className="h-5 w-5 shrink-0" />
             <span className="hidden lg:block">Sign out</span>

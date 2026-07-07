@@ -53,7 +53,7 @@ export function NumbersList({ numbers }: { numbers: WhatsappNumber[] }) {
                   <button
                     onClick={() => save(n.id)}
                     disabled={pending}
-                    className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-50"
+                    className="rounded-lg p-1.5 text-brand-600 hover:bg-brand-50"
                     aria-label="Save name"
                   >
                     <Check className="h-4 w-4" />
@@ -81,7 +81,7 @@ export function NumbersList({ numbers }: { numbers: WhatsappNumber[] }) {
             <span
               className={
                 n.is_active
-                  ? "rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700"
+                  ? "rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700"
                   : "rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600"
               }
             >

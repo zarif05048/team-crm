@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc; /* slate-50 */
-  --foreground: #0f172a; /* slate-900 */
+  --background: #f4f6fd; /* Hijraa soft blue-white */
+  --foreground: #131a2b; /* Hijraa ink */
 }
 
 @theme inline {
@@ -10,6 +10,28 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+}
+
+/*
+ * Hijraa brand palette — from the clinic logo & website:
+ * royal blue wordmark, cyan heartbeat line, lime "CLINIC", red heart.
+ * "brand" = the royal blue; "accent" = the heartbeat cyan.
+ */
+@theme {
+  --color-brand-50: #eef1fe;
+  --color-brand-100: #dbe0fd;
+  --color-brand-200: #b9c4fb;
+  --color-brand-300: #8fa0f8;
+  --color-brand-400: #5f74f4;
+  --color-brand-500: #3b53f0;
+  --color-brand-600: #2f4cf7;
+  --color-brand-700: #2440dd;
+  --color-brand-800: #1d33b8;
+  --color-brand-900: #182566;
+  --color-brand-950: #00104f;
+  --color-accent-400: #22d3ee;
+  --color-accent-500: #00c8de;
+  --color-accent-600: #00acc1;
 }
 
 html,

@@ -6,12 +6,12 @@ import { mkdirSync } from "node:fs";
 // Emerald rounded square + white chat bubble + megaphone accent.
 const svg = (pad = 0) => `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect x="0" y="0" width="512" height="512" rx="${pad ? 0 : 96}" fill="#059669"/>
+  <rect x="0" y="0" width="512" height="512" rx="${pad ? 0 : 96}" fill="#1d33b8"/>
   <g transform="translate(${pad},${pad}) scale(${(512 - 2 * pad) / 512})">
     <!-- chat bubble -->
     <path fill="#ffffff" d="M256 88c-92 0-166 62-166 138 0 43 24 82 62 107l-14 66a10 10 0 0 0 14 11l77-38c9 1 18 2 27 2 92 0 166-62 166-138S348 88 256 88z"/>
     <!-- megaphone M -->
-    <path fill="#059669" d="M180 288v-98l40 0 36 58 36-58 40 0v98h-34v-52l-30 48h-24l-30-48v52z"/>
+    <path fill="#1d33b8" d="M180 288v-98l40 0 36 58 36-58 40 0v98h-34v-52l-30 48h-24l-30-48v52z"/>
   </g>
 </svg>`;
 

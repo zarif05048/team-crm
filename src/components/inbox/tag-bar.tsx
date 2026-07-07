@@ -75,7 +75,7 @@ export function TagBar({
             }
           }}
           placeholder="tag name…"
-          className="h-6 w-24 rounded border border-slate-300 px-1.5 text-[11px] focus:border-emerald-500 focus:outline-none"
+          className="h-6 w-24 rounded border border-slate-300 px-1.5 text-[11px] focus:border-brand-500 focus:outline-none"
         />
       ) : (
         <button

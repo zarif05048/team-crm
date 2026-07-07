@@ -71,7 +71,7 @@ export default async function ThreadPage({
         <span
           className={
             windowOpen
-              ? "rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700"
+              ? "rounded-full bg-brand-50 px-2 py-1 text-xs font-medium text-brand-700"
               : "rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700"
           }
         >

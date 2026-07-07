@@ -67,7 +67,7 @@ export function CannedManager({ replies }: { replies: CannedReply[] }) {
             value={body}
             onChange={(e) => setBody(e.target.value)}
             rows={2}
-            className="resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+            className="resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           />
           <Button
             onClick={add}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { MessageCircle } from "lucide-react";
+import { Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { signIn, signUp, type AuthState } from "./actions";
@@ -15,14 +15,20 @@ export default function LoginPage() {
   );
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-brand-950 via-brand-900 to-brand-700 p-4">
+      {/* soft heartbeat-cyan glow, echoing the Hijraa logo */}
+      <div className="pointer-events-none absolute -top-32 right-[-10%] h-96 w-96 rounded-full bg-accent-500/20 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-[-20%] left-[-10%] h-96 w-96 rounded-full bg-brand-500/30 blur-3xl" />
+
+      <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-white p-8 shadow-2xl shadow-brand-950/50">
         <div className="mb-6 flex flex-col items-center text-center">
-          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-white">
-            <MessageCircle className="h-6 w-6" />
+          <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-accent-400 to-brand-600 text-white shadow-lg shadow-brand-200">
+            <Activity className="h-7 w-7" strokeWidth={2.5} />
           </div>
-          <h1 className="text-xl font-semibold text-slate-900">Marketing CRM</h1>
-          <p className="text-sm text-slate-500">
+          <h1 className="text-xl font-bold tracking-tight text-slate-900">
+            Hijraa <span className="text-brand-600">Marketing CRM</span>
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
             {mode === "signin"
               ? "Sign in to your shared inbox"
               : "Create your account"}
@@ -66,7 +72,7 @@ export default function LoginPage() {
         <button
           type="button"
           onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-          className="mt-4 w-full text-center text-sm text-emerald-600 hover:underline"
+          className="mt-4 w-full text-center text-sm text-brand-600 hover:underline"
         >
           {mode === "signin"
             ? "Need an account? Sign up"

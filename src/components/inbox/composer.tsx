@@ -215,7 +215,7 @@ export function Composer({
                 "max-h-32 min-h-[40px] flex-1 resize-none rounded-xl border px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2",
                 isNote
                   ? "border-amber-300 bg-amber-50/40 focus:border-amber-500 focus:ring-amber-500/30"
-                  : "border-slate-300 focus:border-emerald-500 focus:ring-emerald-500/30",
+                  : "border-slate-300 focus:border-brand-500 focus:ring-brand-500/30",
               )}
             />
             <Button
@@ -263,7 +263,7 @@ function TabButton({
         "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
         active
           ? tone === "emerald"
-            ? "bg-emerald-100 text-emerald-700"
+            ? "bg-brand-100 text-brand-700"
             : "bg-amber-100 text-amber-700"
           : "text-slate-500 hover:bg-slate-100",
       )}

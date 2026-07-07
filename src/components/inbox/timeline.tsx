@@ -67,7 +67,7 @@ function MessageBubble({ m }: { m: Message }) {
           outbound
             ? fromBot
               ? "rounded-br-sm bg-violet-600 text-white"
-              : "rounded-br-sm bg-emerald-600 text-white"
+              : "rounded-br-sm bg-brand-600 text-white"
             : "rounded-bl-sm bg-white text-slate-800",
         )}
       >
@@ -86,7 +86,7 @@ function MessageBubble({ m }: { m: Message }) {
             outbound
               ? fromBot
                 ? "text-violet-200"
-                : "text-emerald-100"
+                : "text-brand-100"
               : "text-slate-400",
           )}
           suppressHydrationWarning

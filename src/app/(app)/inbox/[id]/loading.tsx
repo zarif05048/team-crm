@@ -25,9 +25,9 @@ export default function ThreadLoading() {
       {/* Message bubbles */}
       <div className="flex flex-1 flex-col justify-end gap-3 overflow-hidden p-4">
         <div className="h-12 w-56 self-start rounded-2xl bg-slate-200" />
-        <div className="h-16 w-72 self-end rounded-2xl bg-emerald-100" />
+        <div className="h-16 w-72 self-end rounded-2xl bg-brand-100" />
         <div className="h-10 w-44 self-start rounded-2xl bg-slate-200" />
-        <div className="h-12 w-64 self-end rounded-2xl bg-emerald-100" />
+        <div className="h-12 w-64 self-end rounded-2xl bg-brand-100" />
       </div>
 
       {/* Composer */}

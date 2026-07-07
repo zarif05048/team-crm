@@ -38,7 +38,7 @@ export function ConversationList({
               href={`/inbox/${c.id}`}
               className={cn(
                 "flex gap-3 px-4 py-3 transition-colors",
-                active ? "bg-emerald-50" : "hover:bg-slate-50",
+                active ? "bg-brand-50" : "hover:bg-slate-50",
               )}
             >
               <Avatar name={name} />
@@ -54,7 +54,7 @@ export function ConversationList({
                   </p>
                   <span className="flex shrink-0 items-center gap-1.5">
                     {c.unread > 0 && (
-                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-bold text-white">
+                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-500 px-1.5 text-[11px] font-bold text-white">
                         {c.unread > 9 ? "9+" : c.unread}
                       </span>
                     )}
@@ -85,7 +85,7 @@ export function ConversationList({
                     </span>
                   )}
                   {c.stage !== "new" && (
-                    <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium capitalize text-emerald-700">
+                    <span className="rounded bg-brand-100 px-1.5 py-0.5 text-[10px] font-medium capitalize text-brand-700">
                       {c.stage}
                     </span>
                   )}

@@ -18,7 +18,7 @@ const STAGE_ACCENT: Record<LeadStage, string> = {
   new: "border-t-sky-400",
   contacted: "border-t-violet-400",
   qualified: "border-t-amber-400",
-  won: "border-t-emerald-500",
+  won: "border-t-brand-500",
   lost: "border-t-slate-400",
 };
 
@@ -67,7 +67,7 @@ export function PipelineBoard({
             className={cn(
               "flex w-72 shrink-0 flex-col rounded-xl border-t-4 bg-slate-100/70",
               STAGE_ACCENT[stage],
-              dragOver === stage && "ring-2 ring-emerald-400",
+              dragOver === stage && "ring-2 ring-brand-400",
             )}
           >
             <div className="flex items-center justify-between px-3 py-2">
