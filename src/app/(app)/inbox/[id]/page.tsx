@@ -12,6 +12,7 @@ import { getConversation, getMessages } from "@/lib/data/conversations";
 import { getNotes } from "@/lib/data/notes";
 import { getTeamMembers } from "@/lib/data/team";
 import { getCannedReplies } from "@/lib/data/canned";
+import { getWhatsappNumbers } from "@/lib/data/numbers";
 import { isWindowOpen } from "@/lib/types";
 
 export default async function ThreadPage({
@@ -20,15 +21,21 @@ export default async function ThreadPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [conversation, messages, notes, members, cannedReplies] =
+  const [conversation, messages, notes, members, cannedReplies, allNumbers] =
     await Promise.all([
       getConversation(id),
       getMessages(id),
       getNotes(id),
       getTeamMembers(),
       getCannedReplies(),
+      getWhatsappNumbers(),
     ]);
   if (!conversation) notFound();
+
+  // Lines staff can send from: the clinic bot lines (Dungun / Paka / Marketing).
+  const sendableLines = allNumbers
+    .filter((n) => n.phone_number_id.startsWith("unofficial:") && n.is_active !== false)
+    .map((n) => ({ id: n.id, display_name: n.display_name }));
 
   const name =
     conversation.contact.name ??
@@ -97,6 +104,8 @@ export default async function ThreadPage({
         windowOpen={windowOpen}
         members={members}
         cannedReplies={cannedReplies}
+        currentNumberId={conversation.whatsapp_number.id}
+        sendableLines={sendableLines}
       />
     </div>
   );

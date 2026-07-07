@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Send, Lock, MessageSquare, StickyNote, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LineBadge } from "@/components/ui/line-badge";
 import { cn } from "@/lib/utils";
 import type { CannedReply } from "@/lib/types";
 import {
@@ -17,6 +19,11 @@ interface Member {
   email: string | null;
 }
 
+interface SendableLine {
+  id: string;
+  display_name: string;
+}
+
 type Mode = "reply" | "note";
 
 export function Composer({
@@ -24,18 +31,31 @@ export function Composer({
   windowOpen,
   members,
   cannedReplies,
+  currentNumberId,
+  sendableLines = [],
 }: {
   conversationId: string;
   windowOpen: boolean;
   members: Member[];
   cannedReplies: CannedReply[];
+  currentNumberId?: string;
+  sendableLines?: SendableLine[];
 }) {
+  const router = useRouter();
   const [mode, setMode] = useState<Mode>("reply");
   const [text, setText] = useState("");
   const [mentions, setMentions] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showCanned, setShowCanned] = useState(false);
   const [pending, start] = useTransition();
+  // Which line to send from. Default = this thread's own line when it is one of
+  // the bot lines; otherwise the first available bot line.
+  const defaultLine =
+    currentNumberId && sendableLines.some((l) => l.id === currentNumberId)
+      ? currentNumberId
+      : (sendableLines[0]?.id ?? "");
+  const [fromLine, setFromLine] = useState(defaultLine);
+  const showLinePicker = sendableLines.length > 1;
 
   const insertCanned = (body: string) => {
     setText((t) => (t.trim() ? `${t} ${body}` : body));
@@ -71,11 +91,16 @@ export function Composer({
     start(async () => {
       const res =
         mode === "reply"
-          ? await sendReply(conversationId, body)
+          ? await sendReply(conversationId, body, fromLine || undefined)
           : await addNote(conversationId, body, mentions);
       if (res.ok) {
         setText("");
         setMentions([]);
+        // Sent from a DIFFERENT line -> that reply lives in that line's own
+        // thread; jump there so staff see it in context.
+        if ("conversationId" in res && res.conversationId && res.conversationId !== conversationId) {
+          router.push(`/inbox/${res.conversationId}`);
+        }
       } else {
         setError(res.error ?? "Failed.");
       }
@@ -196,6 +221,32 @@ export function Composer({
                     </li>
                   ))}
                 </ul>
+              )}
+            </div>
+          )}
+
+          {/* Send from — pick which clinic line delivers this reply */}
+          {!isNote && showLinePicker && (
+            <div className="mb-2 flex items-center gap-2">
+              <span className="text-[11px] font-medium text-slate-400">
+                Send from
+              </span>
+              <select
+                value={fromLine}
+                onChange={(e) => setFromLine(e.target.value)}
+                className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+              >
+                {sendableLines.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.display_name}
+                  </option>
+                ))}
+              </select>
+              {fromLine !== currentNumberId && (
+                <span className="flex items-center gap-1 text-[11px] text-amber-600">
+                  <LineBadge displayName={sendableLines.find((l) => l.id === fromLine)?.display_name} />
+                  opens a new chat on that line
+                </span>
               )}
             </div>
           )}

@@ -5,13 +5,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendText, sendTemplate } from "@/lib/whatsapp/send";
 import { isWindowOpen } from "@/lib/types";
 
-export type SendState = { ok: boolean; error?: string };
+export type SendState = { ok: boolean; error?: string; conversationId?: string };
 
 interface ConvForSend {
   id: string;
   last_inbound_at: string | null;
-  contact: { wa_id: string };
-  whatsapp_number: { phone_number_id: string; waba_id: string | null };
+  contact: { id: string; wa_id: string; name: string | null; profile_name: string | null };
+  whatsapp_number: { id: string; phone_number_id: string; waba_id: string | null };
 }
 
 async function loadConversation(conversationId: string) {
@@ -25,14 +25,40 @@ async function loadConversation(conversationId: string) {
     .from("conversations")
     .select(
       `id, last_inbound_at,
-       contact:contacts(wa_id),
-       whatsapp_number:whatsapp_numbers(phone_number_id, waba_id)`,
+       contact:contacts(id, wa_id, name, profile_name),
+       whatsapp_number:whatsapp_numbers(id, phone_number_id, waba_id)`,
     )
     .eq("id", conversationId)
     .maybeSingle();
 
   if (error || !data) return { error: "Conversation not found." as const };
   return { supabase, user, conv: data as unknown as ConvForSend };
+}
+
+/**
+ * Find (or create) this contact's conversation on a DIFFERENT WhatsApp line, so
+ * staff can reply to a patient from any of the clinic's numbers. Each number is
+ * a separate WhatsApp chat, so the reply lives in that line's own thread.
+ */
+async function findOrCreateConversationOnLine(
+  contactId: string,
+  numberId: string,
+): Promise<string | null> {
+  const admin = createAdminClient();
+  const { data: existing } = await admin
+    .from("conversations")
+    .select("id")
+    .eq("contact_id", contactId)
+    .eq("whatsapp_number_id", numberId)
+    .maybeSingle();
+  if (existing) return existing.id;
+  const { data: created, error } = await admin
+    .from("conversations")
+    .insert({ contact_id: contactId, whatsapp_number_id: numberId })
+    .select("id")
+    .single();
+  if (error) return null;
+  return created.id;
 }
 
 async function recordOutbound(
@@ -73,6 +99,7 @@ async function recordOutbound(
 export async function sendReply(
   conversationId: string,
   body: string,
+  viaNumberId?: string,
 ): Promise<SendState> {
   const text = body.trim();
   if (!text) return { ok: false, error: "Message is empty." };
@@ -80,6 +107,27 @@ export async function sendReply(
   const loaded = await loadConversation(conversationId);
   if ("error" in loaded) return { ok: false, error: loaded.error };
   const { user, conv } = loaded;
+
+  // "Send from" a different clinic line: reply to this same patient from another
+  // of our WhatsApp numbers. That number is a separate WhatsApp chat, so the
+  // reply is recorded and delivered on THAT line's own thread, and we hand the
+  // caller that conversation id to navigate to.
+  if (viaNumberId && viaNumberId !== conv.whatsapp_number.id) {
+    const admin = createAdminClient();
+    const { data: target } = await admin
+      .from("whatsapp_numbers")
+      .select("id, phone_number_id, display_name")
+      .eq("id", viaNumberId)
+      .maybeSingle();
+    if (!target) return { ok: false, error: "That line no longer exists." };
+    if (!target.phone_number_id.startsWith("unofficial:")) {
+      return { ok: false, error: "Replies can only be sent from the clinic bot lines." };
+    }
+    const targetConvId = await findOrCreateConversationOnLine(conv.contact.id, viaNumberId);
+    if (!targetConvId) return { ok: false, error: "Could not open a chat on that line." };
+    const res = await sendViaBridge(targetConvId, user.id, conv.contact.wa_id, text);
+    return { ...res, conversationId: res.ok ? targetConvId : undefined };
+  }
 
   // Bridged (unofficial marketing number) thread: no Meta API and no 24h-window
   // rule — queue the reply for the marketing-sender program to deliver.
