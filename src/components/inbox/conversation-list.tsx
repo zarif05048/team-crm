@@ -44,19 +44,36 @@ export function ConversationList({
               <Avatar name={name} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline justify-between gap-2">
-                  <p className="truncate text-sm font-medium text-slate-900">
+                  <p
+                    className={cn(
+                      "truncate text-sm text-slate-900",
+                      c.unread > 0 ? "font-bold" : "font-medium",
+                    )}
+                  >
                     {name}
                   </p>
-                  {c.last_message && (
-                    <span
-                      className="shrink-0 text-xs text-slate-400"
-                      suppressHydrationWarning
-                    >
-                      {formatTime(c.last_message.created_at)}
-                    </span>
-                  )}
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    {c.unread > 0 && (
+                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-bold text-white">
+                        {c.unread > 9 ? "9+" : c.unread}
+                      </span>
+                    )}
+                    {c.last_message && (
+                      <span
+                        className="text-xs text-slate-400"
+                        suppressHydrationWarning
+                      >
+                        {formatTime(c.last_message.created_at)}
+                      </span>
+                    )}
+                  </span>
                 </div>
-                <p className="truncate text-sm text-slate-500">
+                <p
+                  className={cn(
+                    "truncate text-sm",
+                    c.unread > 0 ? "font-semibold text-slate-800" : "text-slate-500",
+                  )}
+                >
                   {outbound && <span className="text-slate-400">You: </span>}
                   {preview}
                 </p>

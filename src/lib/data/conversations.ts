@@ -74,12 +74,30 @@ export async function getConversations(): Promise<ConversationRow[]> {
     }
   }
 
+  // Unread = inbound messages newer than when staff last opened the thread
+  // (last_read_at; null = never opened -> everything counts). Counted from the
+  // preview slice above, capped for display. Pre-migration (column missing)
+  // last_read_at is undefined -> treat as read so nothing misleads.
+  const readAt = new Map<string, number>();
+  for (const c of convos as unknown as { id: string; last_read_at?: string | null }[]) {
+    if ("last_read_at" in c) readAt.set(c.id, c.last_read_at ? Date.parse(c.last_read_at) : 0);
+  }
+  const unreadByConvo = new Map<string, number>();
+  for (const m of msgs ?? []) {
+    if (m.direction !== "inbound") continue;
+    const seen = readAt.get(m.conversation_id);
+    if (seen === undefined) continue; // column not migrated yet
+    if (Date.parse(m.created_at) > seen) {
+      unreadByConvo.set(m.conversation_id, Math.min((unreadByConvo.get(m.conversation_id) ?? 0) + 1, 99));
+    }
+  }
+
   return (convos as unknown as (ConversationRow & { conversation_tags?: TagJoin[] })[]).map(
     (c) => ({
       ...c,
       last_message: lastByConvo.get(c.id) ?? null,
       tags: flattenTags(c.conversation_tags),
-      unread: 0,
+      unread: unreadByConvo.get(c.id) ?? 0,
     }),
   );
 }

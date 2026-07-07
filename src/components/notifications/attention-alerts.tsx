@@ -87,10 +87,8 @@ export function AttentionAlerts() {
       setAlerts((prev) =>
         prev.some((a) => a.id === alert.id) ? prev : [...prev, alert],
       );
-      // Urgent alerts stay until dismissed; the rest fade after 12s.
-      if (kind !== "urgent") {
-        setTimeout(() => dismiss(alert.id), 12_000);
-      }
+      // Alerts persist until a staff member clicks them (opens the thread) or
+      // dismisses them — nothing fades away on its own, so nothing gets missed.
 
       if (
         typeof Notification !== "undefined" &&
@@ -134,7 +132,7 @@ export function AttentionAlerts() {
   if (alerts.length === 0) return null;
 
   return (
-    <div className="pointer-events-none fixed right-4 top-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2">
+    <div className="pointer-events-none fixed right-4 top-4 z-50 flex max-h-[80vh] w-80 max-w-[calc(100vw-2rem)] flex-col gap-2 overflow-y-auto">
       {alerts.map((a) => (
         <div
           key={a.id}

@@ -58,6 +58,7 @@ create table if not exists public.conversations (
   bot_enabled         boolean not null default true, -- AI auto-reply on/off per thread
   last_message_at     timestamptz not null default now(),
   last_inbound_at     timestamptz,                 -- drives the 24h-window indicator
+  last_read_at        timestamptz,                 -- staff last opened the thread (unread badges)
   created_at          timestamptz not null default now(),
   unique (contact_id, whatsapp_number_id)
 );
@@ -65,6 +66,9 @@ create table if not exists public.conversations (
 -- Migration for databases created before 2026-07-05 (AI bot):
 alter table public.conversations
   add column if not exists bot_enabled boolean not null default true;
+-- Migration for databases created before 2026-07-07 (unread tracking):
+alter table public.conversations
+  add column if not exists last_read_at timestamptz;
 
 create index if not exists conversations_last_message_idx
   on public.conversations (last_message_at desc);

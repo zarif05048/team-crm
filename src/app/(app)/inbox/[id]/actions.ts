@@ -210,6 +210,28 @@ export async function assignConversation(
   return { ok: true };
 }
 
+/**
+ * Mark a conversation as read: staff opened the thread. Unread badges in the
+ * inbox clear only through this. Fail-soft while the last_read_at column
+ * migration hasn't been run yet.
+ */
+export async function markConversationRead(
+  conversationId: string,
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const { error } = await supabase
+    .from("conversations")
+    .update({ last_read_at: new Date().toISOString() })
+    .eq("id", conversationId);
+  if (error) return { ok: false, error: error.message }; // pre-migration: column missing
+  return { ok: true };
+}
+
 /** Open or close a conversation. */
 export async function setConversationStatus(
   conversationId: string,

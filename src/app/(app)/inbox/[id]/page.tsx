@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { LineBadge } from "@/components/ui/line-badge";
+import { MarkRead } from "@/components/inbox/mark-read";
 import { Timeline } from "@/components/inbox/timeline";
 import { Composer } from "@/components/inbox/composer";
 import { ThreadToolbar } from "@/components/inbox/thread-toolbar";
@@ -43,6 +44,10 @@ export default async function ThreadPage({
 
   return (
     <div className="flex flex-1 flex-col">
+      <MarkRead
+        conversationId={conversation.id}
+        lastMessageAt={messages.length ? messages[messages.length - 1].created_at : null}
+      />
       {/* Thread header */}
       <header className="flex h-14 items-center gap-3 border-b border-slate-200 bg-white px-4">
         <Link
