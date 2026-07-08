@@ -8,7 +8,6 @@ import {
   Users,
   Settings,
   LogOut,
-  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Profile } from "@/lib/types";
@@ -25,17 +24,19 @@ export function Sidebar({ profile }: { profile: Profile }) {
 
   return (
     <aside className="flex w-16 flex-col items-center bg-gradient-to-b from-brand-950 via-brand-900 to-brand-800 py-4 text-white lg:w-60 lg:items-stretch lg:px-3">
-      {/* Brand — Hijraa heartbeat mark on the royal blue */}
-      <div className="mb-8 flex items-center gap-2.5 px-2">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-accent-400 to-brand-500 shadow-lg shadow-brand-950/40">
-          <Activity className="h-5 w-5 text-white" strokeWidth={2.5} />
+      {/* Brand — the Hijraa logo on a white chip (its art needs a light bg) */}
+      <div className="mb-8 px-1">
+        <div className="flex items-center justify-center rounded-xl bg-white p-1.5 shadow-lg shadow-brand-950/30 lg:p-2.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.png"
+            alt="Hijraa Clinic"
+            className="h-8 w-auto object-contain lg:h-12"
+          />
         </div>
-        <div className="hidden lg:block">
-          <p className="text-base font-bold leading-tight tracking-tight">Hijraa</p>
-          <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-accent-400">
-            Marketing CRM
-          </p>
-        </div>
+        <p className="mt-2 hidden text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-accent-400 lg:block">
+          Marketing CRM
+        </p>
       </div>
 
       <nav className="flex flex-1 flex-col gap-1">

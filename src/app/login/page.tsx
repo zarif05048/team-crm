@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { signIn, signUp, type AuthState } from "./actions";
@@ -22,12 +21,15 @@ export default function LoginPage() {
 
       <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-white p-8 shadow-2xl shadow-brand-950/50">
         <div className="mb-6 flex flex-col items-center text-center">
-          <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-accent-400 to-brand-600 text-white shadow-lg shadow-brand-200">
-            <Activity className="h-7 w-7" strokeWidth={2.5} />
-          </div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900">
-            Hijraa <span className="text-brand-600">Marketing CRM</span>
-          </h1>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.png"
+            alt="Hijraa Clinic"
+            className="mb-3 h-20 w-auto object-contain"
+          />
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-600">
+            Marketing CRM
+          </p>
           <p className="mt-1 text-sm text-slate-500">
             {mode === "signin"
               ? "Sign in to your shared inbox"

@@ -1,29 +1,40 @@
-// Generates the Marketing CRM PWA icons from an inline SVG into public/icons.
+// Generates the Marketing CRM PWA icons from the Hijraa logo into public/icons.
 // Run from crm/:  node scripts/gen-icons.mjs
 import sharp from "sharp";
 import { mkdirSync } from "node:fs";
 
-// Emerald rounded square + white chat bubble + megaphone accent.
-const svg = (pad = 0) => `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect x="0" y="0" width="512" height="512" rx="${pad ? 0 : 96}" fill="#1d33b8"/>
-  <g transform="translate(${pad},${pad}) scale(${(512 - 2 * pad) / 512})">
-    <!-- chat bubble -->
-    <path fill="#ffffff" d="M256 88c-92 0-166 62-166 138 0 43 24 82 62 107l-14 66a10 10 0 0 0 14 11l77-38c9 1 18 2 27 2 92 0 166-62 166-138S348 88 256 88z"/>
-    <!-- megaphone M -->
-    <path fill="#1d33b8" d="M180 288v-98l40 0 36 58 36-58 40 0v98h-34v-52l-30 48h-24l-30-48v52z"/>
-  </g>
-</svg>`;
+const LOGO = "public/logo.png";
 
 mkdirSync("public/icons", { recursive: true });
 
-await sharp(Buffer.from(svg())).resize(192, 192).png().toFile("public/icons/icon-192.png");
-await sharp(Buffer.from(svg())).resize(512, 512).png().toFile("public/icons/icon-512.png");
-// Maskable: full-bleed square with ~10% safe-zone padding baked in.
-await sharp(Buffer.from(svg(80))).resize(512, 512).png().toFile("public/icons/icon-maskable-512.png");
-// Apple touch icon (iOS ignores manifest icons).
-await sharp(Buffer.from(svg())).resize(180, 180).png().toFile("src/app/apple-icon.png");
-// Favicon-ish app icon picked up by Next automatically.
-await sharp(Buffer.from(svg())).resize(64, 64).png().toFile("src/app/icon.png");
+// White rounded square with the logo centered — the logo has colored art on a
+// transparent background, so it reads cleanly on white. `pad` = safe-zone
+// padding for the maskable variant.
+async function icon(size, out, { pad = 0.16, radius = 0.19, bg = "#ffffff" } = {}) {
+  const inner = Math.round(size * (1 - pad * 2));
+  const logo = await sharp(LOGO)
+    .resize(inner, inner, { fit: "contain", background: { r: 255, g: 255, b: 255, alpha: 0 } })
+    .toBuffer();
+  const r = Math.round(size * radius);
+  const mask = Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><rect width="${size}" height="${size}" rx="${r}" ry="${r}"/></svg>`,
+  );
+  await sharp({ create: { width: size, height: size, channels: 4, background: bg } })
+    .composite([
+      { input: logo, gravity: "centre" },
+      { input: mask, blend: "dest-in" },
+    ])
+    .png()
+    .toFile(out);
+}
 
-console.log("icons generated");
+await icon(192, "public/icons/icon-192.png");
+await icon(512, "public/icons/icon-512.png");
+// Maskable: square corners + generous safe-zone so launchers can crop it.
+await icon(512, "public/icons/icon-maskable-512.png", { pad: 0.22, radius: 0 });
+// Apple touch icon (iOS ignores manifest icons) — square corners, iOS rounds it.
+await icon(180, "src/app/apple-icon.png", { radius: 0 });
+// App icon picked up by Next automatically.
+await icon(64, "src/app/icon.png");
+
+console.log("icons generated from logo");
