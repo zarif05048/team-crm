@@ -39,7 +39,7 @@ export function InboxShell({
         </div>
       </div>
 
-      <div className={cn("flex-1", threadOpen ? "flex" : "hidden lg:flex")}>
+      <div className={cn("min-w-0 flex-1", threadOpen ? "flex" : "hidden lg:flex")}>
         {children}
       </div>
     </div>

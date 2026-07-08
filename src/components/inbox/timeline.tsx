@@ -39,7 +39,7 @@ export function Timeline({
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-2 overflow-y-auto bg-slate-50 px-6 py-4">
+    <div className="flex min-w-0 flex-1 flex-col gap-2 overflow-y-auto bg-slate-50 px-3 py-4 sm:px-6">
       {items.map((item) =>
         item.kind === "message" ? (
           <MessageBubble key={`m-${item.data.id}`} m={item.data} />
@@ -63,7 +63,7 @@ function MessageBubble({ m }: { m: Message }) {
     <div className={cn("flex", outbound ? "justify-end" : "justify-start")}>
       <div
         className={cn(
-          "max-w-[75%] rounded-2xl px-3 py-2 text-sm shadow-sm",
+          "max-w-[85%] rounded-2xl px-3 py-2 text-sm shadow-sm sm:max-w-[75%]",
           outbound
             ? fromBot
               ? "rounded-br-sm bg-violet-600 text-white"

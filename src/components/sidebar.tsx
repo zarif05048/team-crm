@@ -21,9 +21,17 @@ const nav = [
 
 export function Sidebar({ profile }: { profile: Profile }) {
   const pathname = usePathname();
+  // On a phone, an open chat takes the whole screen (the thread's back arrow
+  // returns to the list, where the rail reappears). Always visible on desktop.
+  const onThread = pathname.startsWith("/inbox/") && pathname !== "/inbox";
 
   return (
-    <aside className="flex w-16 flex-col items-center bg-gradient-to-b from-brand-950 via-brand-900 to-brand-800 py-4 text-white lg:w-60 lg:items-stretch lg:px-3">
+    <aside
+      className={cn(
+        "w-16 flex-col items-center bg-gradient-to-b from-brand-950 via-brand-900 to-brand-800 py-4 text-white lg:flex lg:w-60 lg:items-stretch lg:px-3",
+        onThread ? "hidden lg:flex" : "flex",
+      )}
+    >
       {/* Brand — the Hijraa logo on a white chip (its art needs a light bg) */}
       <div className="mb-8 px-1">
         <div className="flex items-center justify-center rounded-xl bg-white p-1.5 shadow-lg shadow-brand-950/30 lg:p-2.5">

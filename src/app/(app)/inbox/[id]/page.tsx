@@ -50,13 +50,13 @@ export default async function ThreadPage({
   );
 
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex min-w-0 flex-1 flex-col">
       <MarkRead
         conversationId={conversation.id}
         lastMessageAt={messages.length ? messages[messages.length - 1].created_at : null}
       />
       {/* Thread header */}
-      <header className="flex h-14 items-center gap-3 border-b border-slate-200 bg-white px-4">
+      <header className="flex h-14 items-center gap-2 border-b border-slate-200 bg-white px-3 sm:gap-3 sm:px-4">
         <Link
           href="/inbox"
           className="-ml-1 flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 lg:hidden"
