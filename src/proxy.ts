@@ -13,8 +13,9 @@ export const config = {
      * - Next.js internals (_next/static, _next/image)
      * - favicon and common static assets
      * - /api/webhooks/* (Meta must reach these without an auth cookie)
+     * - /api/cron/* (Vercel Cron calls these with a CRON_SECRET, no auth cookie)
      * - PWA files (manifest + service worker must load before login)
      */
-    "/((?!_next/static|_next/image|favicon.ico|api/webhooks|manifest.webmanifest|sw.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/webhooks|api/cron|manifest.webmanifest|sw.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };
