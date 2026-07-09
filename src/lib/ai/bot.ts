@@ -182,7 +182,7 @@ export async function runBotReply(trigger: BotTrigger): Promise<void> {
 
     const { data: history, error: histErr } = await supabase
       .from("messages")
-      .select("wa_message_id, direction, type, body")
+      .select("wa_message_id, direction, type, body, created_at")
       .eq("conversation_id", trigger.conversationId)
       .order("created_at", { ascending: false })
       .limit(HISTORY_LIMIT);
@@ -194,6 +194,16 @@ export async function runBotReply(trigger: BotTrigger): Promise<void> {
     // Only the run triggered by the newest message replies; older runs yield.
     // Also covers staff/bot having already replied (newest would be outbound).
     if (history[0].wa_message_id !== trigger.waMessageId) return;
+
+    // Auto-stop on spam: a flood of messages or keyboard-mash gibberish from
+    // outside. Flips the bot off for this thread so it stops replying (and
+    // burning API calls); staff re-enable from the toolbar if it was a real
+    // patient. Runs before the Claude call so junk never triggers a reply.
+    const spam = detectSpam(history);
+    if (spam) {
+      await flagSpam(supabase, trigger.conversationId, spam);
+      return;
+    }
 
     const messages = toClaudeMessages(history.slice().reverse());
     if (messages.length === 0) return;
@@ -432,6 +442,62 @@ async function alertStaff(
     .from("conversations")
     .update({ bot_enabled: false, status: "open" })
     .eq("id", conversationId);
+}
+
+/**
+ * One keyboard-mash / gibberish message, e.g. "Cdbsbsj", "Dhdghdgdjdrhdf".
+ * Heuristic: a short, punctuation-free, number-free blob of ≤3 words whose
+ * letters are almost all consonants. Malay/English is vowel-rich, so real short
+ * replies ("Salam", "Ok", "Assalamualaikum", "Baik") stay well clear.
+ */
+function isJunk(body: string | null): boolean {
+  const t = (body ?? "").trim();
+  if (t.length < 5) return false; // too short to judge
+  if (/\d/.test(t) || /[?!]/.test(t)) return false; // numbers/questions = real intent
+  if (t.split(/\s+/).length > 3) return false; // a real phrase/sentence
+  const letters = t.replace(/[^a-z]/gi, "");
+  if (letters.length < 5) return false;
+  const vowels = (letters.match(/[aeiou]/gi) ?? []).length;
+  return vowels / letters.length < 0.25; // almost no vowels = mash
+}
+
+/**
+ * Is this conversation being spammed from outside? Trips on a rapid flood of
+ * inbound messages, or several recent gibberish messages. Conservative on
+ * purpose (needs a clear pattern) so genuine patients are never auto-silenced.
+ */
+function detectSpam(
+  rows: { direction: string; body: string | null; created_at: string }[],
+): "flood" | "gibberish" | null {
+  const inbound = rows.filter((r) => r.direction === "inbound");
+  const now = Date.now();
+  const recent = inbound.filter(
+    (r) => now - new Date(r.created_at).getTime() < 5 * 60_000,
+  );
+  if (recent.length >= 10) return "flood";
+  const junk = inbound.slice(0, 6).filter((r) => isJunk(r.body)).length;
+  if (junk >= 3) return "gibberish";
+  return null;
+}
+
+/** Auto-pause the bot on a spammy thread: note + `spam` tag + bot_enabled off. */
+async function flagSpam(
+  supabase: Admin,
+  conversationId: string,
+  kind: string,
+): Promise<void> {
+  await supabase.from("notes").insert({
+    conversation_id: conversationId,
+    author_id: null,
+    mentions: [],
+    body: `🚫 AI auto-paused — spam/junk messages detected (${kind}). If this is a real patient, turn the AI back on from the toolbar.`,
+  });
+  await addTag(supabase, conversationId, "spam", "#64748b");
+  await supabase
+    .from("conversations")
+    .update({ bot_enabled: false })
+    .eq("id", conversationId);
+  console.log(`[bot] spam auto-pause (${kind}) for ${conversationId}`);
 }
 
 async function addTag(
