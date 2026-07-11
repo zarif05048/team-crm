@@ -27,6 +27,12 @@ function classify(displayName: string | null | undefined): {
   };
 }
 
+/** Short line label ("Marketing" / "Dungun" / "Paka" / raw name) — used by the
+ *  inbox line filter so its chips match the badges on each conversation. */
+export function lineLabel(displayName: string | null | undefined): string {
+  return classify(displayName).label;
+}
+
 export function LineBadge({
   displayName,
   className,
