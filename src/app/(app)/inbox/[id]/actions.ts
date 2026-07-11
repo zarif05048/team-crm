@@ -363,6 +363,53 @@ export async function setBotEnabled(
 }
 
 /**
+ * "With staff": a team member is personally handling this conversation. Flags it
+ * with a "with staff" tag AND turns the AI bot off. While that tag is set the bot
+ * will NOT auto-resume (see the auto-resume logic in bot.ts / the sender bots).
+ * Turning it off removes the tag and hands the chat back to the bot.
+ */
+export async function setWithStaff(
+  conversationId: string,
+  on: boolean,
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const admin = createAdminClient();
+  const { data: tag } = await admin
+    .from("tags")
+    .upsert({ name: "with staff", color: "#6366f1" }, { onConflict: "name" })
+    .select("id")
+    .single();
+
+  if (on) {
+    if (tag)
+      await admin
+        .from("conversation_tags")
+        .upsert({ conversation_id: conversationId, tag_id: tag.id });
+    await admin
+      .from("conversations")
+      .update({ bot_enabled: false })
+      .eq("id", conversationId);
+  } else {
+    if (tag)
+      await admin
+        .from("conversation_tags")
+        .delete()
+        .eq("conversation_id", conversationId)
+        .eq("tag_id", tag.id);
+    await admin
+      .from("conversations")
+      .update({ bot_enabled: true })
+      .eq("id", conversationId);
+  }
+  return { ok: true };
+}
+
+/**
  * Add a tag (by name) to a conversation, creating the tag if needed.
  * Tag creation is admin-only under RLS, so we use the service-role client here
  * after confirming the caller is signed in.

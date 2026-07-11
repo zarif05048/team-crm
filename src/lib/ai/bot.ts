@@ -80,6 +80,27 @@ export interface BotTrigger {
 const BATCH_DELAY_MS = 2500;
 const HISTORY_LIMIT = 30;
 const MAX_TOOL_ROUNDS = 4;
+/** How long a bot-off thread must stay quiet before the bot auto-resumes. */
+const REENABLE_AFTER_MS =
+  (Number(process.env.BOT_REENABLE_HOURS) || 3) * 3_600_000;
+
+/** Tag names on a conversation from the embedded conversation_tags(tag:tags(name)).
+ *  The nested `tag` join can come back as an object or a single-element array. */
+function tagNamesOf(conv: {
+  conversation_tags?:
+    | { tag: { name: string | null } | { name: string | null }[] | null }[]
+    | null;
+}): string[] {
+  const out: string[] = [];
+  for (const row of conv.conversation_tags ?? []) {
+    const t = row.tag;
+    if (!t) continue;
+    for (const it of Array.isArray(t) ? t : [t]) {
+      if (it?.name) out.push(it.name.toLowerCase());
+    }
+  }
+  return out;
+}
 
 const TOOLS: Anthropic.Tool[] = [
   {
@@ -170,7 +191,8 @@ export async function runBotReply(trigger: BotTrigger): Promise<void> {
       .select(
         `id, bot_enabled,
          contact:contacts(wa_id, name, profile_name),
-         whatsapp_number:whatsapp_numbers(phone_number_id)`,
+         whatsapp_number:whatsapp_numbers(phone_number_id),
+         conversation_tags(tag:tags(name))`,
       )
       .eq("id", trigger.conversationId)
       .maybeSingle();
@@ -178,7 +200,6 @@ export async function runBotReply(trigger: BotTrigger): Promise<void> {
       console.error("[bot] load conversation failed:", convErr?.message);
       return;
     }
-    if (conv.bot_enabled === false) return; // staff own this thread
 
     const { data: history, error: histErr } = await supabase
       .from("messages")
@@ -194,6 +215,33 @@ export async function runBotReply(trigger: BotTrigger): Promise<void> {
     // Only the run triggered by the newest message replies; older runs yield.
     // Also covers staff/bot having already replied (newest would be outbound).
     if (history[0].wa_message_id !== trigger.waMessageId) return;
+
+    // Bot is off (handed to staff / manual pause / spam). Decide whether to
+    // auto-resume: stay off if staff claimed the chat ("with staff") or it's
+    // spam; otherwise resume once the thread has been quiet for a while, so a
+    // patient messaging again after staff went silent isn't left unanswered.
+    if (conv.bot_enabled === false) {
+      const tags = tagNamesOf(conv);
+      if (tags.includes("with staff") || tags.includes("spam")) return;
+      const prev = history[1]; // history[0] is this newest inbound (the trigger)
+      const gapMs = prev
+        ? Date.parse(history[0].created_at) - Date.parse(prev.created_at)
+        : Infinity;
+      if (gapMs < REENABLE_AFTER_MS) return; // staff were recently active — stay off
+      await supabase
+        .from("conversations")
+        .update({ bot_enabled: true })
+        .eq("id", trigger.conversationId);
+      await supabase.from("notes").insert({
+        conversation_id: trigger.conversationId,
+        author_id: null,
+        mentions: [],
+        body: "🔄 AI auto-resumed — this chat went quiet and isn't marked 'with staff'.",
+      });
+      console.log(
+        `[bot] auto-resumed ${trigger.conversationId} (quiet ${Math.round(gapMs / 3_600_000)}h)`,
+      );
+    }
 
     // Auto-stop on spam: a flood of messages or keyboard-mash gibberish from
     // outside. Flips the bot off for this thread so it stops replying (and

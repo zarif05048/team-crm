@@ -8,6 +8,7 @@ import {
   RotateCcw,
   KanbanSquare,
   Bot,
+  Headset,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { STAGE_ORDER, STAGE_LABELS, type LeadStage } from "@/lib/types";
@@ -16,6 +17,7 @@ import {
   setConversationStatus,
   setStage,
   setBotEnabled,
+  setWithStaff,
 } from "@/app/(app)/inbox/[id]/actions";
 
 interface Member {
@@ -30,6 +32,7 @@ export function ThreadToolbar({
   status,
   stage,
   botEnabled,
+  withStaff,
   members,
 }: {
   conversationId: string;
@@ -37,6 +40,7 @@ export function ThreadToolbar({
   status: "open" | "closed";
   stage: LeadStage;
   botEnabled: boolean;
+  withStaff: boolean;
   members: Member[];
 }) {
   const router = useRouter();
@@ -69,6 +73,13 @@ export function ThreadToolbar({
   const toggleBot = () => {
     start(async () => {
       await setBotEnabled(conversationId, !botEnabled);
+      router.refresh();
+    });
+  };
+
+  const toggleWithStaff = () => {
+    start(async () => {
+      await setWithStaff(conversationId, !withStaff);
       router.refresh();
     });
   };
@@ -121,6 +132,25 @@ export function ThreadToolbar({
       >
         <Bot className="h-4 w-4" />
         {botEnabled ? "AI on" : "AI off"}
+      </button>
+
+      <button
+        type="button"
+        onClick={toggleWithStaff}
+        disabled={pending}
+        title={
+          withStaff
+            ? "Staff are handling this chat — the bot stays off and won't auto-resume. Click to hand it back to the bot."
+            : "Mark that staff are handling this chat: turns the bot off and keeps it off (no auto-resume) until you release it."
+        }
+        className={
+          withStaff
+            ? "flex h-8 items-center gap-1.5 rounded-lg bg-indigo-600 px-2.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            : "flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-500 hover:bg-slate-100 disabled:opacity-50"
+        }
+      >
+        <Headset className="h-4 w-4" />
+        With staff
       </button>
 
       <div className="ml-auto flex items-center gap-2">

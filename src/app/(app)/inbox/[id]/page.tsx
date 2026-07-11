@@ -92,6 +92,9 @@ export default async function ThreadPage({
         status={conversation.status}
         stage={conversation.stage}
         botEnabled={conversation.bot_enabled ?? true}
+        withStaff={conversation.tags.some(
+          (t) => t.name.toLowerCase() === "with staff",
+        )}
         members={members}
       />
 
