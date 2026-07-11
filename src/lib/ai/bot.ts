@@ -201,6 +201,11 @@ export async function runBotReply(trigger: BotTrigger): Promise<void> {
       return;
     }
 
+    // Internal staff chat ("staff" tag = the contact IS a clinic staff member):
+    // the bot never replies here, even if the AI toggle is accidentally on.
+    const convTags = tagNamesOf(conv);
+    if (convTags.includes("staff") || convTags.includes("with staff")) return;
+
     const { data: history, error: histErr } = await supabase
       .from("messages")
       .select("wa_message_id, direction, type, body, created_at")
@@ -217,12 +222,12 @@ export async function runBotReply(trigger: BotTrigger): Promise<void> {
     if (history[0].wa_message_id !== trigger.waMessageId) return;
 
     // Bot is off (handed to staff / manual pause / spam). Decide whether to
-    // auto-resume: stay off if staff claimed the chat ("with staff") or it's
-    // spam; otherwise resume once the thread has been quiet for a while, so a
+    // auto-resume: stay off if this is an internal staff chat ("staff" tag —
+    // the contact is a clinic staff member, never a bot conversation) or spam;
+    // otherwise resume once the thread has been quiet for a while, so a
     // patient messaging again after staff went silent isn't left unanswered.
     if (conv.bot_enabled === false) {
-      const tags = tagNamesOf(conv);
-      if (tags.includes("with staff") || tags.includes("spam")) return;
+      if (convTags.includes("spam")) return; // staff tags already returned above
       const prev = history[1]; // history[0] is this newest inbound (the trigger)
       const gapMs = prev
         ? Date.parse(history[0].created_at) - Date.parse(prev.created_at)
@@ -236,7 +241,7 @@ export async function runBotReply(trigger: BotTrigger): Promise<void> {
         conversation_id: trigger.conversationId,
         author_id: null,
         mentions: [],
-        body: "🔄 AI auto-resumed — this chat went quiet and isn't marked 'with staff'.",
+        body: "🔄 AI auto-resumed — this chat went quiet and isn't tagged 'staff'. Tag the conversation as Staff (toolbar) if the bot should stay off here.",
       });
       console.log(
         `[bot] auto-resumed ${trigger.conversationId} (quiet ${Math.round(gapMs / 3_600_000)}h)`,

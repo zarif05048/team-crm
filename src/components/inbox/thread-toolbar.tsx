@@ -17,7 +17,7 @@ import {
   setConversationStatus,
   setStage,
   setBotEnabled,
-  setWithStaff,
+  setStaffChat,
 } from "@/app/(app)/inbox/[id]/actions";
 
 interface Member {
@@ -32,7 +32,7 @@ export function ThreadToolbar({
   status,
   stage,
   botEnabled,
-  withStaff,
+  isStaffChat,
   members,
 }: {
   conversationId: string;
@@ -40,7 +40,7 @@ export function ThreadToolbar({
   status: "open" | "closed";
   stage: LeadStage;
   botEnabled: boolean;
-  withStaff: boolean;
+  isStaffChat: boolean;
   members: Member[];
 }) {
   const router = useRouter();
@@ -77,9 +77,9 @@ export function ThreadToolbar({
     });
   };
 
-  const toggleWithStaff = () => {
+  const toggleStaffChat = () => {
     start(async () => {
-      await setWithStaff(conversationId, !withStaff);
+      await setStaffChat(conversationId, !isStaffChat);
       router.refresh();
     });
   };
@@ -136,21 +136,21 @@ export function ThreadToolbar({
 
       <button
         type="button"
-        onClick={toggleWithStaff}
+        onClick={toggleStaffChat}
         disabled={pending}
         title={
-          withStaff
-            ? "Staff are handling this chat — the bot stays off and won't auto-resume. Click to hand it back to the bot."
-            : "Mark that staff are handling this chat: turns the bot off and keeps it off (no auto-resume) until you release it."
+          isStaffChat
+            ? "This contact is marked as clinic STAFF (internal chat) — the AI bot never replies here. Click to unmark."
+            : "Mark this contact as clinic STAFF (internal chat): the AI bot will never reply or auto-resume in this conversation."
         }
         className={
-          withStaff
+          isStaffChat
             ? "flex h-8 items-center gap-1.5 rounded-lg bg-indigo-600 px-2.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
             : "flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-500 hover:bg-slate-100 disabled:opacity-50"
         }
       >
         <Headset className="h-4 w-4" />
-        With staff
+        Staff
       </button>
 
       <div className="ml-auto flex items-center gap-2">

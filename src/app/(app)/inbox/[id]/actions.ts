@@ -363,12 +363,13 @@ export async function setBotEnabled(
 }
 
 /**
- * "With staff": a team member is personally handling this conversation. Flags it
- * with a "with staff" tag AND turns the AI bot off. While that tag is set the bot
- * will NOT auto-resume (see the auto-resume logic in bot.ts / the sender bots).
- * Turning it off removes the tag and hands the chat back to the bot.
+ * "Staff": this contact IS a clinic staff member — the chat is internal (staff
+ * messaging the clinic line), not a patient conversation. Tags it "staff" and
+ * turns the AI bot off PERMANENTLY: while the tag is set the bot never replies
+ * and never auto-resumes (see the auto-resume logic in bot.ts / the sender
+ * bots). Untagging hands the chat back to the bot.
  */
-export async function setWithStaff(
+export async function setStaffChat(
   conversationId: string,
   on: boolean,
 ): Promise<ActionState> {
@@ -381,7 +382,7 @@ export async function setWithStaff(
   const admin = createAdminClient();
   const { data: tag } = await admin
     .from("tags")
-    .upsert({ name: "with staff", color: "#6366f1" }, { onConflict: "name" })
+    .upsert({ name: "staff", color: "#6366f1" }, { onConflict: "name" })
     .select("id")
     .single();
 
