@@ -67,22 +67,20 @@ export function InboxShell({
         </header>
 
         {lines.length > 1 && (
-          <div className="flex gap-1.5 overflow-x-auto border-b border-slate-200 px-3 py-2">
-            <FilterChip
-              label="All"
-              count={conversations.length}
-              active={activeLine === "all"}
-              onClick={() => setLine("all")}
-            />
-            {lines.map((l) => (
-              <FilterChip
-                key={l.id}
-                label={l.label}
-                count={l.count}
-                active={activeLine === l.id}
-                onClick={() => setLine(l.id)}
-              />
-            ))}
+          <div className="border-b border-slate-200 px-3 py-2">
+            <select
+              value={activeLine}
+              onChange={(e) => setLine(e.target.value)}
+              aria-label="Filter by WhatsApp line"
+              className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            >
+              <option value="all">All lines ({conversations.length})</option>
+              {lines.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.label} ({l.count})
+                </option>
+              ))}
+            </select>
           </div>
         )}
 
@@ -95,40 +93,5 @@ export function InboxShell({
         {children}
       </div>
     </div>
-  );
-}
-
-function FilterChip({
-  label,
-  count,
-  active,
-  onClick,
-}: {
-  label: string;
-  count: number;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
-        active
-          ? "bg-brand-600 text-white"
-          : "bg-slate-100 text-slate-600 hover:bg-slate-200",
-      )}
-    >
-      {label}
-      <span
-        className={cn(
-          "rounded-full px-1.5 text-[10px] font-semibold",
-          active ? "bg-white/25 text-white" : "bg-white text-slate-500",
-        )}
-      >
-        {count}
-      </span>
-    </button>
   );
 }
