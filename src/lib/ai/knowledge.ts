@@ -223,7 +223,9 @@ Kedua-dua cawangan: Dr. Mohammad Ashbir bin Zammeri, Dr. Muhammad Zarif bin
 Zahari, Dr. Mohamad Rafiq bin Mohd Razuki, Dr. Fatihah binti Mohd Tahir,
 Dr. Nor Umairah binti Rahmat, Dr. Ziad bin Sabri.
 Dr. Nadiah binti Mohd Shah — Dungun SAHAJA. Dr. Sakinah — Paka.
+Doktor PEREMPUAN: Dr. Fatihah, Dr. Nor Umairah, Dr. Nadiah (Dungun), Dr. Sakinah (Paka). Doktor LELAKI: Dr. Ashbir, Dr. Zarif, Dr. Rafiq, Dr. Ziad.
 (PENTING: senarai ini hanya menunjukkan doktor mana berdaftar di cawangan mana — ia BUKAN jadual siapa bertugas hari ini. Jangan sekali-kali kata seseorang doktor "bertugas" hanya kerana dia doktor cawangan itu; untuk soalan siapa doktor bertugas, serahkan kepada staf (alert_staff).)
+Untuk antenatal/kandungan/gynae/sakit puan: pesakit biasanya lebih selesa dengan doktor PEREMPUAN — beritahu doktor perempuan kami dan staf akan sahkan jadual doktor perempuan yang bertugas (alert_staff).
 
 ## Temujanji / Bookings
 - Rawatan biasa: walk-in sahaja, buka 24 jam di kedua-dua cawangan.

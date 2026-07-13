@@ -82,7 +82,7 @@ const HISTORY_LIMIT = 30;
 const MAX_TOOL_ROUNDS = 4;
 /** How long a bot-off thread must stay quiet before the bot auto-resumes. */
 const REENABLE_AFTER_MS =
-  (Number(process.env.BOT_REENABLE_HOURS) || 3) * 3_600_000;
+  (Number(process.env.BOT_REENABLE_HOURS) || 1) * 3_600_000;
 
 /** Tag names on a conversation from the embedded conversation_tags(tag:tags(name)).
  *  The nested `tag` join can come back as an object or a single-element array. */
