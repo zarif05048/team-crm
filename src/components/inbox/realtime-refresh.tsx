@@ -12,13 +12,19 @@ import { createClient } from "@/lib/supabase/client";
  * We attach the user's access token to the realtime socket BEFORE subscribing;
  * otherwise the socket connects anonymously and RLS blocks the change events.
  *
- * Realtime can occasionally miss an event (socket drop, auth expiry, a table
- * not in the publication), so a message could land late. Two safety nets back
- * it up: a refresh every 60s, and an immediate refresh whenever the tab regains
- * focus (the moment staff look back at the inbox). The interval pauses while the
- * tab is hidden to avoid needless work.
+ * Battery/data care (staff use this on phones all day):
+ * - While the app is hidden (screen off, another app in front) we never
+ *   refresh — changes just mark the view dirty and ONE catch-up refresh runs
+ *   the moment the app comes back. Refreshing a hidden tab burns radio and
+ *   battery for pixels nobody sees.
+ * - Realtime can occasionally miss an event (socket drop, auth expiry), so a
+ *   polling safety net backs it up — but it stays slow (every 5 min) while the
+ *   realtime channel is healthy, and only speeds up to every 60s when the
+ *   channel is down. The focus-refresh covers the common case anyway.
  */
-const POLL_MS = 60_000;
+const TICK_MS = 60_000; // how often the safety net wakes up to decide
+const DOWN_POLL_MS = 60_000; // refresh cadence while realtime is broken
+const HEALTHY_POLL_MS = 300_000; // refresh cadence while realtime is live
 
 export function RealtimeRefresh() {
   const router = useRouter();
@@ -29,18 +35,34 @@ export function RealtimeRefresh() {
     let pending: ReturnType<typeof setTimeout> | null = null;
     let poll: ReturnType<typeof setInterval> | null = null;
     let cancelled = false;
+    let connected = false; // realtime channel healthy?
+    let dirty = false; // change arrived while hidden — catch up on return
+    let lastRefresh = Date.now();
 
-    // Coalesce bursts of changes into a single refresh.
+    const doRefresh = () => {
+      dirty = false;
+      lastRefresh = Date.now();
+      router.refresh();
+    };
+
+    // Coalesce bursts of changes into a single refresh; never refresh while
+    // hidden — just remember that we need to.
     const refresh = () => {
+      if (document.visibilityState === "hidden") {
+        dirty = true;
+        return;
+      }
       if (pending) clearTimeout(pending);
-      pending = setTimeout(() => router.refresh(), 250);
+      pending = setTimeout(doRefresh, 250);
     };
 
     const startPolling = () => {
       if (poll) return;
       poll = setInterval(() => {
-        if (document.visibilityState === "visible") router.refresh();
-      }, POLL_MS);
+        if (document.visibilityState !== "visible") return;
+        const cadence = connected ? HEALTHY_POLL_MS : DOWN_POLL_MS;
+        if (Date.now() - lastRefresh >= cadence) doRefresh();
+      }, TICK_MS);
     };
     const stopPolling = () => {
       if (poll) clearInterval(poll);
@@ -48,7 +70,9 @@ export function RealtimeRefresh() {
     };
     const onVisibility = () => {
       if (document.visibilityState === "visible") {
-        router.refresh(); // catch up immediately on return to the tab
+        // Catch up immediately on return — a change arrived while hidden, or
+        // we've been away long enough that realtime may have silently dropped.
+        if (dirty || Date.now() - lastRefresh >= DOWN_POLL_MS) doRefresh();
         startPolling();
       } else {
         stopPolling();
@@ -84,6 +108,7 @@ export function RealtimeRefresh() {
           refresh,
         )
         .subscribe((status) => {
+          connected = status === "SUBSCRIBED";
           // Visible in the browser console for debugging.
           console.log("[realtime] inbox channel:", status);
         });

@@ -8,7 +8,10 @@ import type {
 } from "@/lib/types";
 
 export interface ConversationRow extends Conversation {
-  contact: Contact;
+  // List views only need the display fields; getConversation returns the full
+  // contact (typed loosely here so both fit).
+  contact: Pick<Contact, "id" | "wa_id" | "name" | "profile_name"> &
+    Partial<Contact>;
   whatsapp_number: Pick<WhatsappNumber, "id" | "display_name" | "phone_display"> &
     Partial<Pick<WhatsappNumber, "phone_number_id">>; // selected by getConversation (bridged-thread detection)
   assignee: { id: string; full_name: string | null } | null;
@@ -37,7 +40,7 @@ export async function getConversations(): Promise<ConversationRow[]> {
     .from("conversations")
     .select(
       `*,
-       contact:contacts(*),
+       contact:contacts(id, wa_id, name, profile_name),
        whatsapp_number:whatsapp_numbers(id, display_name, phone_display),
        assignee:profiles!conversations_assigned_to_fkey(id, full_name),
        conversation_tags(tag:tags(*))`,
@@ -102,19 +105,27 @@ export async function getConversations(): Promise<ConversationRow[]> {
   );
 }
 
-/** Full message history for one conversation, oldest first. */
+/**
+ * Message history for one conversation, oldest first. Capped to the most
+ * recent 300 — long-running bot threads accumulate thousands of messages, and
+ * fetching + rendering all of them made opening a thread slow (especially on
+ * phones). 300 covers weeks of a busy chat; older history stays in the DB.
+ */
+const THREAD_MESSAGE_LIMIT = 300;
+
 export async function getMessages(conversationId: string): Promise<Message[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("messages")
     .select("*")
     .eq("conversation_id", conversationId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false })
+    .limit(THREAD_MESSAGE_LIMIT);
   if (error) {
     console.error("[data] getMessages:", error.message);
     return [];
   }
-  return data as Message[];
+  return (data as Message[]).reverse();
 }
 
 /** One conversation with contact + number, for the thread header. */
