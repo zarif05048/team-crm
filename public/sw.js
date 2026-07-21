@@ -45,3 +45,54 @@ self.addEventListener("fetch", (event) => {
     })(),
   );
 });
+
+// ---- Web Push: Windows/desktop pop-ups even when the CRM is closed ----------
+// The server (/api/push/notify) sends a JSON payload {title, body, url, tag,
+// kind}; we render it as an OS notification. requireInteraction keeps it on
+// screen until the user acts (so a busy clinic doesn't miss it), and clicking
+// it opens the exact conversation and dismisses the notification.
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { title: "Klinik Hijraa CRM", body: event.data ? event.data.text() : "" };
+  }
+  const title = data.title || "Klinik Hijraa CRM";
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: data.body || "",
+      tag: data.tag || undefined, // same tag replaces an earlier pop-up
+      renotify: !!data.tag, // ...but still buzz for the new one
+      requireInteraction: true, // stay until clicked/dismissed
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      data: { url: data.url || "/inbox" },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close(); // "disappear after click"
+  const target = (event.notification.data && event.notification.data.url) || "/inbox";
+  event.waitUntil(
+    (async () => {
+      const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      // Reuse an open CRM tab if there is one — navigate it to the conversation.
+      for (const client of all) {
+        if (client.url.includes(self.location.origin)) {
+          await client.focus();
+          if ("navigate" in client) {
+            try {
+              await client.navigate(target);
+            } catch {
+              /* cross-origin/navigation guard — fall through to openWindow */
+            }
+          }
+          return;
+        }
+      }
+      await self.clients.openWindow(target);
+    })(),
+  );
+});

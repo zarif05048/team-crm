@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/sidebar";
 import { AttentionAlerts } from "@/components/notifications/attention-alerts";
+import { PushSetup } from "@/components/notifications/push-setup";
 import type { Profile } from "@/lib/types";
 
 export default async function AppLayout({
@@ -31,6 +32,7 @@ export default async function AppLayout({
         {children}
       </main>
       <AttentionAlerts />
+      <PushSetup />
     </div>
   );
 }
