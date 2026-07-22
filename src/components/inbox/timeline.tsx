@@ -66,7 +66,7 @@ function MessageBubble({ m }: { m: Message }) {
           "max-w-[85%] rounded-2xl px-3 py-2 text-sm shadow-sm sm:max-w-[75%]",
           outbound
             ? fromBot
-              ? "rounded-br-sm bg-violet-600 text-white"
+              ? "rounded-br-sm bg-emerald-600 text-white"
               : "rounded-br-sm bg-brand-600 text-white"
             : "rounded-bl-sm bg-white text-slate-800",
         )}
@@ -85,7 +85,7 @@ function MessageBubble({ m }: { m: Message }) {
             "mt-1 flex items-center justify-end gap-1 text-right text-[10px]",
             outbound
               ? fromBot
-                ? "text-violet-200"
+                ? "text-emerald-100"
                 : "text-brand-100"
               : "text-slate-400",
           )}
@@ -103,7 +103,7 @@ function MessageBubble({ m }: { m: Message }) {
 /**
  * WhatsApp-style delivery ticks: ✓ sent, ✓✓ delivered, blue ✓✓ read.
  * Failed shows a red alert. Bubbles are colored, so "blue" reads as a bright
- * cyan that pops on both the brand-blue and violet (bot) backgrounds.
+ * cyan that pops on both the brand-blue and green (bot) backgrounds.
  */
 function Ticks({ status }: { status: string | null }) {
   if (status === "failed") {
