@@ -20,6 +20,33 @@ export interface ConversationRow extends Conversation {
   unread: number;
 }
 
+/**
+ * What the inbox list and the pipeline board actually render — deliberately
+ * narrower than ConversationRow.
+ *
+ * This shape is fetched 200 rows at a time on every refresh, so a field nobody
+ * displays costs real egress: `created_at`, `last_inbound_at` and `contact_id`
+ * were ~28 KB per refresh between them, for nothing. Add a field here only if
+ * a list view renders it.
+ */
+export interface ConversationListRow {
+  id: string;
+  whatsapp_number_id: string;
+  assigned_to: string | null;
+  status: Conversation["status"];
+  stage: Conversation["stage"];
+  bot_enabled: boolean;
+  last_message_at: string;
+  contact: Pick<Contact, "id" | "wa_id" | "name" | "profile_name">;
+  // Attached client-side from the numbers list, not joined per row — see
+  // getConversations.
+  whatsapp_number: Pick<WhatsappNumber, "id" | "display_name"> | null;
+  assignee: { id: string; full_name: string | null } | null;
+  last_message: Pick<Message, "body" | "direction" | "created_at"> | null;
+  tags: Tag[];
+  unread: number;
+}
+
 // Shape Supabase returns for the embedded conversation_tags(tags(...)) join.
 type TagJoin = { tag: Tag | null } | { tags: Tag | null };
 function flattenTags(rows: TagJoin[] | undefined): Tag[] {
@@ -33,9 +60,8 @@ function flattenTags(rows: TagJoin[] | undefined): Tag[] {
 // query runs on every realtime event for every open staff device — see the
 // egress note on getConversations.
 const LIST_COLUMNS =
-  "id, contact_id, whatsapp_number_id, assigned_to, status, stage, bot_enabled, " +
-  "last_message_at, last_inbound_at, last_message_body, last_message_direction, " +
-  "unread_count, created_at";
+  "id, whatsapp_number_id, assigned_to, status, stage, bot_enabled, " +
+  "last_message_at, last_message_body, last_message_direction, unread_count";
 
 /**
  * List conversations for the inbox, newest activity first, each with its
@@ -52,20 +78,25 @@ const LIST_COLUMNS =
  * whole select if a listed column is missing, so run it BEFORE deploying this —
  * an un-migrated database returns an empty inbox, not a degraded one.
  */
-export async function getConversations(): Promise<ConversationRow[]> {
+export async function getConversations(): Promise<ConversationListRow[]> {
   const supabase = await createClient();
 
-  const { data: convos, error } = await supabase
-    .from("conversations")
-    .select(
-      `${LIST_COLUMNS},
-       contact:contacts(id, wa_id, name, profile_name),
-       whatsapp_number:whatsapp_numbers(id, display_name, phone_display),
-       assignee:profiles!conversations_assigned_to_fkey(id, full_name),
-       conversation_tags(tag:tags(id, name, color))`,
-    )
-    .order("last_message_at", { ascending: false })
-    .limit(200);
+  // The clinic has a handful of WhatsApp lines shared across every thread, so
+  // joining the number onto all 200 rows sent the same three records back over
+  // and over (~24 KB a refresh). Fetch them once and attach below.
+  const [{ data: convos, error }, { data: numbers }] = await Promise.all([
+    supabase
+      .from("conversations")
+      .select(
+        `${LIST_COLUMNS},
+         contact:contacts(id, wa_id, name, profile_name),
+         assignee:profiles!conversations_assigned_to_fkey(id, full_name),
+         conversation_tags(tag:tags(id, name, color))`,
+      )
+      .order("last_message_at", { ascending: false })
+      .limit(200),
+    supabase.from("whatsapp_numbers").select("id, display_name"),
+  ]);
 
   if (error) {
     console.error("[data] getConversations:", error.message);
@@ -73,7 +104,11 @@ export async function getConversations(): Promise<ConversationRow[]> {
   }
   if (!convos?.length) return [];
 
-  type ListRow = ConversationRow & {
+  const numberById = new Map(
+    (numbers ?? []).map((n) => [n.id as string, n as Pick<WhatsappNumber, "id" | "display_name">]),
+  );
+
+  type ListRow = Omit<ConversationListRow, "whatsapp_number" | "last_message" | "tags" | "unread"> & {
     conversation_tags?: TagJoin[];
     last_message_body?: string | null;
     last_message_direction?: string | null;
@@ -82,6 +117,7 @@ export async function getConversations(): Promise<ConversationRow[]> {
 
   return (convos as unknown as ListRow[]).map((c) => ({
     ...c,
+    whatsapp_number: numberById.get(c.whatsapp_number_id) ?? null,
     // A thread with no messages yet has no preview.
     last_message:
       c.last_message_direction == null

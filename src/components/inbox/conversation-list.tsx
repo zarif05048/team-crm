@@ -5,12 +5,12 @@ import { usePathname } from "next/navigation";
 import { Avatar } from "@/components/ui/avatar";
 import { LineBadge } from "@/components/ui/line-badge";
 import { cn, formatTime } from "@/lib/utils";
-import type { ConversationRow } from "@/lib/data/conversations";
+import type { ConversationListRow } from "@/lib/data/conversations";
 
 export function ConversationList({
   conversations,
 }: {
-  conversations: ConversationRow[];
+  conversations: ConversationListRow[];
 }) {
   const pathname = usePathname();
 

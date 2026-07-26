@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ConversationList } from "@/components/inbox/conversation-list";
 import { lineLabel } from "@/components/ui/line-badge";
-import type { ConversationRow } from "@/lib/data/conversations";
+import type { ConversationListRow } from "@/lib/data/conversations";
 
 /**
  * Responsive master/detail shell.
@@ -21,7 +21,7 @@ export function InboxShell({
   conversations,
   children,
 }: {
-  conversations: ConversationRow[];
+  conversations: ConversationListRow[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();

@@ -12,7 +12,7 @@ import {
   STAGE_LABELS,
   type LeadStage,
 } from "@/lib/types";
-import type { ConversationRow } from "@/lib/data/conversations";
+import type { ConversationListRow } from "@/lib/data/conversations";
 
 const STAGE_ACCENT: Record<LeadStage, string> = {
   new: "border-t-sky-400",
@@ -25,7 +25,7 @@ const STAGE_ACCENT: Record<LeadStage, string> = {
 export function PipelineBoard({
   conversations,
 }: {
-  conversations: ConversationRow[];
+  conversations: ConversationListRow[];
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -95,7 +95,7 @@ export function PipelineBoard({
   );
 }
 
-function PipelineCard({ c }: { c: ConversationRow }) {
+function PipelineCard({ c }: { c: ConversationListRow }) {
   const name = c.contact.name ?? c.contact.profile_name ?? c.contact.wa_id;
   return (
     <Link
