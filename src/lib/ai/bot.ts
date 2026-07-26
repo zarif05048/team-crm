@@ -303,10 +303,9 @@ export async function runBotReply(trigger: BotTrigger): Promise<void> {
       sent_by_bot: true,
       created_at: now,
     });
-    await supabase
-      .from("conversations")
-      .update({ last_message_at: now })
-      .eq("id", trigger.conversationId);
+    // last_message_at + list preview follow from the insert (trigger
+    // messages_touch_conversation) — a second update here would double the
+    // realtime events the bot generates.
   } catch (err) {
     console.error("[bot] unexpected error:", err);
   }
@@ -430,10 +429,7 @@ async function executeTool(
         sent_by_bot: true,
         created_at: now,
       });
-      await supabase
-        .from("conversations")
-        .update({ last_message_at: now })
-        .eq("id", conversationId);
+      // conversation row is updated by messages_touch_conversation
       return "Leaflet image sent to the patient. Now send a short text follow-up.";
     }
     if (tool.name === "book_appointment") {

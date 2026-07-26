@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 /**
@@ -21,13 +21,33 @@ import { createClient } from "@/lib/supabase/client";
  *   polling safety net backs it up — but it stays slow (every 5 min) while the
  *   realtime channel is healthy, and only speeds up to every 60s when the
  *   channel is down. The focus-refresh covers the common case anyway.
+ *
+ * Egress care (free-tier Supabase quota):
+ * - `conversations` is subscribed unfiltered because any thread's new message
+ *   reorders the list — but the row is small, and the trigger that maintains
+ *   the preview columns makes it the ONE event per message.
+ * - `messages` and `notes` are subscribed ONLY for the thread currently open.
+ *   Realtime ships the whole row to every subscriber, so an unfiltered messages
+ *   subscription sent a copy of every message body to every staff device all
+ *   day. The list doesn't need them — the conversations event covers it.
  */
 const TICK_MS = 60_000; // how often the safety net wakes up to decide
 const DOWN_POLL_MS = 60_000; // refresh cadence while realtime is broken
 const HEALTHY_POLL_MS = 300_000; // refresh cadence while realtime is live
+// Bursts are the norm — an inbound message and the bot's reply land seconds
+// apart — so coalesce generously. Each refresh is a round of server queries.
+const COALESCE_MS = 2_000;
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function RealtimeRefresh() {
   const router = useRouter();
+  // The open thread, if we're on /inbox/<id>. Null on the inbox root and on
+  // the pipeline board, where no thread is rendered.
+  const pathname = usePathname();
+  const m = /^\/inbox\/([^/]+)/.exec(pathname ?? "");
+  const openThreadId = m && UUID_RE.test(m[1]) ? m[1] : null;
 
   useEffect(() => {
     const supabase = createClient();
@@ -53,7 +73,7 @@ export function RealtimeRefresh() {
         return;
       }
       if (pending) clearTimeout(pending);
-      pending = setTimeout(doRefresh, 250);
+      pending = setTimeout(doRefresh, COALESCE_MS);
     };
 
     const startPolling = () => {
@@ -90,28 +110,45 @@ export function RealtimeRefresh() {
         await supabase.realtime.setAuth(session.access_token);
       }
 
-      channel = supabase
-        .channel("inbox-realtime")
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "messages" },
-          refresh,
-        )
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "conversations" },
-          refresh,
-        )
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "notes" },
-          refresh,
-        )
-        .subscribe((status) => {
-          connected = status === "SUBSCRIBED";
-          // Visible in the browser console for debugging.
-          console.log("[realtime] inbox channel:", status);
-        });
+      channel = supabase.channel(
+        openThreadId ? `inbox-realtime:${openThreadId}` : "inbox-realtime",
+      );
+
+      channel.on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "conversations" },
+        refresh,
+      );
+
+      if (openThreadId) {
+        channel
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "messages",
+              filter: `conversation_id=eq.${openThreadId}`,
+            },
+            refresh,
+          )
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "notes",
+              filter: `conversation_id=eq.${openThreadId}`,
+            },
+            refresh,
+          );
+      }
+
+      channel.subscribe((status) => {
+        connected = status === "SUBSCRIBED";
+        // Visible in the browser console for debugging.
+        console.log("[realtime] inbox channel:", status);
+      });
     })();
 
     return () => {
@@ -121,7 +158,9 @@ export function RealtimeRefresh() {
       document.removeEventListener("visibilitychange", onVisibility);
       if (channel) supabase.removeChannel(channel);
     };
-  }, [router]);
+    // Re-subscribing on thread change is deliberate: the messages/notes filters
+    // are bound to the thread that's open.
+  }, [router, openThreadId]);
 
   return null;
 }

@@ -49,6 +49,12 @@ export interface Conversation {
   bot_enabled: boolean;
   last_message_at: string;
   last_inbound_at: string | null;
+  // Denormalised from the newest message by the messages_touch_conversation
+  // trigger so the inbox list doesn't have to read the messages table.
+  // Read-only from the app's side — never write these.
+  last_message_body: string | null;
+  last_message_direction: MessageDirection | null;
+  unread_count: number;
   created_at: string;
 }
 

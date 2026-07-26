@@ -73,11 +73,10 @@ async function ingestValue(
       triggers.push({ conversationId, waMessageId: msg.id });
     }
 
-    // Bump conversation timestamps (last_inbound_at drives the 24h window).
-    await supabase
-      .from("conversations")
-      .update({ last_message_at: createdAt, last_inbound_at: createdAt })
-      .eq("id", conversationId);
+    // last_message_at / last_inbound_at (the 24h window) and the list preview
+    // are set by the messages_touch_conversation trigger on the insert above.
+    // Don't update the conversation here — it only fires a second realtime
+    // event, and every event refreshes every open staff device.
   }
 
   // 3) Delivery-status updates for our outbound messages

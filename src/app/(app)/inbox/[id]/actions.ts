@@ -80,10 +80,9 @@ async function recordOutbound(
     sent_by: userId,
     created_at: now,
   });
-  await supabase
-    .from("conversations")
-    .update({ last_message_at: now })
-    .eq("id", conversationId);
+  // last_message_at + the list preview follow from the insert (trigger
+  // messages_touch_conversation) — updating them here would only fire a second
+  // realtime event, and every event refreshes every open staff device.
 
   // A manual staff reply means staff own this thread — pause the AI bot so it
   // doesn't talk over them. Re-enable any time from the thread toolbar.
@@ -197,9 +196,11 @@ async function sendViaBridge(
     };
   }
 
+  // last_message_at comes from the message insert (trigger); this update is
+  // only here to hand the thread to staff.
   await admin
     .from("conversations")
-    .update({ last_message_at: now, bot_enabled: false })
+    .update({ bot_enabled: false })
     .eq("id", conversationId);
 
   return { ok: true };

@@ -29,9 +29,28 @@ function flattenTags(rows: TagJoin[] | undefined): Tag[] {
     .filter((t): t is Tag => !!t);
 }
 
+// Columns the list actually renders. Spelled out rather than `*` because this
+// query runs on every realtime event for every open staff device — see the
+// egress note on getConversations.
+const LIST_COLUMNS =
+  "id, contact_id, whatsapp_number_id, assigned_to, status, stage, bot_enabled, " +
+  "last_message_at, last_inbound_at, last_message_body, last_message_direction, " +
+  "unread_count, created_at";
+
 /**
  * List conversations for the inbox, newest activity first, each with its
  * latest message preview. Scoped by RLS to authenticated team members.
+ *
+ * Egress-sensitive. Every realtime change refreshes this route on every open
+ * staff device, so this query's size is multiplied by (events x devices) and
+ * used to dominate the project's Supabase egress. It used to pull the newest
+ * 1,500 `messages` rows to derive each row's preview and unread badge; those
+ * now live on the conversation itself, maintained by the
+ * `messages_touch_conversation` trigger. Keep this to one small query.
+ *
+ * REQUIRES migration 2026-07-26_conversation_preview.sql. PostgREST rejects the
+ * whole select if a listed column is missing, so run it BEFORE deploying this —
+ * an un-migrated database returns an empty inbox, not a degraded one.
  */
 export async function getConversations(): Promise<ConversationRow[]> {
   const supabase = await createClient();
@@ -39,11 +58,11 @@ export async function getConversations(): Promise<ConversationRow[]> {
   const { data: convos, error } = await supabase
     .from("conversations")
     .select(
-      `*,
+      `${LIST_COLUMNS},
        contact:contacts(id, wa_id, name, profile_name),
        whatsapp_number:whatsapp_numbers(id, display_name, phone_display),
        assignee:profiles!conversations_assigned_to_fkey(id, full_name),
-       conversation_tags(tag:tags(*))`,
+       conversation_tags(tag:tags(id, name, color))`,
     )
     .order("last_message_at", { ascending: false })
     .limit(200);
@@ -54,55 +73,27 @@ export async function getConversations(): Promise<ConversationRow[]> {
   }
   if (!convos?.length) return [];
 
-  // Fetch the most recent message per conversation in one query, map in JS.
-  // Capped: the listed conversations are the 200 most recently active, so
-  // their previews live in the newest slice of messages — without the cap
-  // this query grows unbounded with total message history.
-  const ids = convos.map((c) => c.id);
-  const { data: msgs } = await supabase
-    .from("messages")
-    .select("conversation_id, body, direction, created_at")
-    .in("conversation_id", ids)
-    .order("created_at", { ascending: false })
-    .limit(1500);
+  type ListRow = ConversationRow & {
+    conversation_tags?: TagJoin[];
+    last_message_body?: string | null;
+    last_message_direction?: string | null;
+    unread_count?: number | null;
+  };
 
-  const lastByConvo = new Map<string, Pick<Message, "body" | "direction" | "created_at">>();
-  for (const m of msgs ?? []) {
-    if (!lastByConvo.has(m.conversation_id)) {
-      lastByConvo.set(m.conversation_id, {
-        body: m.body,
-        direction: m.direction,
-        created_at: m.created_at,
-      });
-    }
-  }
-
-  // Unread = inbound messages newer than when staff last opened the thread
-  // (last_read_at; null = never opened -> everything counts). Counted from the
-  // preview slice above, capped for display. Pre-migration (column missing)
-  // last_read_at is undefined -> treat as read so nothing misleads.
-  const readAt = new Map<string, number>();
-  for (const c of convos as unknown as { id: string; last_read_at?: string | null }[]) {
-    if ("last_read_at" in c) readAt.set(c.id, c.last_read_at ? Date.parse(c.last_read_at) : 0);
-  }
-  const unreadByConvo = new Map<string, number>();
-  for (const m of msgs ?? []) {
-    if (m.direction !== "inbound") continue;
-    const seen = readAt.get(m.conversation_id);
-    if (seen === undefined) continue; // column not migrated yet
-    if (Date.parse(m.created_at) > seen) {
-      unreadByConvo.set(m.conversation_id, Math.min((unreadByConvo.get(m.conversation_id) ?? 0) + 1, 99));
-    }
-  }
-
-  return (convos as unknown as (ConversationRow & { conversation_tags?: TagJoin[] })[]).map(
-    (c) => ({
-      ...c,
-      last_message: lastByConvo.get(c.id) ?? null,
-      tags: flattenTags(c.conversation_tags),
-      unread: unreadByConvo.get(c.id) ?? 0,
-    }),
-  );
+  return (convos as unknown as ListRow[]).map((c) => ({
+    ...c,
+    // A thread with no messages yet has no preview.
+    last_message:
+      c.last_message_direction == null
+        ? null
+        : {
+            body: c.last_message_body ?? "",
+            direction: c.last_message_direction as Message["direction"],
+            created_at: c.last_message_at,
+          },
+    tags: flattenTags(c.conversation_tags),
+    unread: c.unread_count ?? 0,
+  }));
 }
 
 /**
@@ -113,11 +104,17 @@ export async function getConversations(): Promise<ConversationRow[]> {
  */
 const THREAD_MESSAGE_LIMIT = 300;
 
+// Everything the timeline renders. `wa_message_id` and `sent_by` are omitted —
+// nothing displays them, and 300 Meta message ids is pure wire weight on a
+// query that re-runs on every refresh.
+const THREAD_COLUMNS =
+  "id, conversation_id, direction, type, body, media_url, status, sent_by_bot, created_at";
+
 export async function getMessages(conversationId: string): Promise<Message[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("messages")
-    .select("*")
+    .select(THREAD_COLUMNS)
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: false })
     .limit(THREAD_MESSAGE_LIMIT);
