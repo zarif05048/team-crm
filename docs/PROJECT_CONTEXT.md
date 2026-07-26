@@ -85,10 +85,32 @@ All features built, tested live, deployed:
   ran in the default `iad1` (US East), making every page navigation cross the
   Pacific several times (~1s+ per conversation click). Don't remove this file.
 - Deploy: `vercel deploy --prod --yes --token=<VERCEL_TOKEN> --scope=zarif-teamcrm1`.
+- **`git push` to `master` also auto-deploys to production** (Vercel's GitHub
+  integration is connected — confirmed 2026-07-27). So a push is a deploy: if a
+  change needs a Supabase migration run first, run the migration BEFORE pushing,
+  not just before the manual deploy command.
 - **Set Vercel env vars via `scripts/set-vercel-env.mjs` (REST API), NOT the CLI** —
   piping values to `vercel env add` in PowerShell mangles them.
 - Secrets: `.env.local` (gitignored). See `.env.example` for the list. Same values
   live in Vercel env (production).
+
+## Supabase egress (free tier — 5 GB/month, shared across the org)
+
+`getConversations()` is the hottest query in the system: every realtime change
+refreshes the inbox route on every open staff device, so its size is multiplied
+by (events x devices). Treat it as egress-sensitive.
+
+- Preview line and unread badge come from denormalised columns on
+  `conversations` (`last_message_body`, `last_message_direction`,
+  `unread_count`), maintained by the `messages_touch_conversation` trigger.
+  That trigger is the ONLY writer of `last_message_at` / `last_inbound_at` —
+  don't update them from the app, it just doubles the realtime events.
+- `ConversationListRow` is deliberately narrower than `ConversationRow`. Add a
+  field to the list select only if a list view renders it.
+- `scripts/check-inbox-query.mjs` measures the live payload, old shape vs new.
+  It was 347 KB per refresh; it's 115 KB now (2026-07-27).
+- Realtime `messages`/`notes` subscriptions are filtered to the open thread —
+  Realtime ships whole rows to every subscriber.
 
 ## Known gotchas (already solved — don't re-hit them)
 
