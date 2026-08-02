@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { authorizeCron, logCronRun } from "@/lib/cron-auth";
 
 // Node runtime (service-role client) and never cached.
 export const runtime = "nodejs";
@@ -13,23 +14,22 @@ export const dynamic = "force-dynamic";
  * notes are deliberately KEPT — they're few and hold booking/handoff history.
  * Also prunes the transient bridge_outbox queue (sent/failed rows > 30 days).
  *
- * Runs via a Vercel Cron (see vercel.json). Vercel automatically attaches
- * `Authorization: Bearer <CRON_SECRET>` when the CRON_SECRET env var is set, so
- * the endpoint refuses anything without the matching secret — it must never be
- * publicly triggerable (it deletes data). Touching the DB daily also keeps the
- * project from hitting Supabase's ~1-week idle pause.
+ * Runs via a Vercel Cron (see vercel.json). Only the Vercel scheduler (which
+ * carries CRON_SECRET) and the signed-in clinic owner may start it — see
+ * `authorizeCron`. It must never be publicly triggerable: it deletes data.
+ * Every attempt, allowed or refused, is recorded in `cron_runs`. Touching the
+ * DB daily also keeps the project from hitting Supabase's ~1-week idle pause.
  */
 async function runCleanup(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    // Fail closed: without a secret this would be an open deletion endpoint.
-    return NextResponse.json(
-      { ok: false, error: "CRON_SECRET is not configured" },
-      { status: 503 },
-    );
-  }
-  if (request.headers.get("authorization") !== `Bearer ${secret}`) {
-    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  const auth = await authorizeCron(request);
+  if (!auth.ok) {
+    await logCronRun({
+      job: "cleanup",
+      triggeredBy: auth.triggeredBy,
+      allowed: false,
+      detail: { error: auth.error },
+    });
+    return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
   }
 
   const retentionDays = Number(process.env.MESSAGE_RETENTION_DAYS) || 365;
@@ -58,8 +58,20 @@ async function runCleanup(request: Request) {
     return NextResponse.json({ ok: false, stage: "bridge_outbox", error: outErr.message }, { status: 500 });
   }
 
+  await logCronRun({
+    job: "cleanup",
+    triggeredBy: auth.triggeredBy,
+    allowed: true,
+    detail: {
+      retentionDays,
+      messagesDeleted: messagesDeleted ?? 0,
+      outboxDeleted: outboxDeleted ?? 0,
+    },
+  });
+
   return NextResponse.json({
     ok: true,
+    triggeredBy: auth.triggeredBy,
     retentionDays,
     messageCutoff: msgCutoff,
     messagesDeleted: messagesDeleted ?? 0,

@@ -305,6 +305,28 @@ create policy "tags read"  on public.tags for select to authenticated using (tru
 create policy "tags admin" on public.tags for all    to authenticated using (public.is_admin()) with check (public.is_admin());
 
 -- ============================================================================
+--  cron_runs : who started a scheduled job, and when
+-- ============================================================================
+-- Scheduled jobs act on live patient data (cleanup DELETES old messages), so
+-- only the Vercel scheduler and the clinic owner may start one — enforced in
+-- src/lib/cron-auth.ts. Every attempt, allowed or refused, is recorded here.
+-- Full rationale: supabase/migrations/2026-08-03_cron_runs.sql
+create table if not exists public.cron_runs (
+  id            uuid primary key default gen_random_uuid(),
+  job           text not null,
+  triggered_by  text not null,
+  allowed       boolean not null,
+  detail        jsonb,
+  created_at    timestamptz not null default now()
+);
+
+create index if not exists cron_runs_created_idx
+  on public.cron_runs (created_at desc);
+
+-- RLS on with no policies: service-role (server routes) only.
+alter table public.cron_runs enable row level security;
+
+-- ============================================================================
 --  Realtime : broadcast row changes so every agent's inbox updates live
 -- ============================================================================
 do $$
