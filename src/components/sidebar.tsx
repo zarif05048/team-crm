@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Inbox,
+  BarChart3,
   KanbanSquare,
   Users,
   Settings,
@@ -14,6 +15,7 @@ import type { Profile } from "@/lib/types";
 
 const nav = [
   { href: "/inbox", label: "Inbox", icon: Inbox, adminOnly: false },
+  { href: "/analytics", label: "Analytics", icon: BarChart3, adminOnly: false },
   { href: "/pipeline", label: "Pipeline", icon: KanbanSquare, adminOnly: false },
   { href: "/contacts", label: "Contacts", icon: Users, adminOnly: false },
   { href: "/settings", label: "Settings", icon: Settings, adminOnly: true },
