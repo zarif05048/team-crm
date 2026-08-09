@@ -1,4 +1,5 @@
 import { getWeightLossStats, type Bucket } from "@/lib/data/analytics";
+import { PeriodChart } from "@/components/analytics/period-chart";
 
 export const dynamic = "force-dynamic";
 
@@ -33,67 +34,6 @@ function SummaryCard({ bucket, lines }: { bucket: Bucket; lines: string[] }) {
   );
 }
 
-function PeriodTable({
-  title,
-  hint,
-  buckets,
-  lines,
-}: {
-  title: string;
-  hint: string;
-  buckets: Bucket[];
-  lines: string[];
-}) {
-  // Bar widths are relative to the busiest row in THIS table, so a quiet month
-  // still shows shape instead of a row of slivers.
-  const peak = Math.max(1, ...buckets.map((b) => b.total));
-  return (
-    <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <header className="flex items-baseline justify-between border-b border-slate-100 px-5 py-3">
-        <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-        <span className="text-xs text-slate-400">{hint}</span>
-      </header>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[30rem] text-sm">
-          <thead>
-            <tr className="text-left text-xs uppercase tracking-wide text-slate-400">
-              <th className="px-5 py-2 font-medium">Period</th>
-              {lines.map((line) => (
-                <th key={line} className="px-3 py-2 text-right font-medium">{line}</th>
-              ))}
-              <th className="px-3 py-2 text-right font-medium">Total</th>
-              <th className="w-32 px-5 py-2" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {buckets.map((b) => (
-              <tr key={b.key} className={b.total === 0 ? "text-slate-400" : "text-slate-700"}>
-                <td className="whitespace-nowrap px-5 py-2">{b.label}</td>
-                {lines.map((line) => (
-                  <td key={line} className="px-3 py-2 text-right tabular-nums">
-                    {b.byLine[line] ?? 0}
-                  </td>
-                ))}
-                <td className="px-3 py-2 text-right font-semibold tabular-nums text-slate-900">
-                  {b.total}
-                </td>
-                <td className="px-5 py-2">
-                  <div className="h-2 w-full rounded-full bg-slate-100">
-                    <div
-                      className="h-2 rounded-full bg-brand-500"
-                      style={{ width: `${(b.total / peak) * 100}%` }}
-                    />
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
-
 export default async function AnalyticsPage() {
   const stats = await getWeightLossStats();
   // Always show the two branches even before either has an enquiry, so the
@@ -116,9 +56,9 @@ export default async function AnalyticsPage() {
           <SummaryCard bucket={{ ...stats.thisMonth, label: "This month" }} lines={lines} />
         </div>
 
-        <PeriodTable title="Daily" hint="last 14 days" buckets={stats.daily} lines={lines} />
-        <PeriodTable title="Weekly" hint="last 8 weeks, Monday to Sunday" buckets={stats.weekly} lines={lines} />
-        <PeriodTable title="Monthly" hint="last 6 months" buckets={stats.monthly} lines={lines} />
+        <PeriodChart title="Daily" hint="last 14 days" buckets={stats.daily} lines={lines} />
+        <PeriodChart title="Weekly" hint="last 8 weeks, Mon-Sun" buckets={stats.weekly} lines={lines} />
+        <PeriodChart title="Monthly" hint="last 6 months" buckets={stats.monthly} lines={lines} />
 
         <p className="pb-2 text-xs leading-relaxed text-slate-400">
           Each figure counts <strong>distinct patients</strong>, not messages — asking five

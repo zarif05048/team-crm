@@ -25,9 +25,18 @@ export function formatTime(iso: string): string {
   return d.toLocaleDateString("en-US", { day: "2-digit", month: "short" });
 }
 
-/** Initials for an avatar bubble. */
+/**
+ * Initials for an avatar bubble.
+ *
+ * Indexed by CODE POINT, not by `str[0]`. Plenty of WhatsApp contacts put an
+ * emoji at the front of their name, and an emoji is two UTF-16 code units —
+ * `str[0]` returns half of one. A lone surrogate cannot be encoded as UTF-8, so
+ * the server wrote U+FFFD into the HTML while the browser kept the raw half,
+ * and React reported a hydration mismatch on every page showing an avatar.
+ */
 export function initials(name: string | null | undefined): string {
   if (!name) return "?";
+  const firstChar = (s: string | undefined) => (s ? Array.from(s)[0] ?? "" : "");
   const parts = name.trim().split(/\s+/);
-  return (parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "");
+  return firstChar(parts[0]) + firstChar(parts[1]);
 }
