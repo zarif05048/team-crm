@@ -111,6 +111,14 @@ by (events x devices). Treat it as egress-sensitive.
   It was 347 KB per refresh; it's 115 KB now (2026-07-27).
 - Realtime `messages`/`notes` subscriptions are filtered to the open thread —
   Realtime ships whole rows to every subscriber.
+- The open thread subscribes to `messages`/`notes` in ONE place —
+  `src/components/inbox/use-thread-realtime.ts` — and renders the new row
+  straight from the realtime payload, so a message appears without waiting for
+  `router.refresh()` to re-query the route. `RealtimeRefresh` keeps only the
+  `conversations` subscription and owns the refresh policy (visibility rule, 2s
+  coalescing, polling net); the hook books a reconciling refresh through its
+  exported `notifyInboxChange()`. Don't re-add a messages subscription in a
+  second component — Realtime ships whole rows to every subscriber.
 - In-conversation search (🔍 in the thread header / Ctrl+F,
   `src/components/inbox/thread-search.tsx`) matches **client-side** over the
   messages the thread already loaded (newest 300, `THREAD_MESSAGE_LIMIT`), so
@@ -121,6 +129,10 @@ by (events x devices). Treat it as egress-sensitive.
 - npm rejects a package dir named with a space → app lives in `crm/` subfolder.
 - Hydration mismatch on times (server "AM" vs client "am") → `formatTime` forces
   `en-US` + `suppressHydrationWarning` on time elements.
+- **All times are Malaysian time, pinned in code** (`CLINIC_TZ` in
+  `src/lib/utils.ts`). Never format a timestamp without `timeZone` — the server
+  runs in UTC and `suppressHydrationWarning` makes React KEEP the server's text,
+  so an unpinned stamp shows staff a time 8 hours behind (fixed 2026-08-10).
 - Supabase new-style keys (`sb_publishable_` / `sb_secret_`) are in use.
 - Email confirmation is OFF in Supabase (instant team logins).
 - **Free-tier Supabase pauses after ~1 week idle** — DNS for the project host

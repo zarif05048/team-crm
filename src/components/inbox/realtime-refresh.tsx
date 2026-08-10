@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 /**
@@ -26,10 +26,12 @@ import { createClient } from "@/lib/supabase/client";
  * - `conversations` is subscribed unfiltered because any thread's new message
  *   reorders the list — but the row is small, and the trigger that maintains
  *   the preview columns makes it the ONE event per message.
- * - `messages` and `notes` are subscribed ONLY for the thread currently open.
- *   Realtime ships the whole row to every subscriber, so an unfiltered messages
- *   subscription sent a copy of every message body to every staff device all
- *   day. The list doesn't need them — the conversations event covers it.
+ * - `messages` and `notes` are NOT subscribed here. The open thread subscribes
+ *   to them itself (useThreadRealtime) so it can paint a new message instantly
+ *   from the event payload; that hook calls notifyInboxChange() to book a
+ *   reconciling refresh through the same coalescing timer used here. Realtime
+ *   ships whole rows to every subscriber, so those tables must stay subscribed
+ *   in exactly ONE place.
  */
 const TICK_MS = 60_000; // how often the safety net wakes up to decide
 const DOWN_POLL_MS = 60_000; // refresh cadence while realtime is broken
@@ -38,16 +40,19 @@ const HEALTHY_POLL_MS = 300_000; // refresh cadence while realtime is live
 // apart — so coalesce generously. Each refresh is a round of server queries.
 const COALESCE_MS = 2_000;
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/**
+ * Ask for a refresh from outside this component (the open thread's own realtime
+ * hook). Routed through the mounted instance on purpose: the visibility rule,
+ * the coalescing timer and the polling safety net are all decided in one place,
+ * so two subscriptions reacting to the same message still cost ONE refresh.
+ */
+let notifier: (() => void) | null = null;
+export function notifyInboxChange(): void {
+  notifier?.();
+}
 
 export function RealtimeRefresh() {
   const router = useRouter();
-  // The open thread, if we're on /inbox/<id>. Null on the inbox root and on
-  // the pipeline board, where no thread is rendered.
-  const pathname = usePathname();
-  const m = /^\/inbox\/([^/]+)/.exec(pathname ?? "");
-  const openThreadId = m && UUID_RE.test(m[1]) ? m[1] : null;
 
   useEffect(() => {
     const supabase = createClient();
@@ -100,6 +105,7 @@ export function RealtimeRefresh() {
     };
     document.addEventListener("visibilitychange", onVisibility);
     startPolling();
+    notifier = refresh;
 
     (async () => {
       const {
@@ -110,39 +116,13 @@ export function RealtimeRefresh() {
         await supabase.realtime.setAuth(session.access_token);
       }
 
-      channel = supabase.channel(
-        openThreadId ? `inbox-realtime:${openThreadId}` : "inbox-realtime",
-      );
+      channel = supabase.channel("inbox-realtime");
 
       channel.on(
         "postgres_changes",
         { event: "*", schema: "public", table: "conversations" },
         refresh,
       );
-
-      if (openThreadId) {
-        channel
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              schema: "public",
-              table: "messages",
-              filter: `conversation_id=eq.${openThreadId}`,
-            },
-            refresh,
-          )
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              schema: "public",
-              table: "notes",
-              filter: `conversation_id=eq.${openThreadId}`,
-            },
-            refresh,
-          );
-      }
 
       channel.subscribe((status) => {
         connected = status === "SUBSCRIBED";
@@ -153,14 +133,13 @@ export function RealtimeRefresh() {
 
     return () => {
       cancelled = true;
+      if (notifier === refresh) notifier = null;
       if (pending) clearTimeout(pending);
       stopPolling();
       document.removeEventListener("visibilitychange", onVisibility);
       if (channel) supabase.removeChannel(channel);
     };
-    // Re-subscribing on thread change is deliberate: the messages/notes filters
-    // are bound to the thread that's open.
-  }, [router, openThreadId]);
+  }, [router]);
 
   return null;
 }

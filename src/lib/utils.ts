@@ -7,22 +7,65 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Format a timestamp as a short relative-ish time for chat lists.
- * Uses a fixed "en-US" locale so server and client produce identical output
- * (e.g. always "10:22 AM"); pair with suppressHydrationWarning on the element
- * to cover server-vs-client timezone differences in production.
+ * Every clock in this app is the clinic's clock.
+ *
+ * Timestamps used to be formatted in whatever zone the code happened to run in:
+ * UTC on the server (Vercel), Asia/Kuala_Lumpur in a Malaysian browser. Because
+ * the time elements carry suppressHydrationWarning, React KEEPS the server's
+ * text at hydration — so staff read server-rendered times 8 hours behind, and a
+ * later client re-render would silently jump them forward. Pinning the zone
+ * here makes both sides produce the same Malaysian time, always.
+ */
+export const CLINIC_TZ = "Asia/Kuala_Lumpur";
+
+const timeFmt = new Intl.DateTimeFormat("en-US", {
+  timeZone: CLINIC_TZ,
+  hour: "2-digit",
+  minute: "2-digit",
+});
+/** yyyy-mm-dd in Malaysia — used to compare calendar days, not to display. */
+const dayKeyFmt = new Intl.DateTimeFormat("en-CA", {
+  timeZone: CLINIC_TZ,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const shortDateFmt = new Intl.DateTimeFormat("en-US", {
+  timeZone: CLINIC_TZ,
+  day: "2-digit",
+  month: "short",
+});
+const fullFmt = new Intl.DateTimeFormat("en-US", {
+  timeZone: CLINIC_TZ,
+  weekday: "short",
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+/**
+ * Short chat-list style stamp in Malaysian time: "10:22 AM" today,
+ * "Yesterday", then "09 Aug".
  */
 export function formatTime(iso: string): string {
   const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
   const now = new Date();
-  const sameDay = d.toDateString() === now.toDateString();
-  if (sameDay) {
-    return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+  const key = dayKeyFmt.format(d);
+  if (key === dayKeyFmt.format(now)) return timeFmt.format(d);
+  if (key === dayKeyFmt.format(new Date(now.getTime() - 86_400_000))) {
+    return "Yesterday";
   }
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
-  return d.toLocaleDateString("en-US", { day: "2-digit", month: "short" });
+  return shortDateFmt.format(d);
+}
+
+/** Full Malaysian date + time, e.g. "Mon, 10 Aug 2026, 08:46 PM" — for tooltips. */
+export function formatFullTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return fullFmt.format(d);
 }
 
 /**
