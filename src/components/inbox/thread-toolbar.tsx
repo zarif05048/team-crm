@@ -11,6 +11,7 @@ import {
   Headset,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TcaButton } from "@/components/inbox/tca-button";
 import { STAGE_ORDER, STAGE_LABELS, type LeadStage } from "@/lib/types";
 import {
   assignConversation,
@@ -34,6 +35,8 @@ export function ThreadToolbar({
   botEnabled,
   isStaffChat,
   members,
+  patientName,
+  defaultBranch,
 }: {
   conversationId: string;
   assignedTo: string | null;
@@ -42,6 +45,8 @@ export function ThreadToolbar({
   botEnabled: boolean;
   isStaffChat: boolean;
   members: Member[];
+  patientName: string;
+  defaultBranch: string;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -152,6 +157,12 @@ export function ThreadToolbar({
         <Headset className="h-4 w-4" />
         Staff
       </button>
+
+      <TcaButton
+        conversationId={conversationId}
+        patientName={patientName}
+        defaultBranch={defaultBranch}
+      />
 
       <div className="ml-auto flex items-center gap-2">
         <span

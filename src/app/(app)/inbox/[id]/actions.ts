@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendText, sendTemplate } from "@/lib/whatsapp/send";
+import { addToTcaList } from "@/lib/sheets/tca";
 import { isWindowOpen } from "@/lib/types";
 
 export type SendState = { ok: boolean; error?: string; conversationId?: string };
@@ -444,6 +445,99 @@ export async function addTag(
     .from("conversation_tags")
     .upsert({ conversation_id: conversationId, tag_id: tag.id });
   if (linkErr) return { ok: false, error: linkErr.message };
+  return { ok: true };
+}
+
+/**
+ * Add this patient to the clinic's "TCA MINOR SURGICAL" Google Sheet — the
+ * staff-driven twin of the bot's book_minor_surgery tool, for procedures
+ * arranged by a human (phone call, walk-in, or after the bot handed over).
+ *
+ * The row lands in the tab for the month of the appointment date; a note goes
+ * on the thread either way, so the booking is visible in the CRM even when the
+ * sheet is not connected.
+ */
+export async function addTcaEntry(
+  conversationId: string,
+  entry: {
+    patientName: string;
+    procedure: string;
+    branch: string;
+    date: string;
+    time?: string;
+    doctor?: string;
+    notes?: string;
+  },
+): Promise<ActionState> {
+  if (!entry.patientName.trim()) return { ok: false, error: "Patient name is required." };
+  if (!entry.procedure.trim()) return { ok: false, error: "Procedure is required." };
+  if (!entry.date.trim()) return { ok: false, error: "Date is required (or write what the patient said)." };
+
+  const loaded = await loadConversation(conversationId);
+  if ("error" in loaded) return { ok: false, error: loaded.error };
+  const { user, conv } = loaded;
+
+  const sheet = await addToTcaList({
+    patientName: entry.patientName,
+    procedure: entry.procedure,
+    branch: entry.branch,
+    dateText: entry.date,
+    timeText: entry.time,
+    doctor: entry.doctor,
+    notes: entry.notes,
+    phone: conv.contact.wa_id,
+  });
+
+  const supabase = await createClient();
+  await supabase.from("notes").insert({
+    conversation_id: conversationId,
+    author_id: user.id,
+    mentions: [],
+    body:
+      `🔪 Minor surgery / procedure booked\n` +
+      `Name: ${entry.patientName}\n` +
+      `Procedure: ${entry.procedure}\n` +
+      `Branch: ${entry.branch}\n` +
+      `Date: ${entry.date}\n` +
+      `Time: ${entry.time || "-"}\n` +
+      `Doctor: ${entry.doctor || "-"}` +
+      (entry.notes ? `\nNotes: ${entry.notes}` : "") +
+      "\n\n" +
+      (sheet.ok
+        ? `✅ Added to the TCA minor surgical list → tab "${sheet.tab}"\n${sheet.url}`
+        : sheet.disabled
+          ? "⚠️ TCA Google Sheet not connected — add this row to the sheet by hand."
+          : `⚠️ Could not write to the TCA sheet (${sheet.error}) — add this row by hand.`),
+  });
+
+  const admin = createAdminClient();
+  for (const [name, color] of [
+    ["minor-surgery", "#0d9488"],
+    ["booking", "#0ea5e9"],
+  ] as const) {
+    const { data: tag } = await admin
+      .from("tags")
+      .upsert({ name, color }, { onConflict: "name" })
+      .select("id")
+      .single();
+    if (tag)
+      await admin
+        .from("conversation_tags")
+        .upsert({ conversation_id: conversationId, tag_id: tag.id });
+  }
+  await supabase
+    .from("conversations")
+    .update({ stage: "qualified" })
+    .eq("id", conversationId);
+
+  if (!sheet.ok) {
+    return {
+      ok: false,
+      error: sheet.disabled
+        ? "Saved as a note, but the Google Sheet is not connected yet — add the row by hand."
+        : `Saved as a note, but writing to the sheet failed: ${sheet.error}`,
+    };
+  }
   return { ok: true };
 }
 

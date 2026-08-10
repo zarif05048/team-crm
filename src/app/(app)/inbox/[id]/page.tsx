@@ -105,6 +105,14 @@ export default async function ThreadPage({
             ["staff", "with staff"].includes(t.name.toLowerCase()),
           )}
           members={members}
+          patientName={name}
+          defaultBranch={
+            conversation.whatsapp_number.display_name
+              ?.toLowerCase()
+              .includes("paka")
+              ? "PAKA"
+              : "DUNGUN"
+          }
         />
 
         <TagBar conversationId={conversation.id} tags={conversation.tags} />

@@ -158,6 +158,34 @@ Patient-facing FAQ bot on the WhatsApp line, powered by the Claude API
   test; the older `send-test-webhook.mjs` is unsigned and now 401s since
   META_APP_SECRET is set).
 
+## TCA minor surgical list → Google Sheet (added 2026-08-10)
+
+Procedure bookings are written straight into the clinic's own
+**TCA MINOR SURGICAL** spreadsheet (`TCA_SHEET_ID`, owned by
+hijraadungunhealthcare@gmail.com), which keeps **one tab per month** named
+`tca minor surgical <malay month> <year>` (e.g. `tca minor surgical ogos 2026`).
+
+- Two writers: the bot tool `book_minor_surgery` (patient asks/agrees to a
+  procedure) and the toolbar **"TCA list"** button → `addTcaEntry` server
+  action (staff-arranged bookings, can also set the doctor).
+- `src/lib/sheets/google.ts` = dependency-free Sheets client (service-account
+  JWT → token → REST; no `googleapis` package). `src/lib/sheets/tca.ts` = the
+  clinic-specific part: month tab lookup, **creating next month's tab with the
+  standard header when it doesn't exist yet**, row layout.
+- The tab is chosen from the APPOINTMENT date (not today), parsed day-first
+  (`05/08/2026` = 5 August). Unparseable dates ("pt nak confirm balik nanti")
+  are written through as-is into the current month's tab.
+- Values are written RAW so Google can't reinterpret dd/mm as US mm/dd.
+- Column order is the clinic's: NAME | PROCEDURE | TEMPAT | TARIKH TCA | MASA |
+  DR BERTUGAS | CONFIRMATION… | STATUS | FOLLOW UP… — the CRM fills the first
+  five (phone number goes in the PROCEDURE cell in brackets, as staff do it).
+- Fails soft: no `GOOGLE_SERVICE_ACCOUNT_JSON` → the booking is still noted in
+  the thread with "⚠️ sheet not connected". Setup: `docs/TCA_SHEET_SETUP.md`,
+  check with `scripts/test-tca-sheet.mjs`.
+- The bot now also gets a small **TODAY (Malaysia date)** system block after the
+  cached prompt, so "esok"/"Khamis ni" become real dd/mm/yyyy dates. Keep it in
+  its own block — putting it inside BOT_SYSTEM_PROMPT would break prefix caching.
+
 ## Outstanding / roadmap
 
 1. ~~Permanent token~~ ✅ DONE (2026-06-22) — never-expiring System User token live.
