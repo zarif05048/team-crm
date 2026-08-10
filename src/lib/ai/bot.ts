@@ -14,6 +14,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendText, sendImage } from "@/lib/whatsapp/send";
+import { addToTcaList, malaysiaToday } from "@/lib/sheets/tca";
 import { BOT_SYSTEM_PROMPT } from "./knowledge";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -131,6 +132,45 @@ const TOOLS: Anthropic.Tool[] = [
         },
       },
       required: ["patient_name", "service", "branch", "preferred_time"],
+    },
+  },
+  {
+    name: "book_minor_surgery",
+    description:
+      "Record a MINOR SURGERY / PROCEDURE appointment in the clinic's TCA minor surgical list (the doctors' scheduling sheet) and flag it for staff. Use this INSTEAD of book_appointment whenever the patient asks for, or agrees to, a procedure a doctor must do on a set date: chalazion/stye removal, wart, skin tag, mole, ganglion/sebaceous cyst, lipoma removal, incision & drainage (bisul/abses), nail avulsion or ingrown toenail, cryotherapy, excision biopsy, circumcision (sunat/khatan), joint and soft-tissue injections (knee, frozen shoulder, trigger finger, plantar fasciitis, PRP), aspiration, and the like. Ask for the patient's full name, which procedure, which branch and the date/time they want before calling it.",
+    input_schema: {
+      type: "object",
+      properties: {
+        patient_name: {
+          type: "string",
+          description: "Patient's full name, as it should appear on the list",
+        },
+        procedure: {
+          type: "string",
+          description:
+            "The procedure in the surgical list's own wording — English, capitals, e.g. CHALAZION REMOVAL, WART REMOVAL, SKIN TAG REMOVAL, NAIL AVULSION, LIPOMA REMOVAL, I&D BISUL, EXCISION BIOPSY OF MOLE, CIRCUMCISION SURGERY, KNEE INJECTION, TRIGGER FINGER INJECTION",
+        },
+        branch: {
+          type: "string",
+          enum: ["Dungun", "Paka"],
+          description: "Branch where the procedure will be done",
+        },
+        preferred_date: {
+          type: "string",
+          description:
+            "Appointment date as dd/mm/yyyy when the patient has given one (use today's date from the context note to resolve 'esok', 'Khamis ni'). If no date is fixed yet, put the patient's own words, e.g. 'pt nak confirm balik nanti'.",
+        },
+        preferred_time: {
+          type: "string",
+          description: "Time in the patient's own words, e.g. '10 pagi', 'lepas 5 petang'",
+        },
+        extra_notes: {
+          type: "string",
+          description:
+            "Anything staff must know, kept short: which side/finger, insurance/panel question, still deciding, etc. (optional)",
+        },
+      },
+      required: ["patient_name", "procedure", "branch", "preferred_date"],
     },
   },
   {
@@ -330,6 +370,22 @@ function toClaudeMessages(
   return turns;
 }
 
+/** Malaysian date line handed to Claude on every call (see `system` below). */
+function todayNote(): string {
+  const { day, month, year } = malaysiaToday();
+  const weekday = new Intl.DateTimeFormat("ms-MY", {
+    timeZone: "Asia/Kuala_Lumpur",
+    weekday: "long",
+  }).format(new Date());
+  const dd = String(day).padStart(2, "0");
+  const mm = String(month).padStart(2, "0");
+  return (
+    `TODAY (waktu Malaysia): ${weekday}, ${dd}/${mm}/${year}. ` +
+    `Use it to turn "esok", "lusa" or "Khamis ni" into a real dd/mm/yyyy date, ` +
+    `and always repeat the exact date back to the patient when you book something.`
+  );
+}
+
 /** Run the Claude conversation, executing tool calls, until a final text. */
 async function converse(
   supabase: Admin,
@@ -349,6 +405,10 @@ async function converse(
           text: BOT_SYSTEM_PROMPT,
           cache_control: { type: "ephemeral" },
         },
+        // Today's date, so "esok"/"Khamis ni" can become a real date for the
+        // surgical list. Kept in its own block AFTER the cached one: the big
+        // prompt stays cacheable, only this short line changes daily.
+        { type: "text", text: todayNote() },
       ],
       tools: TOOLS,
       messages,
@@ -452,6 +512,44 @@ async function executeTool(
         .update({ stage: "qualified" })
         .eq("id", conversationId);
       return "Booking recorded. Staff will confirm the slot with the patient soon.";
+    }
+    if (tool.name === "book_minor_surgery") {
+      const sheet = await addToTcaList({
+        patientName: input.patient_name ?? "",
+        procedure: input.procedure ?? "",
+        branch: input.branch ?? "",
+        dateText: input.preferred_date ?? "",
+        timeText: input.preferred_time,
+        notes: input.extra_notes,
+        phone: sendCtx.waId,
+      });
+      const sheetLine = sheet.ok
+        ? `✅ Added to the TCA minor surgical list → tab "${sheet.tab}"\n${sheet.url}`
+        : sheet.disabled
+          ? "⚠️ TCA Google Sheet not connected (GOOGLE_SERVICE_ACCOUNT_JSON / TCA_SHEET_ID missing) — add this row by hand."
+          : `⚠️ Could not write to the TCA sheet (${sheet.error}) — add this row by hand.`;
+      const body =
+        `🔪 Minor surgery / procedure request (via AI bot)\n` +
+        `Name: ${input.patient_name}\n` +
+        `Procedure: ${input.procedure}\n` +
+        `Branch: ${input.branch ?? "?"}\n` +
+        `Date: ${input.preferred_date}\n` +
+        `Time: ${input.preferred_time ?? "-"}` +
+        (input.extra_notes ? `\nNotes: ${input.extra_notes}` : "") +
+        `\n\n${sheetLine}`;
+      await supabase.from("notes").insert({
+        conversation_id: conversationId,
+        author_id: null,
+        body,
+        mentions: [],
+      });
+      await addTag(supabase, conversationId, "minor-surgery", "#0d9488");
+      await addTag(supabase, conversationId, "booking", "#0ea5e9");
+      await supabase
+        .from("conversations")
+        .update({ stage: "qualified" })
+        .eq("id", conversationId);
+      return "Recorded in the minor surgical list. Tell the patient staff will confirm the doctor and the exact slot with them here.";
     }
     if (tool.name === "alert_staff") {
       await alertStaff(supabase, conversationId, {
