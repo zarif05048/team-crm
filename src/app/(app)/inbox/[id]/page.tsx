@@ -7,6 +7,11 @@ import { MarkRead } from "@/components/inbox/mark-read";
 import { Timeline } from "@/components/inbox/timeline";
 import { Composer } from "@/components/inbox/composer";
 import { ThreadToolbar } from "@/components/inbox/thread-toolbar";
+import {
+  ThreadSearchBar,
+  ThreadSearchProvider,
+  ThreadSearchToggle,
+} from "@/components/inbox/thread-search";
 import { TagBar } from "@/components/inbox/tag-bar";
 import { getConversation, getMessages } from "@/lib/data/conversations";
 import { getNotes } from "@/lib/data/notes";
@@ -50,66 +55,71 @@ export default async function ThreadPage({
   );
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col">
-      <MarkRead
-        conversationId={conversation.id}
-        lastMessageAt={messages.length ? messages[messages.length - 1].created_at : null}
-      />
-      {/* Thread header */}
-      <header className="flex h-14 items-center gap-2 border-b border-slate-200 bg-white px-3 sm:gap-3 sm:px-4">
-        <Link
-          href="/inbox"
-          className="-ml-1 flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 lg:hidden"
-          aria-label="Back to inbox"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </Link>
-        <Avatar name={name} className="h-9 w-9" />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="truncate text-sm font-semibold text-slate-900">{name}</p>
-            <LineBadge displayName={conversation.whatsapp_number.display_name} />
+    <ThreadSearchProvider key={conversation.id}>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <MarkRead
+          conversationId={conversation.id}
+          lastMessageAt={messages.length ? messages[messages.length - 1].created_at : null}
+        />
+        {/* Thread header */}
+        <header className="flex h-14 items-center gap-2 border-b border-slate-200 bg-white px-3 sm:gap-3 sm:px-4">
+          <Link
+            href="/inbox"
+            className="-ml-1 flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 lg:hidden"
+            aria-label="Back to inbox"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </Link>
+          <Avatar name={name} className="h-9 w-9" />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <p className="truncate text-sm font-semibold text-slate-900">{name}</p>
+              <LineBadge displayName={conversation.whatsapp_number.display_name} />
+            </div>
+            <p className="truncate text-xs text-slate-400">
+              +{conversation.contact.wa_id} · via{" "}
+              {conversation.whatsapp_number.display_name}
+            </p>
           </div>
-          <p className="truncate text-xs text-slate-400">
-            +{conversation.contact.wa_id} · via{" "}
-            {conversation.whatsapp_number.display_name}
-          </p>
-        </div>
-        <span
-          className={
-            windowOpen
-              ? "rounded-full bg-brand-50 px-2 py-1 text-xs font-medium text-brand-700"
-              : "rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700"
-          }
-        >
-          {bridged ? "Always open" : windowOpen ? "24h window open" : "Window closed"}
-        </span>
-      </header>
+          <ThreadSearchToggle />
+          <span
+            className={
+              windowOpen
+                ? "rounded-full bg-brand-50 px-2 py-1 text-xs font-medium text-brand-700"
+                : "rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700"
+            }
+          >
+            {bridged ? "Always open" : windowOpen ? "24h window open" : "Window closed"}
+          </span>
+        </header>
 
-      <ThreadToolbar
-        conversationId={conversation.id}
-        assignedTo={conversation.assigned_to}
-        status={conversation.status}
-        stage={conversation.stage}
-        botEnabled={conversation.bot_enabled ?? true}
-        isStaffChat={conversation.tags.some((t) =>
-          ["staff", "with staff"].includes(t.name.toLowerCase()),
-        )}
-        members={members}
-      />
+        <ThreadSearchBar />
 
-      <TagBar conversationId={conversation.id} tags={conversation.tags} />
+        <ThreadToolbar
+          conversationId={conversation.id}
+          assignedTo={conversation.assigned_to}
+          status={conversation.status}
+          stage={conversation.stage}
+          botEnabled={conversation.bot_enabled ?? true}
+          isStaffChat={conversation.tags.some((t) =>
+            ["staff", "with staff"].includes(t.name.toLowerCase()),
+          )}
+          members={members}
+        />
 
-      <Timeline messages={messages} notes={notes} memberNames={memberNames} />
+        <TagBar conversationId={conversation.id} tags={conversation.tags} />
 
-      <Composer
-        conversationId={conversation.id}
-        windowOpen={windowOpen}
-        members={members}
-        cannedReplies={cannedReplies}
-        currentNumberId={conversation.whatsapp_number.id}
-        sendableLines={sendableLines}
-      />
-    </div>
+        <Timeline messages={messages} notes={notes} memberNames={memberNames} />
+
+        <Composer
+          conversationId={conversation.id}
+          windowOpen={windowOpen}
+          members={members}
+          cannedReplies={cannedReplies}
+          currentNumberId={conversation.whatsapp_number.id}
+          sendableLines={sendableLines}
+        />
+      </div>
+    </ThreadSearchProvider>
   );
 }

@@ -111,6 +111,10 @@ by (events x devices). Treat it as egress-sensitive.
   It was 347 KB per refresh; it's 115 KB now (2026-07-27).
 - Realtime `messages`/`notes` subscriptions are filtered to the open thread —
   Realtime ships whole rows to every subscriber.
+- In-conversation search (🔍 in the thread header / Ctrl+F,
+  `src/components/inbox/thread-search.tsx`) matches **client-side** over the
+  messages the thread already loaded (newest 300, `THREAD_MESSAGE_LIMIT`), so
+  typing costs zero egress. Don't turn it into a per-keystroke DB query.
 
 ## Known gotchas (already solved — don't re-hit them)
 
@@ -145,6 +149,11 @@ Patient-facing FAQ bot on the WhatsApp line, powered by the Claude API
   unaffected). Migration: `supabase/migrations/2026-07-05_ai_bot.sql`
   (also folded into `schema.sql`).
 - Webhook route sets `maxDuration = 60` for the after() work.
+- **Politeness register (2026-08-10):** the system prompt carries a "POLITENESS
+  IN BAHASA MELAYU" block — clipped colloquial commands ("sabar sikit",
+  "tunggu jap", "tak boleh") read as scolding to patients, so the bot must use
+  the "mohon/sila ... ya Puan/Tuan" forms instead. Keep that block if you
+  rewrite the prompt.
 - Dev helper: `scripts/send-signed-webhook.mjs` (HMAC-signed local webhook
   test; the older `send-test-webhook.mjs` is unsigned and now 401s since
   META_APP_SECRET is set).
