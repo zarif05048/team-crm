@@ -3,18 +3,24 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Avatar } from "@/components/ui/avatar";
+import { Highlight } from "@/components/ui/highlight";
 import { LineBadge } from "@/components/ui/line-badge";
 import { cn, formatTime } from "@/lib/utils";
 import type { ConversationListRow } from "@/lib/data/conversations";
 
 export function ConversationList({
   conversations,
+  query = "",
 }: {
   conversations: ConversationListRow[];
+  /** Active inbox search, lowercased — highlights the matching text. */
+  query?: string;
 }) {
   const pathname = usePathname();
 
   if (conversations.length === 0) {
+    // While searching, the shell renders its own "no chats found" message.
+    if (query) return null;
     return (
       <div className="flex h-full flex-col items-center justify-center px-6 text-center">
         <p className="text-sm font-medium text-slate-600">No conversations yet</p>
@@ -50,7 +56,7 @@ export function ConversationList({
                       c.unread > 0 ? "font-bold" : "font-medium",
                     )}
                   >
-                    {name}
+                    <Highlight text={name} query={query} />
                   </p>
                   <span className="flex shrink-0 items-center gap-1.5">
                     {c.unread > 0 && (
@@ -75,7 +81,7 @@ export function ConversationList({
                   )}
                 >
                   {outbound && <span className="text-slate-400">You: </span>}
-                  {preview}
+                  <Highlight text={preview} query={query} />
                 </p>
                 <div className="mt-1 flex flex-wrap items-center gap-1.5">
                   <LineBadge displayName={c.whatsapp_number?.display_name} />
