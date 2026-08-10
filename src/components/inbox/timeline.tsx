@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { AlertCircle, Check, CheckCheck, Lock } from "lucide-react";
-import { cn, formatTime } from "@/lib/utils";
+import { cn, formatFullTime, formatTime } from "@/lib/utils";
 import { useThreadSearch } from "@/components/inbox/thread-search";
+import { useThreadRealtime } from "@/components/inbox/use-thread-realtime";
 import type { Message } from "@/lib/types";
 import type { NoteWithAuthor } from "@/lib/data/notes";
 
@@ -21,10 +22,12 @@ const searchableText = (item: Item) =>
     : `${item.data.body} ${item.data.author?.full_name ?? ""}`;
 
 export function Timeline({
-  messages,
-  notes,
+  conversationId,
+  messages: serverMessages,
+  notes: serverNotes,
   memberNames,
 }: {
+  conversationId: string;
   messages: Message[];
   notes: NoteWithAuthor[];
   memberNames: Record<string, string>;
@@ -32,6 +35,13 @@ export function Timeline({
   const bottomRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef(new Map<string, HTMLDivElement | null>());
   const { open, query, activeKey, reportMatches } = useThreadSearch();
+  // Anything that arrives while the thread is open is rendered straight from
+  // the realtime payload, without waiting for the server round trip.
+  const { messages, notes } = useThreadRealtime(
+    conversationId,
+    serverMessages,
+    serverNotes,
+  );
 
   const items = useMemo<Item[]>(
     () =>
@@ -204,6 +214,7 @@ function MessageBubble({
                 : "text-brand-100"
               : "text-slate-400",
           )}
+          title={formatFullTime(m.created_at)}
           suppressHydrationWarning
         >
           {fromBot ? "🤖 AI · " : ""}
@@ -257,7 +268,12 @@ function NoteCard({
       >
         <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium text-amber-700">
           <Lock className="h-3 w-3" />
-          Internal note · {note.author?.full_name ?? "Someone"}
+          {/* A note painted live from Realtime has no author join yet — the
+              team list fills the name in until the next refresh. */}
+          Internal note ·{" "}
+          {note.author?.full_name ??
+            (note.author_id ? memberNames[note.author_id] : null) ??
+            "Someone"}
         </div>
         <p className="whitespace-pre-wrap break-words">
           <Highlight text={note.body} query={query} active={active} />
@@ -270,7 +286,11 @@ function NoteCard({
               .join(", ")}
           </p>
         )}
-        <p className="mt-1 text-right text-[10px] text-amber-500" suppressHydrationWarning>
+        <p
+          className="mt-1 text-right text-[10px] text-amber-500"
+          title={formatFullTime(note.created_at)}
+          suppressHydrationWarning
+        >
           {formatTime(note.created_at)}
         </p>
       </div>

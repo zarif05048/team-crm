@@ -117,7 +117,12 @@ export default async function ThreadPage({
 
         <TagBar conversationId={conversation.id} tags={conversation.tags} />
 
-        <Timeline messages={messages} notes={notes} memberNames={memberNames} />
+        <Timeline
+          conversationId={conversation.id}
+          messages={messages}
+          notes={notes}
+          memberNames={memberNames}
+        />
 
         <Composer
           conversationId={conversation.id}
