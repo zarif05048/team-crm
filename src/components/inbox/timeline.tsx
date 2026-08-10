@@ -5,6 +5,7 @@ import { AlertCircle, Check, CheckCheck, Lock } from "lucide-react";
 import { cn, formatFullTime, formatTime } from "@/lib/utils";
 import { useThreadSearch } from "@/components/inbox/thread-search";
 import { useThreadRealtime } from "@/components/inbox/use-thread-realtime";
+import { Highlight } from "@/components/ui/highlight";
 import type { Message } from "@/lib/types";
 import type { NoteWithAuthor } from "@/lib/data/notes";
 
@@ -130,44 +131,6 @@ export function Timeline({
       <div ref={bottomRef} />
     </div>
   );
-}
-
-/**
- * Renders `text`, wrapping every occurrence of the (already lowercased)
- * search query in a highlight. The selected match glows brighter.
- */
-function Highlight({
-  text,
-  query,
-  active,
-}: {
-  text: string;
-  query: string;
-  active: boolean;
-}) {
-  if (!query) return <>{text}</>;
-  const haystack = text.toLowerCase();
-  const parts: React.ReactNode[] = [];
-  let cursor = 0;
-  let hit = haystack.indexOf(query);
-  while (hit !== -1) {
-    if (hit > cursor) parts.push(text.slice(cursor, hit));
-    parts.push(
-      <mark
-        key={hit}
-        className={cn(
-          "rounded px-0.5 text-slate-900",
-          active ? "bg-amber-300" : "bg-amber-200",
-        )}
-      >
-        {text.slice(hit, hit + query.length)}
-      </mark>,
-    );
-    cursor = hit + query.length;
-    hit = haystack.indexOf(query, cursor);
-  }
-  if (cursor < text.length) parts.push(text.slice(cursor));
-  return <>{parts}</>;
 }
 
 function MessageBubble({

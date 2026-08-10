@@ -119,6 +119,13 @@ by (events x devices). Treat it as egress-sensitive.
   coalescing, polling net); the hook books a reconciling refresh through its
   exported `notifyInboxChange()`. Don't re-add a messages subscription in a
   second component — Realtime ships whole rows to every subscriber.
+- Inbox search (box above the conversation list) filters the **already-loaded**
+  rows client-side — name, phone, last-message preview, assignee, tags — so
+  typing costs nothing. Only chats older than the loaded 200 fall through to
+  `searchConversations()` (debounced 300ms, min 2 chars, 25 rows, name/phone
+  only), shown under an "Older chats" heading. Phone matching goes through
+  `phoneCandidates()` in `src/lib/search.ts` so "011…", "+6011…" and "6011…"
+  all find the same contact.
 - In-conversation search (🔍 in the thread header / Ctrl+F,
   `src/components/inbox/thread-search.tsx`) matches **client-side** over the
   messages the thread already loaded (newest 300, `THREAD_MESSAGE_LIMIT`), so

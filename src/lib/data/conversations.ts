@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { forFilter, phoneCandidates } from "@/lib/search";
 import type {
   Conversation,
   Contact,
@@ -104,18 +105,28 @@ export async function getConversations(): Promise<ConversationListRow[]> {
   }
   if (!convos?.length) return [];
 
+  return toListRows(convos, numbers);
+}
+
+/** Shape rows from a LIST_COLUMNS select into what the inbox renders. */
+type RawListRow = Omit<
+  ConversationListRow,
+  "whatsapp_number" | "last_message" | "tags" | "unread"
+> & {
+  conversation_tags?: TagJoin[];
+  last_message_body?: string | null;
+  last_message_direction?: string | null;
+  unread_count?: number | null;
+};
+
+function toListRows(
+  convos: unknown[],
+  numbers: { id: string; display_name: string }[] | null,
+): ConversationListRow[] {
   const numberById = new Map(
-    (numbers ?? []).map((n) => [n.id as string, n as Pick<WhatsappNumber, "id" | "display_name">]),
+    (numbers ?? []).map((n) => [n.id, n as Pick<WhatsappNumber, "id" | "display_name">]),
   );
-
-  type ListRow = Omit<ConversationListRow, "whatsapp_number" | "last_message" | "tags" | "unread"> & {
-    conversation_tags?: TagJoin[];
-    last_message_body?: string | null;
-    last_message_direction?: string | null;
-    unread_count?: number | null;
-  };
-
-  return (convos as unknown as ListRow[]).map((c) => ({
+  return (convos as RawListRow[]).map((c) => ({
     ...c,
     whatsapp_number: numberById.get(c.whatsapp_number_id) ?? null,
     // A thread with no messages yet has no preview.
@@ -130,6 +141,52 @@ export async function getConversations(): Promise<ConversationListRow[]> {
     tags: flattenTags(c.conversation_tags),
     unread: c.unread_count ?? 0,
   }));
+}
+
+/**
+ * Find conversations by the person: name, WhatsApp profile name, or phone
+ * number. Backs the inbox search box for chats OUTSIDE the newest 200 the list
+ * already holds — the box filters those instantly on the client, and only falls
+ * back to this query for anything older.
+ *
+ * Kept deliberately small (25 rows, same narrow columns): it runs per typed
+ * query, not per realtime event, but it is still the same egress-sensitive
+ * shape as the inbox list.
+ */
+export async function searchConversations(
+  query: string,
+  limit = 25,
+): Promise<ConversationListRow[]> {
+  const q = forFilter(query);
+  if (q.length < 2) return [];
+
+  const clauses = [`name.ilike.*${q}*`, `profile_name.ilike.*${q}*`];
+  for (const candidate of phoneCandidates(q)) {
+    clauses.push(`wa_id.ilike.*${candidate}*`);
+  }
+
+  const supabase = await createClient();
+  const [{ data: convos, error }, { data: numbers }] = await Promise.all([
+    supabase
+      .from("conversations")
+      .select(
+        `${LIST_COLUMNS},
+         contact:contacts!inner(id, wa_id, name, profile_name),
+         assignee:profiles!conversations_assigned_to_fkey(id, full_name),
+         conversation_tags(tag:tags(id, name, color))`,
+      )
+      .or(clauses.join(","), { referencedTable: "contact" })
+      .order("last_message_at", { ascending: false })
+      .limit(limit),
+    supabase.from("whatsapp_numbers").select("id, display_name"),
+  ]);
+
+  if (error) {
+    console.error("[data] searchConversations:", error.message);
+    return [];
+  }
+  if (!convos?.length) return [];
+  return toListRows(convos, numbers);
 }
 
 /**
