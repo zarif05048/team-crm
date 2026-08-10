@@ -1,14 +1,24 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { AlertCircle, Check, CheckCheck, Lock } from "lucide-react";
 import { cn, formatTime } from "@/lib/utils";
+import { useThreadSearch } from "@/components/inbox/thread-search";
 import type { Message } from "@/lib/types";
 import type { NoteWithAuthor } from "@/lib/data/notes";
 
 type Item =
   | { kind: "message"; at: string; data: Message }
   | { kind: "note"; at: string; data: NoteWithAuthor };
+
+const itemKey = (item: Item) =>
+  item.kind === "message" ? `m-${item.data.id}` : `n-${item.data.id}`;
+
+/** Everything in-conversation search looks at for this item. */
+const searchableText = (item: Item) =>
+  item.kind === "message"
+    ? (item.data.body ?? "")
+    : `${item.data.body} ${item.data.author?.full_name ?? ""}`;
 
 export function Timeline({
   messages,
@@ -20,15 +30,56 @@ export function Timeline({
   memberNames: Record<string, string>;
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef(new Map<string, HTMLDivElement | null>());
+  const { open, query, activeKey, reportMatches } = useThreadSearch();
 
-  const items: Item[] = [
-    ...messages.map((m) => ({ kind: "message" as const, at: m.created_at, data: m })),
-    ...notes.map((n) => ({ kind: "note" as const, at: n.created_at, data: n })),
-  ].sort((a, b) => a.at.localeCompare(b.at));
+  const items = useMemo<Item[]>(
+    () =>
+      [
+        ...messages.map((m) => ({
+          kind: "message" as const,
+          at: m.created_at,
+          data: m,
+        })),
+        ...notes.map((n) => ({
+          kind: "note" as const,
+          at: n.created_at,
+          data: n,
+        })),
+      ].sort((a, b) => a.at.localeCompare(b.at)),
+    [messages, notes],
+  );
+
+  // Matching happens here because this is where the thread's items live; the
+  // search bar (in the header) gets the count and navigation from the context.
+  const matchKeys = useMemo(
+    () =>
+      query
+        ? items
+            .filter((i) => searchableText(i).toLowerCase().includes(query))
+            .map(itemKey)
+        : [],
+    [items, query],
+  );
 
   useEffect(() => {
+    reportMatches(matchKeys);
+  }, [matchKeys, reportMatches]);
+
+  // Jump to the selected match.
+  useEffect(() => {
+    if (!activeKey) return;
+    itemRefs.current
+      .get(activeKey)
+      ?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [activeKey]);
+
+  // New messages scroll to the bottom — but not while the user is reading a
+  // search hit further up the thread.
+  useEffect(() => {
+    if (open) return;
     bottomRef.current?.scrollIntoView({ block: "end" });
-  }, [items.length]);
+  }, [items.length, open]);
 
   if (items.length === 0) {
     return (
@@ -40,23 +91,84 @@ export function Timeline({
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-2 overflow-y-auto bg-slate-50 px-3 py-4 sm:px-6">
-      {items.map((item) =>
-        item.kind === "message" ? (
-          <MessageBubble key={`m-${item.data.id}`} m={item.data} />
-        ) : (
-          <NoteCard
-            key={`n-${item.data.id}`}
-            note={item.data}
-            memberNames={memberNames}
-          />
-        ),
-      )}
+      {items.map((item) => {
+        const key = itemKey(item);
+        return (
+          <div
+            key={key}
+            ref={(el) => {
+              itemRefs.current.set(key, el);
+            }}
+          >
+            {item.kind === "message" ? (
+              <MessageBubble
+                m={item.data}
+                query={query}
+                active={activeKey === key}
+              />
+            ) : (
+              <NoteCard
+                note={item.data}
+                memberNames={memberNames}
+                query={query}
+                active={activeKey === key}
+              />
+            )}
+          </div>
+        );
+      })}
       <div ref={bottomRef} />
     </div>
   );
 }
 
-function MessageBubble({ m }: { m: Message }) {
+/**
+ * Renders `text`, wrapping every occurrence of the (already lowercased)
+ * search query in a highlight. The selected match glows brighter.
+ */
+function Highlight({
+  text,
+  query,
+  active,
+}: {
+  text: string;
+  query: string;
+  active: boolean;
+}) {
+  if (!query) return <>{text}</>;
+  const haystack = text.toLowerCase();
+  const parts: React.ReactNode[] = [];
+  let cursor = 0;
+  let hit = haystack.indexOf(query);
+  while (hit !== -1) {
+    if (hit > cursor) parts.push(text.slice(cursor, hit));
+    parts.push(
+      <mark
+        key={hit}
+        className={cn(
+          "rounded px-0.5 text-slate-900",
+          active ? "bg-amber-300" : "bg-amber-200",
+        )}
+      >
+        {text.slice(hit, hit + query.length)}
+      </mark>,
+    );
+    cursor = hit + query.length;
+    hit = haystack.indexOf(query, cursor);
+  }
+  if (cursor < text.length) parts.push(text.slice(cursor));
+  return <>{parts}</>;
+}
+
+function MessageBubble({
+  m,
+  query,
+  active,
+}: {
+  m: Message;
+  query: string;
+  active: boolean;
+}) {
   const outbound = m.direction === "outbound";
   const fromBot = outbound && m.sent_by_bot;
   return (
@@ -69,6 +181,7 @@ function MessageBubble({ m }: { m: Message }) {
               ? "rounded-br-sm bg-emerald-600 text-white"
               : "rounded-br-sm bg-brand-600 text-white"
             : "rounded-bl-sm bg-white text-slate-800",
+          active && "ring-2 ring-amber-400 ring-offset-2 ring-offset-slate-50",
         )}
       >
         {m.media_url && (
@@ -79,7 +192,9 @@ function MessageBubble({ m }: { m: Message }) {
             className="mb-1 max-h-64 w-full rounded-lg object-contain"
           />
         )}
-        <p className="whitespace-pre-wrap break-words">{m.body}</p>
+        <p className="whitespace-pre-wrap break-words">
+          <Highlight text={m.body ?? ""} query={query} active={active} />
+        </p>
         <p
           className={cn(
             "mt-1 flex items-center justify-end gap-1 text-right text-[10px]",
@@ -124,18 +239,29 @@ function Ticks({ status }: { status: string | null }) {
 function NoteCard({
   note,
   memberNames,
+  query,
+  active,
 }: {
   note: NoteWithAuthor;
   memberNames: Record<string, string>;
+  query: string;
+  active: boolean;
 }) {
   return (
     <div className="flex justify-center">
-      <div className="max-w-[85%] rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 shadow-sm">
+      <div
+        className={cn(
+          "max-w-[85%] rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 shadow-sm",
+          active && "ring-2 ring-amber-400 ring-offset-2 ring-offset-slate-50",
+        )}
+      >
         <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium text-amber-700">
           <Lock className="h-3 w-3" />
           Internal note · {note.author?.full_name ?? "Someone"}
         </div>
-        <p className="whitespace-pre-wrap break-words">{note.body}</p>
+        <p className="whitespace-pre-wrap break-words">
+          <Highlight text={note.body} query={query} active={active} />
+        </p>
         {note.mentions.length > 0 && (
           <p className="mt-1 text-[11px] text-amber-600">
             Notifying:{" "}
