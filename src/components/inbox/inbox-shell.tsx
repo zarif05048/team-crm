@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ConversationList } from "@/components/inbox/conversation-list";
+import { MessageResults } from "@/components/inbox/message-results";
 import { useInboxSearch } from "@/components/inbox/use-inbox-search";
 import { lineLabel } from "@/components/ui/line-badge";
 import type { ConversationListRow } from "@/lib/data/conversations";
@@ -51,7 +52,10 @@ export function InboxShell({
 
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
-  const { loaded, older, searching } = useInboxSearch(conversations, query);
+  const { loaded, older, messages, searching } = useInboxSearch(
+    conversations,
+    query,
+  );
 
   // If the selected line has no conversations anymore, fall back to "all".
   const activeLine =
@@ -63,11 +67,16 @@ export function InboxShell({
 
   const filtered = onLine(loaded);
   const olderResults = onLine(older);
+  const messageHits =
+    activeLine === "all"
+      ? messages
+      : messages.filter((m) => m.whatsapp_number_id === activeLine);
   const searchQuery = query.trim().toLowerCase();
   const noResults =
     searchQuery.length > 0 &&
     filtered.length === 0 &&
     olderResults.length === 0 &&
+    messageHits.length === 0 &&
     !searching;
 
   return (
@@ -156,15 +165,20 @@ export function InboxShell({
             </>
           )}
 
+          <MessageResults hits={messageHits} query={searchQuery} />
+
           {searching && (
-            <p className="px-4 py-3 text-xs text-slate-400">Searching older chats…</p>
+            <p className="px-4 py-3 text-xs text-slate-400">
+              Searching older chats and messages…
+            </p>
           )}
 
           {noResults && (
             <div className="px-6 py-10 text-center">
-              <p className="text-sm font-medium text-slate-600">No chats found</p>
+              <p className="text-sm font-medium text-slate-600">No results</p>
               <p className="mt-1 text-xs text-slate-400">
-                Try part of the name, or the phone number.
+                Searched names, phone numbers and message text. Try a shorter
+                word, or part of the number.
               </p>
             </div>
           )}

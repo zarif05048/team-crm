@@ -72,11 +72,18 @@ export function useThreadSearch(): ThreadSearchValue {
 
 export function ThreadSearchProvider({
   children,
+  initialQuery = "",
 }: {
   children: React.ReactNode;
+  /**
+   * Arriving from a message hit in the inbox search (`/inbox/<id>?q=…`): the
+   * bar opens on that word and the newest match is selected, so the thread
+   * lands on what was searched for instead of just at the bottom.
+   */
+  initialQuery?: string;
 }) {
-  const [open, setOpen] = useState(false);
-  const [input, setInput] = useState("");
+  const [open, setOpen] = useState(initialQuery.length > 0);
+  const [input, setInput] = useState(initialQuery);
   const [matches, setMatches] = useState<string[]>([]);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
