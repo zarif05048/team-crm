@@ -327,6 +327,25 @@ create index if not exists cron_runs_created_idx
 alter table public.cron_runs enable row level security;
 
 -- ============================================================================
+--  Search indexes : inbox search by message text, name or phone
+-- ============================================================================
+-- ILIKE '%...%' cannot use a normal btree index, so message search would scan
+-- the whole table. pg_trgm indexes three-letter fragments; that is also why the
+-- app only searches messages once at least 3 characters are typed.
+create extension if not exists pg_trgm;
+
+create index if not exists messages_body_trgm_idx
+  on public.messages using gin (body gin_trgm_ops);
+create index if not exists messages_conversation_created_idx
+  on public.messages (conversation_id, created_at desc);
+create index if not exists contacts_name_trgm_idx
+  on public.contacts using gin (name gin_trgm_ops);
+create index if not exists contacts_profile_name_trgm_idx
+  on public.contacts using gin (profile_name gin_trgm_ops);
+create index if not exists contacts_wa_id_trgm_idx
+  on public.contacts using gin (wa_id gin_trgm_ops);
+
+-- ============================================================================
 --  Realtime : broadcast row changes so every agent's inbox updates live
 -- ============================================================================
 do $$

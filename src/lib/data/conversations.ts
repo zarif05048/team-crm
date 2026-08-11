@@ -189,13 +189,94 @@ export async function searchConversations(
   return toListRows(convos, numbers);
 }
 
+/** One message that matched an inbox search, with enough to render a hit row. */
+export interface MessageHit {
+  id: string;
+  conversation_id: string;
+  body: string;
+  direction: Message["direction"];
+  created_at: string;
+  contact: Pick<Contact, "wa_id" | "name" | "profile_name">;
+  whatsapp_number_id: string;
+}
+
+/**
+ * Search the TEXT of every message in every conversation — the "just like
+ * WhatsApp" half of inbox search, for words spoken in a chat rather than the
+ * person's name.
+ *
+ * REQUIRES migration 2026-08-11_message_search.sql: without the pg_trgm index
+ * this is a sequential scan of the whole messages table. The 3-character
+ * minimum is not cosmetic either — a trigram index cannot serve a shorter
+ * pattern, so a 2-letter query would scan.
+ *
+ * Only the newest `limit` matches come back, so a chat that says "vaksin" fifty
+ * times cannot push every other chat out of the results.
+ */
+export async function searchMessages(
+  query: string,
+  limit = 25,
+): Promise<MessageHit[]> {
+  const q = query.trim();
+  if (q.length < 3) return [];
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("messages")
+    .select(
+      `id, conversation_id, body, direction, created_at,
+       conversation:conversations!inner(
+         whatsapp_number_id,
+         contact:contacts(wa_id, name, profile_name))`,
+    )
+    // ilike escapes nothing, so % and _ from the user would act as wildcards.
+    .ilike("body", `%${q.replace(/[%_]/g, "")}%`)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("[data] searchMessages:", error.message);
+    return [];
+  }
+
+  type Row = {
+    id: string;
+    conversation_id: string;
+    body: string | null;
+    direction: Message["direction"];
+    created_at: string;
+    conversation: {
+      whatsapp_number_id: string;
+      contact: Pick<Contact, "wa_id" | "name" | "profile_name"> | null;
+    } | null;
+  };
+
+  return (data as unknown as Row[])
+    .filter((m) => m.body && m.conversation?.contact)
+    .map((m) => ({
+      id: m.id,
+      conversation_id: m.conversation_id,
+      body: m.body as string,
+      direction: m.direction,
+      created_at: m.created_at,
+      contact: m.conversation!.contact!,
+      whatsapp_number_id: m.conversation!.whatsapp_number_id,
+    }));
+}
+
 /**
  * Message history for one conversation, oldest first. Capped to the most
  * recent 300 — long-running bot threads accumulate thousands of messages, and
  * fetching + rendering all of them made opening a thread slow (especially on
  * phones). 300 covers weeks of a busy chat; older history stays in the DB.
+ *
+ * Opening a thread from a search hit passes a bigger `limit`: the match can be
+ * far older than the last 300, and arriving at a thread that doesn't contain
+ * the word you searched for would be worse than the extra rows.
  */
 const THREAD_MESSAGE_LIMIT = 300;
+/** Deeper window used when the thread is opened from a message search hit. */
+export const THREAD_SEARCH_MESSAGE_LIMIT = 1_000;
 
 // Everything the timeline renders. `wa_message_id` and `sent_by` are omitted —
 // nothing displays them, and 300 Meta message ids is pure wire weight on a
@@ -203,14 +284,17 @@ const THREAD_MESSAGE_LIMIT = 300;
 const THREAD_COLUMNS =
   "id, conversation_id, direction, type, body, media_url, status, sent_by_bot, created_at";
 
-export async function getMessages(conversationId: string): Promise<Message[]> {
+export async function getMessages(
+  conversationId: string,
+  limit: number = THREAD_MESSAGE_LIMIT,
+): Promise<Message[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("messages")
     .select(THREAD_COLUMNS)
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: false })
-    .limit(THREAD_MESSAGE_LIMIT);
+    .limit(limit);
   if (error) {
     console.error("[data] getMessages:", error.message);
     return [];

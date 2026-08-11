@@ -3,19 +3,27 @@
 import { useEffect, useMemo, useState } from "react";
 import { searchInbox } from "@/app/(app)/inbox/actions";
 import { phoneCandidates } from "@/lib/search";
-import type { ConversationListRow } from "@/lib/data/conversations";
+import type {
+  ConversationListRow,
+  MessageHit,
+} from "@/lib/data/conversations";
 
 /**
  * WhatsApp-style inbox search: find a chat by the person's name, their phone
- * number, the last message, or a tag.
+ * number, a tag, or something that was actually said in the conversation.
  *
- * Two layers, because the inbox list only holds the newest 200 conversations:
+ * Three layers, because the inbox list only holds the newest 200 conversations:
  *
- *  1. the loaded rows are filtered in the browser on every keystroke — instant,
- *     and free (no Supabase egress, which every realtime refresh already taxes);
- *  2. a debounced server search covers everyone OLDER than those 200, by name /
- *     profile name / phone only. Its results are returned separately so the UI
- *     can label them, and anything already on screen is filtered out.
+ *  1. those loaded rows are filtered in the browser on every keystroke —
+ *     instant, and free (no Supabase egress, which every realtime refresh
+ *     already taxes);
+ *  2. a debounced server search finds chats OLDER than those 200, by name /
+ *     profile name / phone;
+ *  3. the same round trip searches the TEXT of every message (3 characters
+ *     minimum — that is what the pg_trgm index can serve).
+ *
+ * Each layer is returned separately so the UI can label where a result came
+ * from, and anything already on screen is filtered out of the server results.
  */
 
 const MIN_SERVER_QUERY = 2;
@@ -26,10 +34,12 @@ export interface InboxSearchResult {
   loaded: ConversationListRow[];
   /** Older chats found on the server, never duplicating `loaded`. */
   older: ConversationListRow[];
+  /** Messages whose text matched, newest first. */
+  messages: MessageHit[];
   searching: boolean;
 }
 
-/** Everything about a conversation that the inbox search looks at. */
+/** Everything about a conversation that the client-side filter looks at. */
 function haystack(c: ConversationListRow): string {
   return [
     c.contact.name,
@@ -44,6 +54,14 @@ function haystack(c: ConversationListRow): string {
     .toLowerCase();
 }
 
+interface ServerResult {
+  query: string;
+  conversations: ConversationListRow[];
+  messages: MessageHit[];
+}
+
+const NO_RESULT: ServerResult = { query: "", conversations: [], messages: [] };
+
 export function useInboxSearch(
   conversations: ConversationListRow[],
   rawQuery: string,
@@ -51,10 +69,7 @@ export function useInboxSearch(
   const query = rawQuery.trim().toLowerCase();
   // Results are stored WITH the query they answer, so "are we still searching?"
   // is derived rather than tracked — no stale spinner if a request is dropped.
-  const [result, setResult] = useState<{
-    query: string;
-    rows: ConversationListRow[];
-  }>({ query: "", rows: [] });
+  const [result, setResult] = useState<ServerResult>(NO_RESULT);
 
   const loaded = useMemo(() => {
     if (!query) return conversations;
@@ -71,12 +86,12 @@ export function useInboxSearch(
     let cancelled = false;
     const timer = setTimeout(async () => {
       try {
-        const rows = await searchInbox(query);
-        if (!cancelled) setResult({ query, rows });
+        const found = await searchInbox(query);
+        if (!cancelled) setResult({ query, ...found });
       } catch (err) {
         console.error("[inbox] search failed:", err);
         // Record the failure against this query so the UI stops waiting.
-        if (!cancelled) setResult({ query, rows: [] });
+        if (!cancelled) setResult({ ...NO_RESULT, query });
       }
     }, DEBOUNCE_MS);
     return () => {
@@ -85,18 +100,18 @@ export function useInboxSearch(
     };
   }, [query]);
 
+  const fresh = result.query === query;
   const onScreen = useMemo(() => new Set(loaded.map((c) => c.id)), [loaded]);
   const older = useMemo(
     () =>
-      result.query === query
-        ? result.rows.filter((c) => !onScreen.has(c.id))
-        : [],
-    [result, query, onScreen],
+      fresh ? result.conversations.filter((c) => !onScreen.has(c.id)) : [],
+    [fresh, result.conversations, onScreen],
   );
 
   return {
     loaded,
     older,
-    searching: query.length >= MIN_SERVER_QUERY && result.query !== query,
+    messages: fresh ? result.messages : [],
+    searching: query.length >= MIN_SERVER_QUERY && !fresh,
   };
 }

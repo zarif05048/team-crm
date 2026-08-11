@@ -13,7 +13,11 @@ import {
   ThreadSearchToggle,
 } from "@/components/inbox/thread-search";
 import { TagBar } from "@/components/inbox/tag-bar";
-import { getConversation, getMessages } from "@/lib/data/conversations";
+import {
+  getConversation,
+  getMessages,
+  THREAD_SEARCH_MESSAGE_LIMIT,
+} from "@/lib/data/conversations";
 import { getNotes } from "@/lib/data/notes";
 import { getTeamMembers } from "@/lib/data/team";
 import { getCannedReplies } from "@/lib/data/canned";
@@ -22,14 +26,22 @@ import { isWindowOpen } from "@/lib/types";
 
 export default async function ThreadPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ q?: string }>;
 }) {
-  const { id } = await params;
+  const [{ id }, { q }] = await Promise.all([params, searchParams]);
+  // Opened from a message hit in the inbox search: the match can be much older
+  // than the usual 300-message window, so load deeper for this one render.
+  const searchQuery = (q ?? "").slice(0, 100);
   const [conversation, messages, notes, members, cannedReplies, allNumbers] =
     await Promise.all([
       getConversation(id),
-      getMessages(id),
+      getMessages(
+        id,
+        searchQuery ? THREAD_SEARCH_MESSAGE_LIMIT : undefined,
+      ),
       getNotes(id),
       getTeamMembers(),
       getCannedReplies(),
@@ -55,7 +67,7 @@ export default async function ThreadPage({
   );
 
   return (
-    <ThreadSearchProvider key={conversation.id}>
+    <ThreadSearchProvider key={conversation.id} initialQuery={searchQuery}>
       <div className="flex min-w-0 flex-1 flex-col">
         <MarkRead
           conversationId={conversation.id}

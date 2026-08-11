@@ -119,11 +119,21 @@ by (events x devices). Treat it as egress-sensitive.
   coalescing, polling net); the hook books a reconciling refresh through its
   exported `notifyInboxChange()`. Don't re-add a messages subscription in a
   second component — Realtime ships whole rows to every subscriber.
-- Inbox search (box above the conversation list) filters the **already-loaded**
-  rows client-side — name, phone, last-message preview, assignee, tags — so
-  typing costs nothing. Only chats older than the loaded 200 fall through to
-  `searchConversations()` (debounced 300ms, min 2 chars, 25 rows, name/phone
-  only), shown under an "Older chats" heading. Phone matching goes through
+- Inbox search (box above the conversation list) has three layers:
+  1. the **already-loaded** rows are filtered client-side — name, phone,
+     last-message preview, assignee, tags — so typing costs nothing;
+  2. chats older than the loaded 200 come from `searchConversations()`
+     (debounced 300ms, min 2 chars, 25 rows, name/phone), under "Older chats";
+  3. **message text** across every conversation comes from `searchMessages()`
+     (min 3 chars, 25 newest matches), listed under "Messages"; each hit links
+     to `/inbox/<id>?q=…`, which opens the thread with its own search bar on
+     that word (and loads `THREAD_SEARCH_MESSAGE_LIMIT` = 1,000 messages for
+     that render, since the match can be older than the usual 300).
+  Message search **requires `2026-08-11_message_search.sql`** (pg_trgm + GIN
+  indexes on `messages.body` and the contact columns). Without it the query
+  still returns the right rows but sequentially scans `messages` — run the
+  migration. The 3-character minimum exists because a trigram index cannot
+  serve a shorter `ilike '%x%'` pattern. Phone matching goes through
   `phoneCandidates()` in `src/lib/search.ts` so "011…", "+6011…" and "6011…"
   all find the same contact.
 - In-conversation search (🔍 in the thread header / Ctrl+F,
