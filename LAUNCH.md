@@ -58,5 +58,6 @@ WhatsApp only lets you send a **free typed reply within 24 hours** of the custom
   Add it in the Meta dashboard, then it appears automatically in Settings.
 - **Security:** the Supabase + Vercel keys shared during setup can be rotated in their
   dashboards for hygiene.
-- **Code & backups:** everything is on GitHub (private) at `zarif05048/team-crm`, committed
-  at every milestone.
+- **Code & backups:** everything is on GitHub (public) at `zarif05048/team-crm`, committed
+  at every milestone. Public means the code is readable by anyone — so no key,
+  token or patient data ever goes into a committed file.
