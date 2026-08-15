@@ -140,9 +140,10 @@ by (events x devices). Treat it as egress-sensitive.
      that render, since the match can be older than the usual 300).
   Message search **requires `2026-08-11_message_search.sql`** (pg_trgm + GIN
   indexes on `messages.body` and the contact columns). Without it the query
-  still returns the right rows but sequentially scans `messages` — run the
-  migration. The 3-character minimum exists because a trigram index cannot
-  serve a shorter `ilike '%x%'` pattern. Phone matching goes through
+  still returns the right rows but sequentially scans `messages`. **Applied to
+  production — verified 2026-08-15**, all five indexes present in `pg_indexes`;
+  don't re-run it looking for a speedup. The 3-character minimum exists because
+  a trigram index cannot serve a shorter `ilike '%x%'` pattern. Phone matching goes through
   `phoneCandidates()` in `src/lib/search.ts` so "011…", "+6011…" and "6011…"
   all find the same contact.
 - In-conversation search (🔍 in the thread header / Ctrl+F,
