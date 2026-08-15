@@ -107,7 +107,7 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: "book_appointment",
     description:
-      "Record a booking request for the clinic staff to confirm. Call this once you have the patient's name, the service, the branch (Dungun or Paka), and their preferred date/time. Do not call it with missing fields — ask the patient first.",
+      "Record a booking request for the clinic staff to confirm. The clinic is open 24 hours and almost everything is a WALK-IN, so this is only for a HOUSE CALL, where the clinic travels to the patient and staff must arrange a time. Everything else — ordinary care, medical checkup, health screening, ultrasound, vaccination, the weight-loss programme — needs no appointment at all: tell the patient to come in any time instead of taking their details. For a minor surgery or procedure use book_minor_surgery, not this. Call this once you have the patient's name, the branch (Dungun or Paka), and their preferred date/time. Do not call it with missing fields — ask the patient first.",
     input_schema: {
       type: "object",
       properties: {
@@ -115,7 +115,7 @@ const TOOLS: Anthropic.Tool[] = [
         service: {
           type: "string",
           description:
-            "Service requested, e.g. house call, khatan, health screening, ultrasound, vaksin",
+            "Service requested — in practice a house call, since every other non-procedure service is a walk-in",
         },
         branch: {
           type: "string",
