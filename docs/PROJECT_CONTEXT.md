@@ -4,6 +4,10 @@
 > continue this project from any device (web, mobile, or a new desktop session).
 > It contains **no secrets** — real keys/tokens live in `.env.local` (local) and
 > Vercel env vars (production), never in git.
+>
+> Moving to a **different Claude account**? See
+> [`docs/ACCOUNT_HANDOFF.md`](ACCOUNT_HANDOFF.md) — repo access, env vars, and
+> what stays put (everything real: Vercel, Supabase, the WhatsApp number).
 
 ## What this is
 
@@ -235,3 +239,5 @@ hijraadungunhealthcare@gmail.com), which keeps **one tab per month** named
   staged first.
 - `scripts/` holds dev/diagnostic helpers (DB peek, user reset, webhook simulate,
   WABA subscribe, env push, token exchange). They read secrets from `.env.local`.
+- Continuing from another Claude account (second subscription, new login,
+  teammate): `docs/ACCOUNT_HANDOFF.md` has the click-by-click steps.
