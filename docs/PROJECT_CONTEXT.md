@@ -16,7 +16,12 @@ Hijraa, Dungun, Malaysia*). The owner is **non-technical** — Claude builds and
 deploys everything; explain external steps in plain language.
 
 - **Live app:** https://team-crm-one.vercel.app
-- **Repo:** github.com/zarif05048/team-crm (private)
+- **Repo:** github.com/zarif05048/team-crm — **public** (deliberate; confirmed
+  with the owner 2026-08-15). Anyone can read this code, so nothing sensitive
+  may ever be committed: no keys, no tokens, no patient data — not in a comment,
+  a fixture, or a script default. Secrets live in `.env.local` and Vercel env
+  vars only. `.env*` is gitignored, and the full history was scanned clean on
+  2026-08-15.
 - **Goal that drove building vs. buying:** avoid ~$80–300/mo SaaS (respond.io/wati).
 
 ## Status: MVP COMPLETE & LIVE (7-day build finished)

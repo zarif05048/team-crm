@@ -12,7 +12,7 @@ thing that reads and edits the code. Everything real lives somewhere else:
 
 | What | Where it lives | Affected by switching Claude accounts? |
 | --- | --- | --- |
-| The code | GitHub — `zarif05048/team-crm` (private) | No |
+| The code | GitHub — `zarif05048/team-crm` (public) | No |
 | The live website | Vercel — https://team-crm-one.vercel.app | No |
 | The database + logins | Supabase project `ewwzmyzegmjoiqstbjbn` | No |
 | The WhatsApp number | Meta — `+60 11-2965 0884` | No |
@@ -41,10 +41,12 @@ This is the only step that has to happen *before* you move.
 
 ---
 
-## Step 1 — Give the new account access to the repo
+## Step 1 — Give the new account permission to push
 
-The repo is **private**, so the new account has to be let in. Which path you
-take depends on the GitHub account:
+The repo is **public**, so any Claude account can *read* it straight away —
+there is nothing to set up for that. What still has to be granted is **write**
+access: the ability to push changes back. Which path you take depends on the
+GitHub account:
 
 **If the new Claude account will use the same GitHub account (`zarif05048`):**
 
@@ -60,6 +62,12 @@ take depends on the GitHub account:
 3. Click **Add people**, type that person's GitHub username, invite them.
 4. They open the invite email and click **Accept**.
 5. Then they connect GitHub in their Claude account as above.
+
+> **Because the repo is public:** never let a real key or token into a file
+> here. Anything pushed is visible to the whole internet immediately, and the
+> only fix afterwards is rotating it. Real values live in `.env.local` (on your
+> PC) and in Vercel's env vars (production) — never in git. `.env*` is
+> gitignored; keep it that way.
 
 ## Step 2 — Start a session on the repo
 
