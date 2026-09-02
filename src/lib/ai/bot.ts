@@ -16,6 +16,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendText, sendImage } from "@/lib/whatsapp/send";
 import { addToTcaList, malaysiaToday } from "@/lib/sheets/tca";
 import { BOT_SYSTEM_PROMPT } from "./knowledge";
+import { pricingSection, lookupMedication } from "./pricing";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -188,6 +189,22 @@ const TOOLS: Anthropic.Tool[] = [
         },
       },
       required: ["leaflet"],
+    },
+  },
+  {
+    name: "lookup_medication",
+    description:
+      "Search the clinic's medication and supplies price list (Stock → Pricing in the clinic system) by name — brand or generic, any spelling. Returns up to 8 matching items with their cash price per unit. Call this BEFORE answering any question about whether the clinic has a medicine/cream/inhaler/injection or what it costs. Prices only — it does not know today's stock level.",
+    input_schema: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description:
+            "The medicine name as the patient wrote it, e.g. 'panadol', 'ubat gastrik', 'ventolin inhaler', 'amlodipine'",
+        },
+      },
+      required: ["query"],
     },
   },
   {
@@ -394,6 +411,13 @@ async function converse(
   messages: Anthropic.MessageParam[],
 ): Promise<string | null> {
   const anthropic = new Anthropic();
+  // The clinic's live price list (Stock → Pricing in the CMS), appended to
+  // the cached block. It changes at most hourly, so it rides inside the cache
+  // rather than invalidating it; empty when CMS_URL is not configured.
+  const prices = await pricingSection();
+  const systemText = BOT_SYSTEM_PROMPT + (prices ? `
+
+${prices}` : "");
 
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
     const response = await anthropic.messages.create({
@@ -402,7 +426,7 @@ async function converse(
       system: [
         {
           type: "text",
-          text: BOT_SYSTEM_PROMPT,
+          text: systemText,
           cache_control: { type: "ephemeral" },
         },
         // Today's date, so "esok"/"Khamis ni" can become a real date for the
@@ -462,6 +486,9 @@ async function executeTool(
   try {
     const input = tool.input as Record<string, string | undefined>;
     console.log(`[bot] tool ${tool.name}:`, JSON.stringify(input));
+    if (tool.name === "lookup_medication") {
+      return await lookupMedication(input.query ?? "");
+    }
     if (tool.name === "send_leaflet") {
       const leaflet = LEAFLETS[input.leaflet ?? ""];
       if (!leaflet) return `Unknown leaflet: ${input.leaflet}`;

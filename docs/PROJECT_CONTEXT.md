@@ -185,7 +185,14 @@ Patient-facing FAQ bot on the WhatsApp line, powered by the Claude API
   or template reply pauses it (in `recordOutbound`); toolbar "AI on/off"
   button (violet, Bot icon) re-enables. Bot messages render violet with 🤖 AI.
 - Requires `ANTHROPIC_API_KEY` env (empty = bot silently disabled, CRM
-  unaffected). Migration: `supabase/migrations/2026-07-05_ai_bot.sql`
+  unaffected).
+- **Live price list (2026-09-02):** `src/lib/ai/pricing.ts` pulls Stock →
+  Pricing from the clinic CMS (`GET /api/bot/pricing`, self-pay prices only)
+  when `CMS_URL` + `CMS_REMINDER_TOKEN` are set (same token the WhatsApp
+  fleet uses — `REMINDER_SYNC_TOKEN` on Render). Services go into the cached
+  system block; medications are behind the `lookup_medication` tool. Unset =
+  the bot quotes only the hand-written estimates in `knowledge.ts`, as before.
+  Wording is kept identical to the fleet's `cms.js` so both lines answer alike. Migration: `supabase/migrations/2026-07-05_ai_bot.sql`
   (also folded into `schema.sql`).
 - Webhook route sets `maxDuration = 60` for the after() work.
 - **Politeness register (2026-08-10):** the system prompt carries a "POLITENESS
