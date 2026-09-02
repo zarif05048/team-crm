@@ -231,6 +231,15 @@ const TOOLS: Anthropic.Tool[] = [
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** An inbound sticker, as the webhook stores it — see extractContent in
+ *  lib/whatsapp/types.ts, which records a sticker as an image with the body
+ *  "Sticker". */
+const isSticker = (m: { direction: string; type: string; body: string | null }) =>
+  m.direction === "inbound" && m.type === "image" && m.body === "Sticker";
+const STICKER_THANKS =
+  "Terima kasih atas maklum balas Tuan/Puan. Jika ada pertanyaan lain, boleh hubungi kami di sini bila-bila masa.";
+const STICKER_THANKS_GAP_MS = 6 * 3_600_000;
+
 /** Entry point — called from the webhook route via next/server `after()`. */
 export async function runBotReply(trigger: BotTrigger): Promise<void> {
   try {
@@ -312,6 +321,27 @@ export async function runBotReply(trigger: BotTrigger): Promise<void> {
     const spam = detectSpam(history);
     if (spam) {
       await flagSpam(supabase, trigger.conversationId, spam);
+      return;
+    }
+
+    // A sticker is not a question. The owner's rule (2026-09-02): never
+    // describe or comment on it — one plain thank-you, no emoji, and only
+    // one every few hours so a run of stickers is not a run of thank-yous.
+    if (isSticker(history[0])) {
+      const recentThanks = history.find(
+        (m) => m.direction === "outbound" && m.body === STICKER_THANKS &&
+          Date.now() - Date.parse(m.created_at) < STICKER_THANKS_GAP_MS,
+      );
+      if (recentThanks) return;
+      const contactS = conv.contact as unknown as { wa_id: string };
+      const numberS = conv.whatsapp_number as unknown as { phone_number_id: string };
+      const sent = await sendText(numberS.phone_number_id, contactS.wa_id, STICKER_THANKS);
+      if (!sent.ok) { console.error("[bot] sticker thanks failed:", sent.error); return; }
+      await supabase.from("messages").insert({
+        conversation_id: trigger.conversationId, wa_message_id: sent.waMessageId ?? null,
+        direction: "outbound", type: "text", body: STICKER_THANKS, status: "sent",
+        sent_by: null, sent_by_bot: true, created_at: new Date().toISOString(),
+      });
       return;
     }
 
