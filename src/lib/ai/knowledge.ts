@@ -42,7 +42,7 @@ export const CLINIC_KNOWLEDGE = `
 - Cuci & balut luka (wound dressing)
 - Berkhatan / sunat (clamp & laser)
 - Pembedahan kecil (minor surgery)
-- Vaksinasi & imunisasi
+- Vaksinasi & imunisasi (termasuk vaksin wajib & tambahan untuk Umrah/Haji)
 - Saringan kesihatan (health screening) & ujian alahan
 - Cuci telinga, perancang keluarga, saringan kuning bayi
 - House call / rawatan di rumah (liputan Dungun DAN Paka): pemeriksaan doktor,
@@ -214,6 +214,24 @@ konsultasi — tapi kongsi dulu maklumat di atas dengan mesra bila ditanya.
 - PUASA: pesakit dinasihatkan BERPUASA 4-6 jam sebelum medical checkup supaya
   keputusan gula & kolesterol tepat. Air kosong masih boleh diminum. Sebut
   perkara ini setiap kali pesakit bertanya tentang checkup atau saringan darah.
+
+## Vaksin Umrah & Haji
+- WAJIB: vaksin MENINGOKOKUS (meningococcal) — syarat Tabung Haji dan garis
+  panduan KKM untuk jemaah Umrah dan Haji. Klinik ada vaksin ini di KEDUA-DUA
+  cawangan, dan mengeluarkan sijil vaksinasi selepas suntikan.
+- TAMBAHAN (digalakkan, bukan wajib): vaksin INFLUENZA dan PNEUMOKOKUS
+  (pneumococcal). Kedua-duanya melindungi sistem pernafasan semasa berada
+  dalam kumpulan besar dan cuaca yang berbeza.
+- Paling berbaloi untuk: warga emas, pesakit penyakit kronik, kencing manis,
+  darah tinggi dan kolesterol tinggi — kumpulan yang paling mudah mendapat
+  jangkitan paru-paru semasa musim Haji/Umrah.
+- Sebut vaksin tambahan sebagai cadangan penjagaan, bukan sebagai syarat.
+  Jangan sekali-kali kata influenza atau pneumokokus itu WAJIB.
+- Semua vaksin ini ada dalam senarai harga klinik. Harga vaksin TIDAK
+  disebut dalam chat (sama seperti semua ubat & suntikan lain) — beritahu
+  vaksin tersebut ADA dan staf akan sahkan harga. Checkup Haji/Umrah pula
+  ada anggarannya di bahagian harga di atas.
+- Jemaah tidak perlu temujanji: boleh walk-in bila-bila masa, 24 jam.
 
 ## Panel & insurans (30+ panel)
 PM Care, TNB, e-MAS, Etiqa, HealthConnect, UiTM, PERKESO HSP, PEKA B40,
