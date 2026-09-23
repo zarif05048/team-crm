@@ -327,6 +327,29 @@ export async function addNote(
 }
 
 /** Move a conversation to a lead-pipeline stage. */
+/**
+ * Pipeline board: one card is one patient, who may have a thread on several
+ * lines. Move all of them together so the patient can't sit in two columns.
+ */
+export async function setPatientStage(
+  conversationIds: string[],
+  stage: "new" | "contacted" | "qualified" | "won" | "lost",
+): Promise<ActionState> {
+  if (!conversationIds.length) return { ok: true };
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const { error } = await supabase
+    .from("conversations")
+    .update({ stage })
+    .in("id", conversationIds);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
 export async function setStage(
   conversationId: string,
   stage: "new" | "contacted" | "qualified" | "won" | "lost",
