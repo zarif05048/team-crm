@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendText, sendTemplate } from "@/lib/whatsapp/send";
 import { addToTcaList } from "@/lib/sheets/tca";
-import { isWindowOpen } from "@/lib/types";
+import { isWindowOpen, type LeadStage } from "@/lib/types";
 import { WEIGHT_LOSS_TAG } from "@/lib/data/conversations";
 
 export type SendState = { ok: boolean; error?: string; conversationId?: string };
@@ -334,7 +334,7 @@ export async function addNote(
  */
 export async function setPatientStage(
   conversationIds: string[],
-  stage: "new" | "contacted" | "qualified" | "won" | "lost",
+  stage: LeadStage,
 ): Promise<ActionState> {
   if (!conversationIds.length) return { ok: true };
   const supabase = await createClient();
@@ -394,7 +394,7 @@ export async function removeFromPipeline(
 
 export async function setStage(
   conversationId: string,
-  stage: "new" | "contacted" | "qualified" | "won" | "lost",
+  stage: LeadStage,
 ): Promise<ActionState> {
   const supabase = await createClient();
   const {

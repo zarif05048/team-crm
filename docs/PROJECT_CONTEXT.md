@@ -31,7 +31,7 @@ All features built, tested live, deployed:
 - WhatsApp **inbound** webhook + **outbound** send (official Meta Cloud API)
 - Live realtime shared inbox (Supabase Realtime)
 - Collaboration: assignment, internal notes + @mentions, open/close status
-- Lead pipeline (drag-drop kanban: new→qualified→won/lost; weight-loss leads only — see below), tags
+- Lead pipeline (drag-drop kanban: new→qualified→booking→won/lost; weight-loss leads only — see below), tags
 - Contacts directory
 - Admin Settings: team management, quick replies, number rename
 - 24h-window handling + template fallback (template path coded, not yet tested live)
@@ -265,6 +265,9 @@ the weight-loss programme.
   (board + chat stage dropdown). Existing `contacted` threads moved to `new`
   by `2026-09-23_drop_contacted.sql`; the board also shows any leftover one in
   New. The DB constraint still allows the value.
+- **Booking column** (owner, 2026-09-23) between Qualified and Won: stage
+  `booking`, allowed by the check re-created in `2026-09-23_booking_stage.sql`.
+  Manual only — the AI bots still move a booking to `qualified`.
 
 ## Outstanding / roadmap
 

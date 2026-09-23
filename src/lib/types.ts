@@ -2,7 +2,13 @@
 
 export type Role = "admin" | "agent";
 export type ConversationStatus = "open" | "closed";
-export type LeadStage = "new" | "contacted" | "qualified" | "won" | "lost";
+export type LeadStage =
+  | "new"
+  | "contacted"
+  | "qualified"
+  | "booking"
+  | "won"
+  | "lost";
 export type MessageDirection = "inbound" | "outbound";
 export type MessageType =
   | "text"
@@ -106,6 +112,7 @@ export const STAGE_LABELS: Record<LeadStage, string> = {
   new: "New",
   contacted: "Contacted",
   qualified: "Qualified",
+  booking: "Booking",
   won: "Won",
   lost: "Lost",
 };
@@ -116,6 +123,7 @@ export const STAGE_LABELS: Record<LeadStage, string> = {
 export const STAGE_ORDER: LeadStage[] = [
   "new",
   "qualified",
+  "booking", // added 2026-09-23 (owner): needs 2026-09-23_booking_stage.sql
   "won",
   "lost",
 ];

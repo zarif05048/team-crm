@@ -23,6 +23,7 @@ const STAGE_ACCENT: Record<LeadStage, string> = {
   new: "border-t-sky-400",
   contacted: "border-t-violet-400",
   qualified: "border-t-amber-400",
+  booking: "border-t-teal-400",
   won: "border-t-brand-500",
   lost: "border-t-slate-400",
 };
@@ -34,8 +35,9 @@ const STAGE_RANK: Record<LeadStage, number> = {
   new: 0,
   contacted: 1,
   qualified: 2,
-  lost: 3,
-  won: 4,
+  booking: 3,
+  lost: 4,
+  won: 5,
 };
 
 /**
@@ -101,7 +103,8 @@ export function PipelineBoard({
 
   const move = (conversationIds: string[], stage: LeadStage) => {
     start(async () => {
-      await setPatientStage(conversationIds, stage);
+      const res = await setPatientStage(conversationIds, stage);
+      if (!res.ok) window.alert(`Could not move: ${res.error ?? "unknown error"}`);
       router.refresh();
     });
   };

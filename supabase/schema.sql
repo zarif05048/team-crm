@@ -54,7 +54,7 @@ create table if not exists public.conversations (
   whatsapp_number_id  uuid not null references public.whatsapp_numbers(id) on delete cascade,
   assigned_to         uuid references public.profiles(id) on delete set null,
   status              text not null default 'open'  check (status in ('open','closed')),
-  stage               text not null default 'new'   check (stage in ('new','contacted','qualified','won','lost')),
+  stage               text not null default 'new'   check (stage in ('new','contacted','qualified','booking','won','lost')),
   bot_enabled         boolean not null default true, -- AI auto-reply on/off per thread
   last_message_at     timestamptz not null default now(),
   last_inbound_at     timestamptz,                 -- drives the 24h-window indicator
