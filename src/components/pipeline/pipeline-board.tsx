@@ -54,15 +54,20 @@ interface PatientCard {
   tags: Tag[];
 }
 
+/* The Contacted column is gone; a thread still holding that stage (from before
+   2026-09-23_drop_contacted.sql) shows in New, where that migration puts it. */
+const boardStage = (s: LeadStage): LeadStage => (s === "contacted" ? "new" : s);
+
 function toPatients(conversations: ConversationListRow[]): PatientCard[] {
   const byContact = new Map<string, PatientCard>();
   // Rows arrive newest first, so the first thread seen is the latest.
   for (const c of conversations) {
+    const stage = boardStage(c.stage);
     const p = byContact.get(c.contact.id);
     if (!p) {
       byContact.set(c.contact.id, {
         contactId: c.contact.id,
-        stage: c.stage,
+        stage,
         latest: c,
         conversationIds: [c.id],
         lines: [c.whatsapp_number?.display_name ?? ""],
@@ -71,7 +76,7 @@ function toPatients(conversations: ConversationListRow[]): PatientCard[] {
       continue;
     }
     p.conversationIds.push(c.id);
-    if (STAGE_RANK[c.stage] > STAGE_RANK[p.stage]) p.stage = c.stage;
+    if (STAGE_RANK[stage] > STAGE_RANK[p.stage]) p.stage = stage;
     const line = c.whatsapp_number?.display_name ?? "";
     if (!p.lines.includes(line)) p.lines.push(line);
     for (const t of c.tags) {

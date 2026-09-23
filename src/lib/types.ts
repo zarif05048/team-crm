@@ -110,9 +110,11 @@ export const STAGE_LABELS: Record<LeadStage, string> = {
   lost: "Lost",
 };
 
+/* "contacted" was dropped from the pipeline (2026-09-23, owner's request) and
+   existing rows moved to "new" by 2026-09-23_drop_contacted.sql. It stays in
+   LeadStage only because the database still allows the value. */
 export const STAGE_ORDER: LeadStage[] = [
   "new",
-  "contacted",
   "qualified",
   "won",
   "lost",
