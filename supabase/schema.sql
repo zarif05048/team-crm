@@ -361,12 +361,15 @@ as $
   select coalesce(body, '') ~* 'njaro|wegov|ozempi|semaglutide|tirzepatide|kurus|turun\s*berat|berat\s*badan|penurunan\s*berat|weight\s*loss|weightloss|langsing|\mslim|\mdiet';
 $;
 
+alter table public.contacts
+  add column if not exists pipeline_removed_at timestamptz; -- staff removed them from the pipeline (2026-09-23_pipeline_remove.sql)
+
 create or replace function public.trg_message_tag_weight_loss()
 returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 declare
   wl_tag uuid;
   added  integer;
@@ -377,6 +380,17 @@ begin
 
   -- Never let tagging stop a patient's message from being stored.
   begin
+    -- Staff took this patient off the pipeline: don't put them back.
+    if exists (
+      select 1
+      from public.conversations c
+      join public.contacts k on k.id = c.contact_id
+      where c.id = new.conversation_id
+        and k.pipeline_removed_at is not null
+    ) then
+      return new;
+    end if;
+
     select id into wl_tag from public.tags where name = 'weight-loss';
     if wl_tag is null then
       insert into public.tags (name, color) values ('weight-loss', '#16a34a')
@@ -400,7 +414,7 @@ begin
 
   return new;
 end;
-$;
+$$;
 
 drop trigger if exists messages_tag_weight_loss on public.messages;
 create trigger messages_tag_weight_loss

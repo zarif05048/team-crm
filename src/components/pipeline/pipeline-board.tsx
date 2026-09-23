@@ -3,10 +3,14 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Trash2 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { LineBadge } from "@/components/ui/line-badge";
 import { cn } from "@/lib/utils";
-import { setPatientStage } from "@/app/(app)/inbox/[id]/actions";
+import {
+  setPatientStage,
+  removeFromPipeline,
+} from "@/app/(app)/inbox/[id]/actions";
 import {
   STAGE_ORDER,
   STAGE_LABELS,
@@ -97,6 +101,22 @@ export function PipelineBoard({
     });
   };
 
+  const remove = (p: PatientCard, name: string) => {
+    if (
+      !window.confirm(
+        `Remove ${name} from the pipeline?\n\n` +
+          "Their chats stay in the inbox. They won't be added back " +
+          'automatically — to put them back, add the "weight-loss" tag in their chat.',
+      )
+    )
+      return;
+    start(async () => {
+      const res = await removeFromPipeline(p.contactId, p.conversationIds);
+      if (!res.ok) window.alert(`Could not remove: ${res.error ?? "unknown error"}`);
+      router.refresh();
+    });
+  };
+
   return (
     <div
       className={cn(
@@ -143,7 +163,7 @@ export function PipelineBoard({
             </div>
             <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-2 pb-3">
               {cards.map((p) => (
-                <PipelineCard key={p.contactId} p={p} />
+                <PipelineCard key={p.contactId} p={p} onRemove={remove} />
               ))}
               {cards.length === 0 && (
                 <p className="px-1 py-4 text-center text-xs text-slate-400">
@@ -158,54 +178,76 @@ export function PipelineBoard({
   );
 }
 
-function PipelineCard({ p }: { p: PatientCard }) {
+function PipelineCard({
+  p,
+  onRemove,
+}: {
+  p: PatientCard;
+  onRemove: (p: PatientCard, name: string) => void;
+}) {
   const c = p.latest;
   const name = c.contact.name ?? c.contact.profile_name ?? c.contact.wa_id;
+  // The delete button sits beside the link, not inside it: a button nested in
+  // an <a> is invalid HTML and its click would also open the chat.
   return (
-    <Link
-      href={`/inbox/${c.id}`}
+    <div
+      className="relative"
       draggable
       onDragStart={(e) =>
         e.dataTransfer.setData("text/plain", JSON.stringify(p.conversationIds))
       }
-      className="block cursor-grab rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition-shadow hover:shadow active:cursor-grabbing"
     >
-      <div className="flex items-center gap-2">
-        <Avatar name={name} className="h-7 w-7 text-xs" />
-        <span className="truncate text-sm font-medium text-slate-800">
-          {name}
-        </span>
-      </div>
-      {c.last_message?.body && (
-        <p className="mt-1 line-clamp-2 text-xs text-slate-500">
-          {c.last_message.body}
-        </p>
-      )}
-      <div className="mt-2 flex flex-wrap gap-1">
-        {p.lines.map((line) => (
-          <LineBadge key={line} displayName={line} />
-        ))}
-      </div>
-      {p.tags.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
-          {p.tags.map((t) => (
-            <span
-              key={t.id}
-              className="rounded px-1.5 py-0.5 text-[10px] font-medium text-white"
-              style={{ backgroundColor: t.color }}
-            >
-              {t.name}
-            </span>
-          ))}
-        </div>
-      )}
-      {c.assignee && (
-        <div className="mt-2 flex items-center gap-1">
-          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
-            {c.assignee.full_name ?? "Assigned"}
+      <Link
+        href={`/inbox/${c.id}`}
+        draggable={false}
+        className="block cursor-grab rounded-lg border border-slate-200 bg-white p-3 pr-9 shadow-sm transition-shadow hover:shadow active:cursor-grabbing"
+      >
+        <div className="flex items-center gap-2">
+          <Avatar name={name} className="h-7 w-7 text-xs" />
+          <span className="truncate text-sm font-medium text-slate-800">
+            {name}
           </span>
         </div>
-      )}
-    </Link>
+        {c.last_message?.body && (
+          <p className="mt-1 line-clamp-2 text-xs text-slate-500">
+            {c.last_message.body}
+          </p>
+        )}
+        <div className="mt-2 flex flex-wrap gap-1">
+          {p.lines.map((line) => (
+            <LineBadge key={line} displayName={line} />
+          ))}
+        </div>
+        {p.tags.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {p.tags.map((t) => (
+              <span
+                key={t.id}
+                className="rounded px-1.5 py-0.5 text-[10px] font-medium text-white"
+                style={{ backgroundColor: t.color }}
+              >
+                {t.name}
+              </span>
+            ))}
+          </div>
+        )}
+        {c.assignee && (
+          <div className="mt-2 flex items-center gap-1">
+            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+              {c.assignee.full_name ?? "Assigned"}
+            </span>
+          </div>
+        )}
+      </Link>
+      <button
+        type="button"
+        onClick={() => onRemove(p, name)}
+        title="Remove from pipeline (chat stays in the inbox)"
+        aria-label={`Remove ${name} from pipeline`}
+        className="absolute right-2 top-2 rounded p-1 text-slate-300 transition-colors hover:bg-red-50 hover:text-red-600 focus:text-red-600"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
+    </div>
   );
 }

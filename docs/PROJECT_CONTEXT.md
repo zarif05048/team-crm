@@ -252,6 +252,15 @@ the weight-loss programme.
   asked, keeping their existing stage.
 - Staff can add/remove the tag by hand in the thread's tag bar to put a
   patient on or off the board.
+- **One card per patient** (grouped by contact in `pipeline-board.tsx`): a
+  patient messaging two lines has a thread on each. The card sits at the
+  furthest stage of those threads; a drop moves all of them (`setPatientStage`).
+- **Delete button** on each card (`removeFromPipeline`) removes the tag from
+  all the patient's threads — chats stay in the inbox — and sets
+  `contacts.pipeline_removed_at`, which the trigger checks so their next
+  weight-loss message doesn't re-add them
+  (`supabase/migrations/2026-09-23_pipeline_remove.sql`). Adding the tag by
+  hand still brings them back.
 
 ## Outstanding / roadmap
 

@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendText, sendTemplate } from "@/lib/whatsapp/send";
 import { addToTcaList } from "@/lib/sheets/tca";
 import { isWindowOpen } from "@/lib/types";
+import { WEIGHT_LOSS_TAG } from "@/lib/data/conversations";
 
 export type SendState = { ok: boolean; error?: string; conversationId?: string };
 
@@ -346,6 +347,47 @@ export async function setPatientStage(
     .from("conversations")
     .update({ stage })
     .in("id", conversationIds);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/**
+ * Pipeline board delete: take a patient off the board without touching their
+ * chats. Removes the weight-loss tag from all their threads and marks the
+ * contact so the auto-tagging trigger doesn't put them back on their next
+ * message (REQUIRES migration 2026-09-23_pipeline_remove.sql).
+ */
+export async function removeFromPipeline(
+  contactId: string,
+  conversationIds: string[],
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const admin = createAdminClient();
+  // Mark first: if the tag went and this failed, the next message would
+  // silently re-add them.
+  const { error: markErr } = await admin
+    .from("contacts")
+    .update({ pipeline_removed_at: new Date().toISOString() })
+    .eq("id", contactId);
+  if (markErr) return { ok: false, error: markErr.message };
+
+  const { data: tag } = await admin
+    .from("tags")
+    .select("id")
+    .eq("name", WEIGHT_LOSS_TAG)
+    .maybeSingle();
+  if (!tag || !conversationIds.length) return { ok: true };
+
+  const { error } = await admin
+    .from("conversation_tags")
+    .delete()
+    .eq("tag_id", tag.id)
+    .in("conversation_id", conversationIds);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
