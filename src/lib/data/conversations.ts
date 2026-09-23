@@ -108,6 +108,60 @@ export async function getConversations(): Promise<ConversationListRow[]> {
   return toListRows(convos, numbers);
 }
 
+/**
+ * The tag that puts a thread on the Pipeline board. A database trigger adds it
+ * the first time a patient's message mentions weight loss (and starts the
+ * thread in "new") — see migration 2026-09-23_weight_loss_pipeline.sql. Staff
+ * can also add or remove it by hand from the thread's tag bar.
+ */
+export const WEIGHT_LOSS_TAG = "weight-loss";
+
+/**
+ * Weight-loss enquiries only, for the Pipeline board. Not taken from
+ * getConversations(): that is the newest 200 threads of every kind, so an
+ * older weight-loss lead would silently fall off the board.
+ *
+ * Same narrow columns as the inbox list — the board refreshes on the same
+ * realtime events, so the same egress care applies.
+ */
+export async function getWeightLossPipeline(): Promise<ConversationListRow[]> {
+  const supabase = await createClient();
+
+  const { data: tag } = await supabase
+    .from("tags")
+    .select("id")
+    .eq("name", WEIGHT_LOSS_TAG)
+    .maybeSingle();
+  // No tag yet = the migration hasn't been run; nothing is in the pipeline.
+  if (!tag) return [];
+
+  const [{ data: convos, error }, { data: numbers }] = await Promise.all([
+    supabase
+      .from("conversations")
+      .select(
+        `${LIST_COLUMNS},
+         contact:contacts(id, wa_id, name, profile_name),
+         assignee:profiles!conversations_assigned_to_fkey(id, full_name),
+         conversation_tags(tag:tags(id, name, color)),
+         wl:conversation_tags!inner(tag_id)`,
+      )
+      .eq("wl.tag_id", tag.id)
+      .order("last_message_at", { ascending: false })
+      .limit(300),
+    supabase.from("whatsapp_numbers").select("id, display_name"),
+  ]);
+
+  if (error) {
+    console.error("[data] getWeightLossPipeline:", error.message);
+    return [];
+  }
+  if (!convos?.length) return [];
+
+  // `wl` only exists to filter the rows; don't hand it to the board.
+  for (const c of convos as Record<string, unknown>[]) delete c.wl;
+  return toListRows(convos, numbers);
+}
+
 /** Shape rows from a LIST_COLUMNS select into what the inbox renders. */
 type RawListRow = Omit<
   ConversationListRow,

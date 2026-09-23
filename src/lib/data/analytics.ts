@@ -17,7 +17,9 @@ import { lineLabel } from "@/components/ui/line-badge";
 /* The same test the WhatsApp bots use for their 9pm report (bridge.js
    WEIGHT_LOSS_RE) — kept identical on purpose so this page and that message
    can never disagree. `njaro` catches mounjaro/monjaro/munjaro misspellings;
-   the \b on slim stops it matching "muslim". */
+   the \b on slim stops it matching "muslim". A Postgres copy tags threads for
+   the Pipeline board: is_weight_loss_enquiry() in
+   supabase/migrations/2026-09-23_weight_loss_pipeline.sql — change it too. */
 const WEIGHT_LOSS_RE =
   /njaro|wegov|ozempi|semaglutide|tirzepatide|kurus|turun\s*berat|berat\s*badan|penurunan\s*berat|weight\s*loss|weightloss|langsing|\bslim|\bdiet/i;
 

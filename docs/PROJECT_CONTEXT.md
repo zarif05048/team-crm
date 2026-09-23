@@ -232,6 +232,27 @@ hijraadungunhealthcare@gmail.com), which keeps **one tab per month** named
   cached prompt, so "esok"/"Khamis ni" become real dd/mm/yyyy dates. Keep it in
   its own block — putting it inside BOT_SYSTEM_PROMPT would break prefix caching.
 
+## Pipeline = weight-loss enquiries only (added 2026-09-23)
+
+The owner asked for the Pipeline board to hold only patients enquiring about
+the weight-loss programme.
+
+- A thread is on the board when it carries the **`weight-loss` tag**
+  (`WEIGHT_LOSS_TAG`, `getWeightLossPipeline()` in `src/lib/data/conversations.ts`).
+- The tag is added by a **database trigger** on `messages` insert
+  (`supabase/migrations/2026-09-23_weight_loss_pipeline.sql`): the first
+  inbound message matching the weight-loss pattern tags the thread and sets
+  `stage = 'new'`, so it lands in the New column. Later messages leave the
+  stage alone. It's in the DB (not `ingest.ts`) so it also catches the bot
+  fleet's lines, which write `messages` directly from the marketing PC.
+- The pattern is the same as `WEIGHT_LOSS_RE` in `src/lib/data/analytics.ts`
+  and the fleet's `bridge.js` (Postgres spells `\b` as `\m`). Keep all three
+  in step.
+- The migration also backfilled the tag onto every thread that had already
+  asked, keeping their existing stage.
+- Staff can add/remove the tag by hand in the thread's tag bar to put a
+  patient on or off the board.
+
 ## Outstanding / roadmap
 
 1. ~~Permanent token~~ ✅ DONE (2026-06-22) — never-expiring System User token live.
