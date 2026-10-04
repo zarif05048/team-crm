@@ -51,7 +51,7 @@ export function notifyInboxChange(): void {
   notifier?.();
 }
 
-export function RealtimeRefresh() {
+export function RealtimeRefresh({ includeContacts = false }: { includeContacts?: boolean }) {
   const router = useRouter();
 
   useEffect(() => {
@@ -124,6 +124,14 @@ export function RealtimeRefresh() {
         refresh,
       );
 
+      if (includeContacts) {
+        channel.on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "contacts" },
+          refresh,
+        );
+      }
+
       channel.subscribe((status) => {
         connected = status === "SUBSCRIBED";
         // Visible in the browser console for debugging.
@@ -139,7 +147,7 @@ export function RealtimeRefresh() {
       document.removeEventListener("visibilitychange", onVisibility);
       if (channel) supabase.removeChannel(channel);
     };
-  }, [router]);
+  }, [router, includeContacts]);
 
   return null;
 }

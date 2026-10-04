@@ -269,6 +269,24 @@ the weight-loss programme.
   `booking`, allowed by the check re-created in `2026-09-23_booking_stage.sql`.
   Manual only — the AI bots still move a booking to `qualified`.
 
+## Pipeline follow-up dates (2026-10-04)
+
+- Booking cards have an editable **Booking / follow-up date**. Qualified
+  cards have a **Follow-up done** checkbox and editable completion date; ticking
+  records the follow-up, and **Record another follow-up today** starts a new wait.
+- Stored on `contacts.pipeline_booking_date` / `pipeline_follow_up_at`, so one
+  patient's card shares these across Marketing, Dungun and Paka threads.
+- Yellow after seven Malaysia calendar days: Booking from its selected date
+  while still in Booking; Qualified from its recorded follow-up (or stage entry
+  if unmarked), only if the patient hasn't replied afterwards on any line.
+- Migration `2026-10-04_pipeline_follow_up.sql` must run **before deployment**.
+  It tracks `conversations.stage_entered_at` via a trigger and publishes contact
+  updates for the Pipeline's realtime subscription. Existing stages start
+  tracking at migration time because their true entry dates aren't recorded;
+  staff can backdate completed follow-ups they already sent.
+- The extra fields/reply query are Pipeline-only, keeping the inbox payload
+  small. Check rules with `node --experimental-strip-types scripts/test-pipeline-follow-up.mjs`.
+
 ## Outstanding / roadmap
 
 1. ~~Permanent token~~ ✅ DONE (2026-06-22) — never-expiring System User token live.

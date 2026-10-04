@@ -7,6 +7,8 @@ import { Trash2 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { LineBadge } from "@/components/ui/line-badge";
 import { cn } from "@/lib/utils";
+import { malaysiaDate, pipelineWarning } from "@/lib/pipeline-follow-up";
+import { savePipelineFollowUp } from "@/app/(app)/pipeline/actions";
 import {
   setPatientStage,
   removeFromPipeline,
@@ -17,7 +19,7 @@ import {
   type LeadStage,
   type Tag,
 } from "@/lib/types";
-import type { ConversationListRow } from "@/lib/data/conversations";
+import type { PipelineConversationRow } from "@/lib/data/conversations";
 
 const STAGE_ACCENT: Record<LeadStage, string> = {
   new: "border-t-sky-400",
@@ -49,18 +51,19 @@ interface PatientCard {
   contactId: string;
   stage: LeadStage;
   /** Newest thread: what the card opens and previews. */
-  latest: ConversationListRow;
+  latest: PipelineConversationRow;
   /** Every weight-loss thread this patient has, moved together on drop. */
   conversationIds: string[];
   lines: string[];
   tags: Tag[];
+  qualifiedSince: string | null;
 }
 
 /* The Contacted column is gone; a thread still holding that stage (from before
    2026-09-23_drop_contacted.sql) shows in New, where that migration puts it. */
 const boardStage = (s: LeadStage): LeadStage => (s === "contacted" ? "new" : s);
 
-function toPatients(conversations: ConversationListRow[]): PatientCard[] {
+function toPatients(conversations: PipelineConversationRow[]): PatientCard[] {
   const byContact = new Map<string, PatientCard>();
   // Rows arrive newest first, so the first thread seen is the latest.
   for (const c of conversations) {
@@ -74,11 +77,15 @@ function toPatients(conversations: ConversationListRow[]): PatientCard[] {
         conversationIds: [c.id],
         lines: [c.whatsapp_number?.display_name ?? ""],
         tags: [...c.tags],
+        qualifiedSince: stage === "qualified" ? c.stage_entered_at : null,
       });
       continue;
     }
     p.conversationIds.push(c.id);
     if (STAGE_RANK[stage] > STAGE_RANK[p.stage]) p.stage = stage;
+    if (stage === "qualified" && (!p.qualifiedSince || c.stage_entered_at < p.qualifiedSince)) {
+      p.qualifiedSince = c.stage_entered_at;
+    }
     const line = c.whatsapp_number?.display_name ?? "";
     if (!p.lines.includes(line)) p.lines.push(line);
     for (const t of c.tags) {
@@ -90,8 +97,10 @@ function toPatients(conversations: ConversationListRow[]): PatientCard[] {
 
 export function PipelineBoard({
   conversations,
+  today,
 }: {
-  conversations: ConversationListRow[];
+  conversations: PipelineConversationRow[];
+  today: string;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -171,7 +180,7 @@ export function PipelineBoard({
             </div>
             <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-2 pb-3">
               {cards.map((p) => (
-                <PipelineCard key={p.contactId} p={p} onRemove={remove} />
+                <PipelineCard key={p.contactId} p={p} today={today} disabled={pending} onRemove={remove} />
               ))}
               {cards.length === 0 && (
                 <p className="px-1 py-4 text-center text-xs text-slate-400">
@@ -188,27 +197,39 @@ export function PipelineBoard({
 
 function PipelineCard({
   p,
+  today,
+  disabled,
   onRemove,
 }: {
   p: PatientCard;
+  today: string;
+  disabled: boolean;
   onRemove: (p: PatientCard, name: string) => void;
 }) {
   const c = p.latest;
   const name = c.contact.name ?? c.contact.profile_name ?? c.contact.wa_id;
+  const warning = pipelineWarning({
+    stage: p.stage,
+    bookingDate: c.contact.pipeline_booking_date,
+    followUpAt: c.contact.pipeline_follow_up_at,
+    qualifiedSince: p.qualifiedSince,
+    lastInboundAt: c.patient_last_inbound_at,
+  }, today);
   // The delete button sits beside the link, not inside it: a button nested in
   // an <a> is invalid HTML and its click would also open the chat.
   return (
     <div
-      className="relative"
-      draggable
-      onDragStart={(e) =>
-        e.dataTransfer.setData("text/plain", JSON.stringify(p.conversationIds))
-      }
+      data-pipeline-card={p.contactId}
+      className={cn(
+        "relative rounded-lg border shadow-sm transition-shadow hover:shadow",
+        warning ? "border-yellow-400 bg-yellow-100" : "border-slate-200 bg-white",
+      )}
     >
       <Link
         href={`/inbox/${c.id}`}
-        draggable={false}
-        className="block cursor-grab rounded-lg border border-slate-200 bg-white p-3 pr-9 shadow-sm transition-shadow hover:shadow active:cursor-grabbing"
+        draggable={!disabled}
+        onDragStart={(e) => e.dataTransfer.setData("text/plain", JSON.stringify(p.conversationIds))}
+        className="block cursor-grab p-3 pr-9 active:cursor-grabbing"
       >
         <div className="flex items-center gap-2">
           <Avatar name={name} className="h-7 w-7 text-xs" />
@@ -247,8 +268,21 @@ function PipelineCard({
           </div>
         )}
       </Link>
+      {(p.stage === "qualified" || p.stage === "booking") && (
+        <FollowUpControls
+          key={`${p.stage}:${c.contact.pipeline_booking_date}:${c.contact.pipeline_follow_up_at}`}
+          p={p}
+          name={name}
+          today={today}
+          disabled={disabled}
+        />
+      )}
+      {warning && (
+        <p className="px-3 pb-3 text-xs font-medium text-yellow-900">{warning}</p>
+      )}
       <button
         type="button"
+        disabled={disabled}
         onClick={() => onRemove(p, name)}
         title="Remove from pipeline (chat stays in the inbox)"
         aria-label={`Remove ${name} from pipeline`}
@@ -257,5 +291,95 @@ function PipelineCard({
         <Trash2 className="h-4 w-4" />
       </button>
     </div>
+  );
+}
+
+function FollowUpControls({ p, name, today, disabled }: {
+  p: PatientCard;
+  name: string;
+  today: string;
+  disabled: boolean;
+}) {
+  const router = useRouter();
+  const booking = p.stage === "booking";
+  const savedAt = p.latest.contact.pipeline_follow_up_at;
+  const [date, setDate] = useState(
+    booking ? p.latest.contact.pipeline_booking_date ?? "" : savedAt ? malaysiaDate(savedAt) : today,
+  );
+  const [done, setDone] = useState(Boolean(savedAt));
+  const [pending, start] = useTransition();
+  const [status, setStatus] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  const save = (nextDate: string, nextDone = done) => {
+    start(async () => {
+      setStatus(null);
+      setFailed(false);
+      try {
+        const result = await savePipelineFollowUp(
+          p.contactId, booking ? "booking" : "qualified",
+          booking ? nextDate || null : nextDone ? nextDate : null,
+        );
+        if (!result.ok) {
+          setFailed(true);
+          setStatus(result.error ?? "Could not save. Please try again.");
+          setDone(Boolean(savedAt));
+          return;
+        }
+        setDate(nextDate);
+        setDone(nextDone);
+        setStatus("Saved");
+        router.refresh();
+      } catch {
+        setFailed(true);
+        setStatus("Could not save. Please try again.");
+        setDone(Boolean(savedAt));
+      }
+    });
+  };
+
+  return (
+    <fieldset disabled={disabled || pending} className="mx-3 mb-3 border-t border-slate-200/70 pt-2 text-xs">
+      {booking ? (
+        <label htmlFor={`booking-date-${p.contactId}`} className="block font-medium text-slate-700">
+          Booking / follow-up date
+        </label>
+      ) : (
+        <label className="flex items-center gap-2 font-medium text-slate-700">
+          <input
+            type="checkbox"
+            checked={done}
+            onChange={(e) => save(date || today, e.target.checked)}
+            aria-label={`Follow-up done for ${name}`}
+            className="h-4 w-4 rounded accent-emerald-600"
+          />
+          Follow-up done
+        </label>
+      )}
+      <input
+        id={`${booking ? "booking" : "follow-up"}-date-${p.contactId}`}
+        type="date"
+        aria-label={`${booking ? "Booking / follow-up" : "Completed follow-up"} date for ${name}`}
+        value={date}
+        max={booking ? undefined : today}
+        onChange={(e) => {
+          const next = e.target.value;
+          setDate(next);
+          if (booking || done) save(next || (booking ? "" : today));
+        }}
+        className="mt-2 block w-full min-w-0 rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-800 focus:border-brand-500 focus:outline-none disabled:opacity-60"
+      />
+      {!booking && done && (
+        <button type="button" onClick={() => save(today, true)} className="mt-2 text-brand-700 underline hover:text-brand-900">
+          Record another follow-up today
+        </button>
+      )}
+      {!booking && !done && (
+        <p className="mt-1 text-[11px] text-slate-500">Choose the date, then tick after contacting the patient.</p>
+      )}
+      <p aria-live="polite" className={cn("mt-1 text-[11px]", failed ? "text-red-700" : "text-slate-500")}>
+        {pending ? "Saving…" : status}
+      </p>
+    </fieldset>
   );
 }

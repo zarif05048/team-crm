@@ -48,6 +48,16 @@ export interface ConversationListRow {
   unread: number;
 }
 
+/** Extra fields are fetched only for the Pipeline, not on inbox refreshes. */
+export interface PipelineConversationRow extends ConversationListRow {
+  stage_entered_at: string;
+  patient_last_inbound_at: string | null;
+  contact: ConversationListRow["contact"] & {
+    pipeline_booking_date: string | null;
+    pipeline_follow_up_at: string | null;
+  };
+}
+
 // Shape Supabase returns for the embedded conversation_tags(tags(...)) join.
 type TagJoin = { tag: Tag | null } | { tags: Tag | null };
 function flattenTags(rows: TagJoin[] | undefined): Tag[] {
@@ -124,7 +134,7 @@ export const WEIGHT_LOSS_TAG = "weight-loss";
  * Same narrow columns as the inbox list — the board refreshes on the same
  * realtime events, so the same egress care applies.
  */
-export async function getWeightLossPipeline(): Promise<ConversationListRow[]> {
+export async function getWeightLossPipeline(): Promise<PipelineConversationRow[]> {
   const supabase = await createClient();
 
   const { data: tag } = await supabase
@@ -139,8 +149,8 @@ export async function getWeightLossPipeline(): Promise<ConversationListRow[]> {
     supabase
       .from("conversations")
       .select(
-        `${LIST_COLUMNS},
-         contact:contacts(id, wa_id, name, profile_name),
+        `${LIST_COLUMNS}, stage_entered_at,
+         contact:contacts(id, wa_id, name, profile_name, pipeline_booking_date, pipeline_follow_up_at),
          assignee:profiles!conversations_assigned_to_fkey(id, full_name),
          conversation_tags(tag:tags(id, name, color)),
          wl:conversation_tags!inner(tag_id)`,
@@ -159,7 +169,20 @@ export async function getWeightLossPipeline(): Promise<ConversationListRow[]> {
 
   // `wl` only exists to filter the rows; don't hand it to the board.
   for (const c of convos as Record<string, unknown>[]) delete c.wl;
-  return toListRows(convos, numbers);
+  const rows = toListRows(convos, numbers) as PipelineConversationRow[];
+  // Replies on ANY line count, even if that thread isn't tagged weight-loss.
+  const { data: replies, error: replyError } = await supabase
+    .from("conversations")
+    .select("contact_id, last_inbound_at")
+    .in("contact_id", [...new Set(rows.map((c) => c.contact.id))])
+    .not("last_inbound_at", "is", null)
+    .order("last_inbound_at", { ascending: false });
+  if (replyError) throw new Error("Could not load patient replies for the pipeline.");
+  const latestReply = new Map<string, string>();
+  for (const reply of replies ?? []) {
+    if (!latestReply.has(reply.contact_id)) latestReply.set(reply.contact_id, reply.last_inbound_at);
+  }
+  return rows.map((c) => ({ ...c, patient_last_inbound_at: latestReply.get(c.contact.id) ?? null }));
 }
 
 /** Shape rows from a LIST_COLUMNS select into what the inbox renders. */
