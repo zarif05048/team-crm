@@ -270,7 +270,7 @@ function PipelineCard({
       </Link>
       {(p.stage === "qualified" || p.stage === "booking") && (
         <FollowUpControls
-          key={`${p.stage}:${c.contact.pipeline_booking_date}:${c.contact.pipeline_follow_up_at}`}
+          key={`${p.stage}:${p.qualifiedSince}:${c.contact.pipeline_booking_date}:${c.contact.pipeline_follow_up_at}`}
           p={p}
           name={name}
           today={today}
@@ -304,79 +304,60 @@ function FollowUpControls({ p, name, today, disabled }: {
   const booking = p.stage === "booking";
   const savedAt = p.latest.contact.pipeline_follow_up_at;
   const [date, setDate] = useState(
-    booking ? p.latest.contact.pipeline_booking_date ?? "" : savedAt ? malaysiaDate(savedAt) : today,
+    booking ? p.latest.contact.pipeline_booking_date ?? "" : savedAt ? malaysiaDate(savedAt) : p.qualifiedSince ? malaysiaDate(p.qualifiedSince) : today,
   );
-  const [done, setDone] = useState(Boolean(savedAt));
   const [pending, start] = useTransition();
   const [status, setStatus] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
-  const save = (nextDate: string, nextDone = done) => {
+  const save = (nextDate: string) => {
     start(async () => {
       setStatus(null);
       setFailed(false);
       try {
         const result = await savePipelineFollowUp(
           p.contactId, booking ? "booking" : "qualified",
-          booking ? nextDate || null : nextDone ? nextDate : null,
+          nextDate || null,
         );
         if (!result.ok) {
           setFailed(true);
           setStatus(result.error ?? "Could not save. Please try again.");
-          setDone(Boolean(savedAt));
           return;
         }
         setDate(nextDate);
-        setDone(nextDone);
         setStatus("Saved");
         router.refresh();
       } catch {
         setFailed(true);
         setStatus("Could not save. Please try again.");
-        setDone(Boolean(savedAt));
       }
     });
   };
 
   return (
     <fieldset disabled={disabled || pending} className="mx-3 mb-3 border-t border-slate-200/70 pt-2 text-xs">
-      {booking ? (
-        <label htmlFor={`booking-date-${p.contactId}`} className="block font-medium text-slate-700">
-          Booking / follow-up date
-        </label>
-      ) : (
-        <label className="flex items-center gap-2 font-medium text-slate-700">
-          <input
-            type="checkbox"
-            checked={done}
-            onChange={(e) => save(date || today, e.target.checked)}
-            aria-label={`Follow-up done for ${name}`}
-            className="h-4 w-4 rounded accent-emerald-600"
-          />
-          Follow-up done
-        </label>
-      )}
+      <label htmlFor={`${booking ? "booking" : "follow-up"}-date-${p.contactId}`} className="block font-medium text-slate-700">
+        {booking ? "Booking / follow-up date" : "Follow-up date"}
+      </label>
       <input
         id={`${booking ? "booking" : "follow-up"}-date-${p.contactId}`}
         type="date"
-        aria-label={`${booking ? "Booking / follow-up" : "Completed follow-up"} date for ${name}`}
+        aria-label={`${booking ? "Booking / follow-up" : "Follow-up"} date for ${name}`}
         value={date}
         max={booking ? undefined : today}
+        required={!booking}
         onChange={(e) => {
           const next = e.target.value;
+          if (!booking && !next) {
+            setFailed(true);
+            setStatus("Choose the follow-up date.");
+            return;
+          }
           setDate(next);
-          if (booking || done) save(next || (booking ? "" : today));
+          save(next);
         }}
         className="mt-2 block w-full min-w-0 rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-800 focus:border-brand-500 focus:outline-none disabled:opacity-60"
       />
-      {!booking && done && (
-        <button type="button" onClick={() => save(today, true)} className="mt-2 text-brand-700 underline hover:text-brand-900">
-          Record another follow-up today
-        </button>
-      )}
-      {!booking && !done && (
-        <p className="mt-1 text-[11px] text-slate-500">Choose the date, then tick after contacting the patient.</p>
-      )}
       <p aria-live="polite" className={cn("mt-1 text-[11px]", failed ? "text-red-700" : "text-slate-500")}>
         {pending ? "Saving…" : status}
       </p>

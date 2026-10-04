@@ -271,14 +271,20 @@ the weight-loss programme.
 
 ## Pipeline follow-up dates (2026-10-04)
 
-- Booking cards have an editable **Booking / follow-up date**. Qualified
-  cards have a **Follow-up done** checkbox and editable completion date; ticking
-  records the follow-up, and **Record another follow-up today** starts a new wait.
+- Booking cards have an editable **Booking / follow-up date**. The former
+  Qualified column is named **Follow Up** (stored stage remains `qualified`).
+  Moving a card into Follow Up means staff have followed up; it records today
+  automatically, with just an editable **Follow-up date** and no checkbox.
+  Date edits save automatically. Moving into the same column keeps the date.
 - Stored on `contacts.pipeline_booking_date` / `pipeline_follow_up_at`, so one
   patient's card shares these across Marketing, Dungun and Paka threads.
 - Yellow after seven Malaysia calendar days: Booking from its selected date
-  while still in Booking; Qualified from its recorded follow-up (or stage entry
-  if unmarked), only if the patient hasn't replied afterwards on any line.
+  while still in Booking; Follow Up from its recorded follow-up (or stage entry
+  for older cards), only if the patient hasn't replied afterwards on any line.
+- Board drops and the inbox stage selector record the date through the existing
+  authenticated, RLS-protected database client. Only threads actually changing
+  stage reset the date; a same-column drop preserves it. If date recording
+  fails after the move, the action asks staff to set the date on the card.
 - Migration `2026-10-04_pipeline_follow_up.sql` must run **before deployment**.
   It tracks `conversations.stage_entered_at` via a trigger and publishes contact
   updates for the Pipeline's realtime subscription. Existing stages start

@@ -14,7 +14,7 @@ export default async function PipelinePage() {
           Weight-loss pipeline
         </h1>
         <span className="max-w-sm text-right text-xs text-slate-500">
-          Yellow = 7+ days without a reply in Qualified, or after the date set in Booking
+          Yellow = 7+ days without a reply in Follow Up, or after the date set in Booking
         </span>
       </header>
       <PipelineBoard conversations={conversations} today={malaysiaDate(new Date().toISOString())} />

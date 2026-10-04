@@ -27,7 +27,7 @@ export interface FollowUpTiming {
   lastInboundAt: string | null;
 }
 
-/** Booking ages from its chosen date; Qualified only warns while unanswered. */
+/** Booking ages from its chosen date; Follow Up only warns while unanswered. */
 export function pipelineWarning(p: FollowUpTiming, today: string): string | null {
   if (p.stage === "booking") {
     return p.bookingDate && daysAfter(p.bookingDate, today) >= 7
@@ -39,7 +39,5 @@ export function pipelineWarning(p: FollowUpTiming, today: string): string | null
   const anchor = p.followUpAt ?? p.qualifiedSince;
   if (!anchor || daysAfter(malaysiaDate(anchor), today) < 7) return null;
   if (p.lastInboundAt && Date.parse(p.lastInboundAt) > Date.parse(anchor)) return null;
-  return p.followUpAt
-    ? "No patient reply · 7+ days since follow-up"
-    : "No patient reply · 7+ days in Qualified";
+  return "No patient reply · 7+ days since follow-up";
 }

@@ -343,11 +343,23 @@ export async function setPatientStage(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Not signed in." };
 
-  const { error } = await supabase
+  // Record today's date only for patients actually entering Follow Up, so a
+  // same-column drop preserves a date staff already edited.
+  const { data: moved, error } = await supabase
     .from("conversations")
     .update({ stage })
-    .in("id", conversationIds);
+    .in("id", conversationIds)
+    .neq("stage", stage)
+    .select("contact_id");
   if (error) return { ok: false, error: error.message };
+  if (stage === "qualified" && moved?.length) {
+    const { error: dateError } = await supabase.from("contacts")
+      .update({ pipeline_follow_up_at: new Date().toISOString() })
+      .in("id", [...new Set(moved.map((row) => row.contact_id))]);
+    if (dateError) {
+      return { ok: false, error: "Card moved to Follow Up, but its date could not be saved. Please set the follow-up date on the card." };
+    }
+  }
   return { ok: true };
 }
 
@@ -396,18 +408,7 @@ export async function setStage(
   conversationId: string,
   stage: LeadStage,
 ): Promise<ActionState> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "Not signed in." };
-
-  const { error } = await supabase
-    .from("conversations")
-    .update({ stage })
-    .eq("id", conversationId);
-  if (error) return { ok: false, error: error.message };
-  return { ok: true };
+  return setPatientStage([conversationId], stage);
 }
 
 /** Turn the AI auto-reply bot on/off for a conversation. */

@@ -17,6 +17,9 @@ export async function savePipelineFollowUp(
   if (date !== null && !validCalendarDate(date)) {
     return { ok: false, error: "Choose a valid date." };
   }
+  if (field === "qualified" && !date) {
+    return { ok: false, error: "Choose the follow-up date." };
+  }
   const now = new Date().toISOString();
   const today = malaysiaDate(now);
   if (field === "qualified" && date && date > today) {
@@ -26,7 +29,7 @@ export async function savePipelineFollowUp(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Not signed in." };
 
-  // Today's tick uses the actual time, so an earlier reply today cannot count
+  // Today's follow-up uses the actual time, so an earlier reply today cannot count
   // as a reply to this follow-up. A past date starts at midnight in Malaysia.
   const update = field === "booking"
     ? { pipeline_booking_date: date }

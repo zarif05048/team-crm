@@ -111,7 +111,7 @@ export interface ConversationListItem extends Conversation {
 export const STAGE_LABELS: Record<LeadStage, string> = {
   new: "New",
   contacted: "Contacted",
-  qualified: "Qualified",
+  qualified: "Follow Up",
   booking: "Booking",
   won: "Won",
   lost: "Lost",
