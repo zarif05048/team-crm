@@ -122,8 +122,8 @@ export function PipelineBoard({
     if (
       !window.confirm(
         `Remove ${name} from the pipeline?\n\n` +
-          "Their chats stay in the inbox. They won't be added back " +
-          'automatically — to put them back, add the "weight-loss" tag in their chat.',
+          "Their chats stay in the inbox. A fresh weight-loss enquiry will " +
+          'add them back to New. You can also add the "weight-loss" tag in their chat.',
       )
     )
       return;

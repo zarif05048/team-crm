@@ -257,10 +257,18 @@ the weight-loss programme.
   furthest stage of those threads; a drop moves all of them (`setPatientStage`).
 - **Delete button** on each card (`removeFromPipeline`) removes the tag from
   all the patient's threads — chats stay in the inbox — and sets
-  `contacts.pipeline_removed_at`, which the trigger checks so their next
-  weight-loss message doesn't re-add them
-  (`supabase/migrations/2026-09-23_pipeline_remove.sql`). Adding the tag by
-  hand still brings them back.
+  `contacts.pipeline_removed_at`. From 5 October, a NEW inbound weight-loss
+  enquiry dated after removal clears that marker and starts the thread in New;
+  replayed older messages remain excluded. Already tagged leads keep the stage
+  staff set. Migration `2026-10-05_weight_loss_reenquiry.sql` also repairs missed
+  prospects with enquiries after removal; it does not send any messages.
+  Adding the tag by hand still brings them back.
+- **PeKa B40 (owner, 2026-10-05):** clinic registered for free screening of
+  eligible recipients. Link: https://kelayakan11.pekab40.com.my/semakan-kelayakan.
+  Includes FBC, sugar control, cholesterol, kidney function and urine tests;
+  NO FASTING. Paid-package 4–6-hour fasting advice must not override this.
+  Prefer daytime/morning, except Friday (lab closed; clinic remains open 24h).
+  Knowledge mirrors the fleet's `ai.js`; no paid-checkup poster for PeKa B40.
 - **No Contacted column** (owner, 2026-09-23): removed from `STAGE_ORDER`
   (board + chat stage dropdown). Existing `contacted` threads moved to `new`
   by `2026-09-23_drop_contacted.sql`; the board also shows any leftover one in

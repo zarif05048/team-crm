@@ -366,8 +366,8 @@ export async function setPatientStage(
 /**
  * Pipeline board delete: take a patient off the board without touching their
  * chats. Removes the weight-loss tag from all their threads and marks the
- * contact so the auto-tagging trigger doesn't put them back on their next
- * message (REQUIRES migration 2026-09-23_pipeline_remove.sql).
+ * contact so older/replayed messages cannot restore them. A fresh weight-loss
+ * enquiry after removal starts a New prospect (2026-10-05_weight_loss_reenquiry.sql).
  */
 export async function removeFromPipeline(
   contactId: string,
@@ -381,7 +381,7 @@ export async function removeFromPipeline(
 
   const admin = createAdminClient();
   // Mark first: if the tag went and this failed, the next message would
-  // silently re-add them.
+  // silently re-add an older message.
   const { error: markErr } = await admin
     .from("contacts")
     .update({ pipeline_removed_at: new Date().toISOString() })

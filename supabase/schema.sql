@@ -357,9 +357,9 @@ create or replace function public.is_weight_loss_enquiry(body text)
 returns boolean
 language sql
 immutable
-as $
+as $$
   select coalesce(body, '') ~* 'njaro|wegov|ozempi|semaglutide|tirzepatide|kurus|turun\s*berat|berat\s*badan|penurunan\s*berat|weight\s*loss|weightloss|langsing|\mslim|\mdiet';
-$;
+$$;
 
 alter table public.contacts
   add column if not exists pipeline_removed_at timestamptz; -- staff removed them from the pipeline (2026-09-23_pipeline_remove.sql)
@@ -373,6 +373,8 @@ as $$
 declare
   wl_tag uuid;
   added  integer;
+  patient_id uuid;
+  removed_at timestamptz;
 begin
   if new.direction <> 'inbound' or not public.is_weight_loss_enquiry(new.body) then
     return new;
@@ -380,15 +382,14 @@ begin
 
   -- Never let tagging stop a patient's message from being stored.
   begin
-    -- Staff took this patient off the pipeline: don't put them back.
-    if exists (
-      select 1
-      from public.conversations c
-      join public.contacts k on k.id = c.contact_id
-      where c.id = new.conversation_id
-        and k.pipeline_removed_at is not null
-    ) then
-      return new;
+    -- Fresh interest after removal starts a New prospect again. Replayed
+    -- messages from before removal must not restore an old lead.
+    select k.id, k.pipeline_removed_at into patient_id, removed_at
+    from public.contacts k join public.conversations c on c.contact_id = k.id
+    where c.id = new.conversation_id for update of k;
+    if removed_at is not null then
+      if new.created_at <= removed_at then return new; end if;
+      update public.contacts set pipeline_removed_at = null where id = patient_id;
     end if;
 
     select id into wl_tag from public.tags where name = 'weight-loss';

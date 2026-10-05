@@ -12,6 +12,7 @@
 // trigger (that message's own run replies instead).
 
 import Anthropic from "@anthropic-ai/sdk";
+import { isPekaB40Enquiry } from "./peka-b40";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendText, sendImage } from "@/lib/whatsapp/send";
 import { addToTcaList, malaysiaToday } from "@/lib/sheets/tca";
@@ -493,7 +494,7 @@ ${prices}` : "");
     messages.push({ role: "assistant", content: response.content });
     const results: Anthropic.ToolResultBlockParam[] = [];
     for (const tool of toolUses) {
-      const output = await executeTool(supabase, conversationId, sendCtx, tool);
+      const output = await executeTool(supabase, conversationId, sendCtx, tool, isPekaB40Enquiry(messages));
       results.push({
         type: "tool_result",
         tool_use_id: tool.id,
@@ -512,6 +513,7 @@ async function executeTool(
   conversationId: string,
   sendCtx: SendContext,
   tool: Anthropic.ToolUseBlock,
+  freeScreening = false,
 ): Promise<string> {
   try {
     const input = tool.input as Record<string, string | undefined>;
@@ -520,6 +522,9 @@ async function executeTool(
       return await lookupMedication(input.query ?? "");
     }
     if (tool.name === "send_leaflet") {
+      if (freeScreening && input.leaflet === "health_screening") {
+        return "Do not send the paid RM100–200 checkup poster for PeKa B40. Explain the eligible recipient's FREE screening, eligibility link and five tests; NO FASTING is required.";
+      }
       const leaflet = LEAFLETS[input.leaflet ?? ""];
       if (!leaflet) return `Unknown leaflet: ${input.leaflet}`;
       const url = `${LEAFLET_BASE}/leaflets/${leaflet.file}`;
