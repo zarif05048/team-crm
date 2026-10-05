@@ -31,11 +31,11 @@ interface SendContext {
 const LEAFLETS: Record<string, { file: string; caption: string }> = {
   mounjaro_packages: {
     file: "mounjaro-packages.jpeg",
-    caption: "Pakej Rawatan Turun Berat Badan — Mounjaro (Klinik Hijraa Dungun & Paka)",
+    caption: "Pakej Rawatan Turun Berat Badan — Mounjaro (Klinik Hijraa Dungun & Paka). Pakej 4x sebulan: semua suntikan di klinik; pen tidak boleh dibawa pulang.",
   },
   wegovy_packages: {
     file: "wegovy-packages.jpeg",
-    caption: "Pakej Rawatan Turun Berat Badan — Wegovy (Klinik Hijraa Dungun & Paka)",
+    caption: "Pakej Rawatan Turun Berat Badan — Wegovy (Klinik Hijraa Dungun & Paka). Pakej 4x sebulan: semua suntikan di klinik; pen tidak boleh dibawa pulang.",
   },
   mounjaro_info: {
     file: "mounjaro-info.jpeg",

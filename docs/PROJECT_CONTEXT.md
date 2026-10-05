@@ -269,6 +269,11 @@ the weight-loss programme.
   NO FASTING. Paid-package 4–6-hour fasting advice must not override this.
   Prefer daytime/morning, except Friday (lab closed; clinic remains open 24h).
   Knowledge mirrors the fleet's `ai.js`; no paid-checkup poster for PeKa B40.
+- **Monthly Mounjaro/Wegovy packages (owner, 2026-10-05):** all four injections
+  are administered at the clinic; patients cannot take the package pen home.
+  Explain this when quoting a monthly package and in package poster captions.
+  The separately priced self-injection pen remains a separate purchase, not
+  part of the four-injection monthly package. Both bot knowledge sources match.
 - **No Contacted column** (owner, 2026-09-23): removed from `STAGE_ORDER`
   (board + chat stage dropdown). Existing `contacted` threads moved to `new`
   by `2026-09-23_drop_contacted.sql`; the board also shows any leftover one in
