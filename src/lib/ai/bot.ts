@@ -466,6 +466,7 @@ ${prices}` : "");
         { type: "text", text: todayNote() },
       ],
       tools: TOOLS,
+      tool_choice: round === MAX_TOOL_ROUNDS ? { type: "none" } : { type: "auto" },
       messages,
     });
 
@@ -482,7 +483,7 @@ ${prices}` : "");
       (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
     );
 
-    if (response.stop_reason !== "tool_use" || toolUses.length === 0) {
+    if (response.stop_reason !== "tool_use" && toolUses.length === 0) {
       const text = response.content
         .filter((b): b is Anthropic.TextBlock => b.type === "text")
         .map((b) => b.text)
@@ -490,6 +491,8 @@ ${prices}` : "");
         .trim();
       return text || null;
     }
+
+    if (round === MAX_TOOL_ROUNDS || toolUses.length === 0) break;
 
     messages.push({ role: "assistant", content: response.content });
     const results: Anthropic.ToolResultBlockParam[] = [];

@@ -280,6 +280,12 @@ the weight-loss programme.
   Explain this when quoting a monthly package and in package poster captions.
   The separately priced self-injection pen remains a separate purchase, not
   part of the four-injection monthly package. Both bot knowledge sources match.
+- **Final answers only (owner, 2026-10-05):** searches and tool calls are silent;
+  never send progress text such as "Saya semak dulu" or generic-name retries.
+  The fleet returns only a completed tool-free answer, with four tool rounds
+  plus one final request with tools disabled. Earlier useful/emergency advice
+  stays in model history and must be included in the final answer. The CRM bot
+  uses the same prompt rule and disables tools in its final round too.
 - **No Contacted column** (owner, 2026-09-23): removed from `STAGE_ORDER`
   (board + chat stage dropdown). Existing `contacted` threads moved to `new`
   by `2026-09-23_drop_contacted.sql`; the board also shows any leftover one in
