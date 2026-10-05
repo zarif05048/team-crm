@@ -12,7 +12,7 @@ const migration = readFileSync(new URL('../supabase/migrations/2026-10-05_weight
 function check(label, actual, expected) { assert.deepEqual(actual,expected,label); checks++; console.log(`PASS ${label}`); }
 async function status(n) {
   const r = await pg.query(`SELECT c.stage,k.pipeline_removed_at IS NOT NULL AS removed,
-    EXISTS(SELECT 1 FROM conversation_tags ct WHERE ct.conversation_id=c.id) AS tagged
+    EXISTS(SELECT 1 FROM conversation_tags ct JOIN tags t ON t.id=ct.tag_id WHERE ct.conversation_id=c.id AND t.name='weight-loss') AS tagged
     FROM conversations c JOIN contacts k ON k.id=c.contact_id WHERE c.id=$1`,[conversation(n)]);
   return r.rows[0];
 }
@@ -72,6 +72,56 @@ try {
   await pg.exec(schema.match(/create or replace function public\.trg_message_tag_weight_loss[\s\S]*?\$\$;/)[0]);
   await inbound(3,'Wegovy');
   check('fresh-install schema also restores fresh enquiries to New',await status(3),{stage:'new',removed:false,tagged:true});
+  const staffMigration = readFileSync(new URL('../supabase/migrations/2026-10-05_weight_loss_staff_exclusion.sql',import.meta.url),'utf8');
+  // Seed a pre-migration conflict and multiple clinic lines for one staff member.
+  for (let n=20;n<=28;n++) {
+    await pg.query('INSERT INTO contacts VALUES($1,$2)',[contact(n),n===25?'2026-09-23T06:52:33Z':null]);
+    await pg.query("INSERT INTO conversations VALUES($1,$2,'booking')",[conversation(n),contact(n)]);
+  }
+  await pg.query("INSERT INTO conversations VALUES($1,$2,'won')",[conversation(29),contact(20)]);
+  await pg.exec("INSERT INTO tags(name) VALUES('staff'),('needs-staff'),('with staff'),('weight loss'),('STAFF')");
+  const tag = async (n,name) => pg.query('INSERT INTO conversation_tags SELECT $1,id FROM tags WHERE name=$2 ON CONFLICT DO NOTHING',[conversation(n),name]);
+  await tag(20,'weight-loss'); await tag(29,'weight-loss'); await tag(29,'weight loss');
+  await tag(20,'staff'); await tag(25,'staff'); await tag(26,'STAFF');
+  await tag(23,'needs-staff'); await tag(24,'with staff');
+  await pg.exec(staffMigration);
+  check('migration cleans existing staff prospect tags',(await status(20)).tagged,false);
+  check('migration cleans other clinic-line prospect tags',(await status(29)).tagged,false);
+  check('cleanup keeps the existing stage',(await status(29)).stage,'won');
+  check('cleanup preserves Staff tag',(await pg.query("SELECT COUNT(*)::int AS n FROM conversation_tags ct JOIN tags t ON t.id=ct.tag_id WHERE ct.conversation_id=$1 AND t.name='staff'",[conversation(20)])).rows[0].n,1);
+  await inbound(20,'Mounjaro');
+  check('staff enquiry does not get a prospect tag or reset Booking',await status(20),{stage:'booking',removed:false,tagged:false});
+  await inbound(29,'Wegovy');
+  check('staff enquiry on another clinic line keeps Won',(await status(29)).stage,'won');
+  check('staff enquiry on another clinic line is not tagged',(await status(29)).tagged,false);
+  await inbound(25,'weight loss');
+  check('staff enquiry does not clear pipeline removal',await status(25),{stage:'booking',removed:true,tagged:false});
+  await inbound(26,'Mounjaro');
+  check('staff name comparison is case insensitive',(await status(26)).tagged,false);
+  await inbound(23,'Wegovy');
+  check('needs-staff patients still enter New',await status(23),{stage:'new',removed:false,tagged:true});
+  await inbound(24,'Mounjaro');
+  check('with staff handoff is not staff identity',(await status(24)).tagged,true);
+  await inbound(22,'Mounjaro'); await tag(22,'staff');
+  check('marking a prospect Staff removes their weight-loss tag',(await status(22)).tagged,false);
+  await tag(20,'weight-loss'); await tag(20,'weight loss');
+  check('manual prospect tags cannot override Staff',(await status(20)).tagged,false);
+  check('legacy prospect tag is also excluded',(await pg.query("SELECT COUNT(*)::int AS n FROM conversation_tags ct JOIN tags t ON t.id=ct.tag_id WHERE ct.conversation_id=$1 AND t.name='weight loss'",[conversation(20)])).rows[0].n,0);
+  await inbound(27,'Mounjaro'); await tag(27,'needs-staff');
+  await pg.query("UPDATE conversation_tags SET tag_id=(SELECT id FROM tags WHERE name='staff') WHERE conversation_id=$1 AND tag_id=(SELECT id FROM tags WHERE name='needs-staff')",[conversation(27)]);
+  check('updating an existing tag to Staff also removes the prospect tag',(await status(27)).tagged,false);
+  await pg.query("DELETE FROM conversation_tags WHERE conversation_id=$1 AND tag_id=(SELECT id FROM tags WHERE name='staff')",[conversation(20)]);
+  await inbound(29,'Wegovy');
+  check('unmarking Staff allows a fresh patient enquiry',(await status(29)).tagged,true);
+  const staffBefore=(await pg.query('SELECT * FROM conversation_tags ORDER BY conversation_id,tag_id')).rows;
+  await pg.exec(staffMigration);
+  check('staff migration is safe to repeat',(await pg.query('SELECT * FROM conversation_tags ORDER BY conversation_id,tag_id')).rows,staffBefore);
+  // Verify the same rules from a fresh-install schema, not just the migration.
+  await pg.exec(schema.match(/create or replace function public\.trg_message_tag_weight_loss[\s\S]*?\$\$;/)[0]);
+  await pg.exec(schema.match(/create or replace function public\.trg_weight_loss_staff_exclusion[\s\S]*?\$\$;/)[0]);
+  await tag(28,'staff'); await inbound(28,'Wegovy');
+  check('fresh-install schema also excludes staff',(await status(28)).tagged,false);
+  check('staff messages are still stored',(await pg.query('SELECT COUNT(*)::int AS n FROM messages WHERE conversation_id=$1',[conversation(28)])).rows[0].n,1);
   // Missing classifier/tagging failure must not lose a customer's message.
   await pg.exec('DROP TABLE conversation_tags');
   await inbound(10,'Mounjaro');

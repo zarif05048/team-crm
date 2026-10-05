@@ -387,6 +387,13 @@ begin
     select k.id, k.pipeline_removed_at into patient_id, removed_at
     from public.contacts k join public.conversations c on c.contact_id = k.id
     where c.id = new.conversation_id for update of k;
+    -- Staff identity applies across every clinic-line thread for the contact.
+    if exists (
+      select 1 from public.conversations c
+      join public.conversation_tags ct on ct.conversation_id = c.id
+      join public.tags t on t.id = ct.tag_id
+      where c.contact_id = patient_id and lower(trim(t.name)) = 'staff'
+    ) then return new; end if;
     if removed_at is not null then
       if new.created_at <= removed_at then return new; end if;
       update public.contacts set pipeline_removed_at = null where id = patient_id;
@@ -421,6 +428,37 @@ drop trigger if exists messages_tag_weight_loss on public.messages;
 create trigger messages_tag_weight_loss
   after insert on public.messages
   for each row execute function public.trg_message_tag_weight_loss();
+
+-- Staff contacts cannot receive prospect tags; marking Staff removes older ones.
+create or replace function public.trg_weight_loss_staff_exclusion()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  tag_name text;
+  patient_id uuid;
+begin
+  select lower(trim(name)) into tag_name from public.tags where id = new.tag_id;
+  if tag_name not in ('staff', 'weight-loss', 'weight loss') then return new; end if;
+  select k.id into patient_id from public.contacts k
+  join public.conversations c on c.contact_id = k.id
+  where c.id = new.conversation_id for update of k;
+  if tag_name = 'staff' then
+    delete from public.conversation_tags ct using public.conversations c, public.tags t
+    where ct.conversation_id = c.id and ct.tag_id = t.id
+      and c.contact_id = patient_id and lower(trim(t.name)) in ('weight-loss', 'weight loss');
+  elsif exists (
+    select 1 from public.conversations c
+    join public.conversation_tags ct on ct.conversation_id = c.id
+    join public.tags t on t.id = ct.tag_id
+    where c.contact_id = patient_id and lower(trim(t.name)) = 'staff'
+  ) then return null;
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists conversation_tags_weight_loss_staff_exclusion on public.conversation_tags;
+create trigger conversation_tags_weight_loss_staff_exclusion
+  before insert or update of conversation_id, tag_id on public.conversation_tags
+  for each row execute function public.trg_weight_loss_staff_exclusion();
 
 -- ============================================================================
 --  Realtime : broadcast row changes so every agent's inbox updates live

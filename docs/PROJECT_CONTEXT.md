@@ -263,6 +263,12 @@ the weight-loss programme.
   staff set. Migration `2026-10-05_weight_loss_reenquiry.sql` also repairs missed
   prospects with enquiries after removal; it does not send any messages.
   Adding the tag by hand still brings them back.
+- **Staff exclusion (owner, 2026-10-05):** `staff` means the contact is a clinic
+  staff member, so no automatic/manual weight-loss prospect tag on any of their
+  clinic-line threads. Migration `2026-10-05_weight_loss_staff_exclusion.sql`
+  removes existing staff prospect tags and keeps this rule when Staff is added
+  later. Messages and existing stages remain intact. `needs-staff` means a
+  patient handoff and does not exclude a patient from the pipeline.
 - **PeKa B40 (owner, 2026-10-05):** clinic registered for free screening of
   eligible recipients. Link: https://kelayakan11.pekab40.com.my/semakan-kelayakan.
   Includes FBC, sugar control, cholesterol, kidney function and urine tests;
