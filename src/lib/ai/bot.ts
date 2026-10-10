@@ -18,6 +18,7 @@ import { sendText, sendImage } from "@/lib/whatsapp/send";
 import { addToTcaList, malaysiaToday } from "@/lib/sheets/tca";
 import { BOT_SYSTEM_PROMPT } from "./knowledge";
 import { pricingSection, lookupMedication } from "./pricing";
+import { fetchRosterText } from "./roster";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -106,6 +107,12 @@ function tagNamesOf(conv: {
 }
 
 const TOOLS: Anthropic.Tool[] = [
+  {
+    name: "check_doctor_roster",
+    description:
+      "Read the LIVE CMS doctor schedule (Etc → Schedule), per branch/shift for TODAY and TOMORROW, including who is on duty now. Always call this before answering doctor-duty, jadual doktor or female-doctor availability enquiries. Copy doctor names and shift times exactly. If the requested date is later than tomorrow, a shift has no doctor recorded, or the tool fails, ask staff to confirm; never claim the bot has no CMS access.",
+    input_schema: { type: "object", properties: {} },
+  },
   {
     name: "book_appointment",
     description:
@@ -428,7 +435,7 @@ function todayNote(): string {
   const dd = String(day).padStart(2, "0");
   const mm = String(month).padStart(2, "0");
   return (
-    `TODAY (waktu Malaysia): ${weekday}, ${dd}/${mm}/${year}. ` +
+    `TODAY (waktu Malaysia): ${weekday}, ${dd}/${mm}/${year}, ${new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kuala_Lumpur", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date())} MYT. ` +
     `Use it to turn "esok", "lusa" or "Khamis ni" into a real dd/mm/yyyy date, ` +
     `and always repeat the exact date back to the patient when you book something.`
   );
@@ -521,6 +528,12 @@ async function executeTool(
   try {
     const input = tool.input as Record<string, string | undefined>;
     console.log(`[bot] tool ${tool.name}:`, JSON.stringify(input));
+    if (tool.name === "check_doctor_roster") {
+      const roster = await fetchRosterText();
+      return roster
+        ? `DUTY SCHEDULE (live from CMS Etc → Schedule; relay the requested branch and shift exactly):\n${roster}`
+        : "The doctor schedule could not be verified right now — ask staff to confirm with alert_staff. Do not guess a doctor or say this bot has no CMS access. This tool normally reads the live CMS schedule.";
+    }
     if (tool.name === "lookup_medication") {
       return await lookupMedication(input.query ?? "");
     }
