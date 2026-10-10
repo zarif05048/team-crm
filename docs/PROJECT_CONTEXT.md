@@ -293,6 +293,13 @@ the weight-loss programme.
 - **Booking column** (owner, 2026-09-23) between Qualified and Won: stage
   `booking`, allowed by the check re-created in `2026-09-23_booking_stage.sql`.
   Manual only — the AI bots still move a booking to `qualified`.
+- **Not Respond column** (owner, 2026-10-10) right of Follow Up: stage
+  `no_response`, for patients followed up who never answered. Allowed by the
+  check re-created in `2026-10-10_no_response_stage.sql` (run BEFORE pushing).
+  Manual only — staff drag cards in and out; a reply does not move the card
+  back by itself, and no date or yellow warning applies in this column. A
+  patient whose threads disagree sits at the furthest stage (`STAGE_RANK`),
+  with Not Respond between Follow Up and Booking.
 
 ## Pipeline follow-up dates (2026-10-04)
 

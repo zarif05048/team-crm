@@ -6,6 +6,7 @@ export type LeadStage =
   | "new"
   | "contacted"
   | "qualified"
+  | "no_response"
   | "booking"
   | "won"
   | "lost";
@@ -112,6 +113,7 @@ export const STAGE_LABELS: Record<LeadStage, string> = {
   new: "New",
   contacted: "Contacted",
   qualified: "Follow Up",
+  no_response: "Not Respond",
   booking: "Booking",
   won: "Won",
   lost: "Lost",
@@ -123,6 +125,7 @@ export const STAGE_LABELS: Record<LeadStage, string> = {
 export const STAGE_ORDER: LeadStage[] = [
   "new",
   "qualified",
+  "no_response", // added 2026-10-10 (owner): needs 2026-10-10_no_response_stage.sql
   "booking", // added 2026-09-23 (owner): needs 2026-09-23_booking_stage.sql
   "won",
   "lost",

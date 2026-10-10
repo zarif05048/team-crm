@@ -25,6 +25,7 @@ const STAGE_ACCENT: Record<LeadStage, string> = {
   new: "border-t-sky-400",
   contacted: "border-t-violet-400",
   qualified: "border-t-amber-400",
+  no_response: "border-t-rose-400",
   booking: "border-t-teal-400",
   won: "border-t-brand-500",
   lost: "border-t-slate-400",
@@ -37,9 +38,11 @@ const STAGE_RANK: Record<LeadStage, number> = {
   new: 0,
   contacted: 1,
   qualified: 2,
-  booking: 3,
-  lost: 4,
-  won: 5,
+  // followed up and never answered (owner, 2026-10-10) — past Follow Up, short of a booking
+  no_response: 3,
+  booking: 4,
+  lost: 5,
+  won: 6,
 };
 
 /**
