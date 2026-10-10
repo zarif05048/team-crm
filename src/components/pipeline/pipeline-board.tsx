@@ -140,7 +140,11 @@ export function PipelineBoard({
   return (
     <div
       className={cn(
-        "flex flex-1 gap-3 overflow-x-auto p-4",
+        // Every column on one screen (owner, 2026-10-10): the columns share
+        // the width instead of being 18rem each, which with six of them ran
+        // past the edge. Long columns scroll inside themselves; the sideways
+        // scroll is only a fallback for a narrow laptop.
+        "flex min-h-0 flex-1 gap-2 overflow-x-auto p-3",
         pending && "opacity-70",
       )}
     >
@@ -168,7 +172,7 @@ export function PipelineBoard({
               if (Array.isArray(ids) && ids.length) move(ids as string[], stage);
             }}
             className={cn(
-              "flex w-72 shrink-0 flex-col rounded-xl border-t-4 bg-slate-100/70",
+              "flex min-h-0 min-w-[10.5rem] flex-1 basis-0 flex-col rounded-xl border-t-4 bg-slate-100/70",
               STAGE_ACCENT[stage],
               dragOver === stage && "ring-2 ring-brand-400",
             )}
