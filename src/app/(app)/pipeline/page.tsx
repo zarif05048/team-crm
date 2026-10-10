@@ -5,12 +5,19 @@ import { malaysiaDate } from "@/lib/pipeline-follow-up";
 import { moveUnansweredFollowUps } from "@/lib/pipeline-no-response";
 import { createClient } from "@/lib/supabase/server";
 
+// Always rendered per request: it reads the signed-in user's cookies and
+// moves cards, so there is nothing to pre-build.
+export const dynamic = "force-dynamic";
+
 export default async function PipelinePage() {
   const today = malaysiaDate(new Date().toISOString());
+  // Outside the try below: reading cookies is how Next knows this page is
+  // dynamic, and that signal must not be swallowed.
+  const supabase = await createClient();
   // Follow Up cards unanswered for 7 days go to Not Respond before the board
   // is drawn (owner, 2026-10-10). A failure here must not hide the board.
   try {
-    const res = await moveUnansweredFollowUps(await createClient(), today);
+    const res = await moveUnansweredFollowUps(supabase, today);
     if (res.error) console.error("[pipeline] Not Respond sweep:", res.error);
   } catch (e) {
     console.error("[pipeline] Not Respond sweep:", e);
