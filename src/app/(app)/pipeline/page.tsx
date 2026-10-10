@@ -2,8 +2,19 @@ import { getWeightLossPipeline } from "@/lib/data/conversations";
 import { PipelineBoard } from "@/components/pipeline/pipeline-board";
 import { RealtimeRefresh } from "@/components/inbox/realtime-refresh";
 import { malaysiaDate } from "@/lib/pipeline-follow-up";
+import { moveUnansweredFollowUps } from "@/lib/pipeline-no-response";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function PipelinePage() {
+  const today = malaysiaDate(new Date().toISOString());
+  // Follow Up cards unanswered for 7 days go to Not Respond before the board
+  // is drawn (owner, 2026-10-10). A failure here must not hide the board.
+  try {
+    const res = await moveUnansweredFollowUps(await createClient(), today);
+    if (res.error) console.error("[pipeline] Not Respond sweep:", res.error);
+  } catch (e) {
+    console.error("[pipeline] Not Respond sweep:", e);
+  }
   const conversations = await getWeightLossPipeline();
 
   return (
@@ -13,11 +24,11 @@ export default async function PipelinePage() {
         <h1 className="text-base font-semibold text-slate-900">
           Weight-loss pipeline
         </h1>
-        <span className="max-w-sm text-right text-xs text-slate-500">
-          Yellow = 7+ days without a reply in Follow Up, or after the date set in Booking
+        <span className="max-w-md text-right text-xs text-slate-500">
+          No reply 7 days after a follow-up → moves to Not Respond by itself · Yellow = Booking 7+ days after its date
         </span>
       </header>
-      <PipelineBoard conversations={conversations} today={malaysiaDate(new Date().toISOString())} />
+      <PipelineBoard conversations={conversations} today={today} />
     </div>
   );
 }

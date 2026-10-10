@@ -296,8 +296,15 @@ the weight-loss programme.
 - **Not Respond column** (owner, 2026-10-10) right of Follow Up: stage
   `no_response`, for patients followed up who never answered. Allowed by the
   check re-created in `2026-10-10_no_response_stage.sql` (run BEFORE pushing).
-  Manual only — staff drag cards in and out; a reply does not move the card
-  back by itself, and no date or yellow warning applies in this column. A
+  **Automatic in, manual out** (owner, 2026-10-10): a Follow Up card with no
+  patient reply 7 Malaysia days after its follow-up — exactly the cards that
+  used to turn yellow — moves here by itself (`unansweredFollowUps` in
+  `pipeline-follow-up.ts`, applied by `moveUnansweredFollowUps` in
+  `pipeline-no-response.ts`). It runs when the Pipeline page opens and in the
+  daily cleanup cron (11:00 MYT), so it also happens when nobody looks. A
+  reply does not move the card back; dragging it to Follow Up records a new
+  follow-up date and restarts the seven days. No date or yellow warning
+  applies in this column. A
   patient whose threads disagree sits at the furthest stage (`STAGE_RANK`),
   with Not Respond between Follow Up and Booking.
 

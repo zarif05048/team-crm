@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { authorizeCron, logCronRun } from "@/lib/cron-auth";
+import { moveUnansweredFollowUps } from "@/lib/pipeline-no-response";
+import { malaysiaDate } from "@/lib/pipeline-follow-up";
 
 // Node runtime (service-role client) and never cached.
 export const runtime = "nodejs";
@@ -38,6 +40,17 @@ async function runCleanup(request: Request) {
 
   const sb = createAdminClient();
 
+  /* Pipeline: Follow Up cards unanswered for 7 days → Not Respond (owner,
+     2026-10-10). The board also does this whenever it is opened; running it
+     here too means the cards move on days nobody looks. Never allowed to stop
+     the cleanup below, and never stopped by it. */
+  let noResponse: { moved: number; error?: string };
+  try {
+    noResponse = await moveUnansweredFollowUps(sb, malaysiaDate(new Date().toISOString()));
+  } catch (e) {
+    noResponse = { moved: 0, error: e instanceof Error ? e.message : String(e) };
+  }
+
   // Old messages beyond the retention window.
   const { count: messagesDeleted, error: msgErr } = await sb
     .from("messages")
@@ -66,6 +79,8 @@ async function runCleanup(request: Request) {
       retentionDays,
       messagesDeleted: messagesDeleted ?? 0,
       outboxDeleted: outboxDeleted ?? 0,
+      movedToNoResponse: noResponse.moved,
+      ...(noResponse.error ? { noResponseError: noResponse.error } : {}),
     },
   });
 
@@ -76,6 +91,8 @@ async function runCleanup(request: Request) {
     messageCutoff: msgCutoff,
     messagesDeleted: messagesDeleted ?? 0,
     outboxDeleted: outboxDeleted ?? 0,
+    movedToNoResponse: noResponse.moved,
+    noResponseError: noResponse.error ?? null,
     ranAt: new Date().toISOString(),
   });
 }

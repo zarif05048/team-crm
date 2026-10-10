@@ -1,6 +1,6 @@
 // Run with: node --experimental-strip-types scripts/test-pipeline-follow-up.mjs
 import assert from "node:assert/strict";
-import { malaysiaDate, validCalendarDate, pipelineWarning } from "../src/lib/pipeline-follow-up.ts";
+import { malaysiaDate, validCalendarDate, pipelineWarning, unansweredFollowUps } from "../src/lib/pipeline-follow-up.ts";
 
 const qualified = {
   stage: "qualified", bookingDate: null,
@@ -28,6 +28,19 @@ for (const stage of ["new", "contacted", "won", "lost"]) {
   assert.equal(pipelineWarning({ ...booking, stage }, "2026-10-04"), null);
 }
 
+// Not Respond sweep (owner, 2026-10-10): exactly the yellow Follow Up cards, per patient.
+const t = (id, contactId, extra = {}) => ({ id, contactId, stageEnteredAt: "2026-09-20T03:00:00Z",
+  followUpAt: "2026-09-27T03:00:00Z", lastInboundAt: null, ...extra });
+assert.deepEqual(unansweredFollowUps([t("a", "p1")], "2026-10-03"), [], "Day six: stays in Follow Up");
+assert.deepEqual(unansweredFollowUps([t("a", "p1")], "2026-10-04"), ["a"], "Day seven, no reply: moves");
+assert.deepEqual(unansweredFollowUps([t("a", "p1", { lastInboundAt: "2026-09-28T00:00:00Z" })], "2026-10-04"), [],
+  "A reply after the follow-up keeps the card in Follow Up");
+assert.deepEqual(unansweredFollowUps([t("a", "p1"), t("b", "p1"), t("c", "p2", { followUpAt: "2026-10-01T03:00:00Z" })], "2026-10-04"), ["a", "b"],
+  "Both of one patient's threads move together; a recent follow-up stays");
+assert.deepEqual(unansweredFollowUps([t("a", "p1", { followUpAt: null, stageEnteredAt: "2026-09-28T03:00:00Z" })], "2026-10-04"), [],
+  "No recorded follow-up: ages from entering Follow Up");
+assert.deepEqual(unansweredFollowUps([], "2026-10-04"), []);
+
 assert.equal(malaysiaDate("2026-10-03T16:00:00Z"), "2026-10-04", "Malaysia midnight, not UTC midnight");
 assert.equal(malaysiaDate("2026-10-03T15:59:59Z"), "2026-10-03");
 assert.equal(pipelineWarning({ ...qualified, followUpAt: "2026-09-27T16:00:00Z" }, "2026-10-04"), null,
@@ -37,4 +50,4 @@ assert.equal(validCalendarDate("2028-02-29"), true);
 assert.equal(validCalendarDate("2026-04-31"), false);
 assert.equal(validCalendarDate("04/10/2026"), false);
 assert.equal(validCalendarDate(null), false);
-console.log("Pipeline checks passed: seven-day boundaries, replies, stage exits, repeated follow-up, Malaysia midnight and date validation.");
+console.log("Pipeline checks passed: seven-day boundaries, replies, stage exits, repeated follow-up, Malaysia midnight, date validation and the Not Respond sweep.");

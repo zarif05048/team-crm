@@ -41,3 +41,47 @@ export function pipelineWarning(p: FollowUpTiming, today: string): string | null
   if (p.lastInboundAt && Date.parse(p.lastInboundAt) > Date.parse(anchor)) return null;
   return "No patient reply · 7+ days since follow-up";
 }
+
+/** One Follow Up thread, as the Not Respond sweep sees it. */
+export interface FollowUpThread {
+  id: string;
+  contactId: string;
+  stageEnteredAt: string | null;
+  /** contacts.pipeline_follow_up_at — shared by all the patient's threads */
+  followUpAt: string | null;
+  /** The patient's latest reply on ANY line, not just this thread. */
+  lastInboundAt: string | null;
+}
+
+/**
+ * Follow Up threads that go to Not Respond on their own (owner, 2026-10-10):
+ * exactly the cards the board would paint yellow — 7+ Malaysia days since the
+ * follow-up and no reply from the patient on any line since. Decided per
+ * PATIENT, like the card: all their Follow Up threads move together.
+ * The same rule as `pipelineWarning`, so the two can never disagree.
+ */
+export function unansweredFollowUps(threads: FollowUpThread[], today: string): string[] {
+  const byContact = new Map<string, FollowUpThread[]>();
+  for (const t of threads) {
+    const list = byContact.get(t.contactId);
+    if (list) list.push(t);
+    else byContact.set(t.contactId, [t]);
+  }
+  const time = (s: string | null) => (s ? Date.parse(s) : NaN);
+  const out: string[] = [];
+  for (const list of byContact.values()) {
+    const entered = list.map((t) => t.stageEnteredAt).filter((s): s is string => !!s)
+      .sort((a, b) => time(a) - time(b))[0] ?? null;
+    const replied = list.map((t) => t.lastInboundAt).filter((s): s is string => !!s)
+      .sort((a, b) => time(b) - time(a))[0] ?? null;
+    const stale = pipelineWarning({
+      stage: "qualified",
+      bookingDate: null,
+      followUpAt: list.find((t) => t.followUpAt)?.followUpAt ?? null,
+      qualifiedSince: entered,
+      lastInboundAt: replied,
+    }, today);
+    if (stale) out.push(...list.map((t) => t.id));
+  }
+  return out;
+}
