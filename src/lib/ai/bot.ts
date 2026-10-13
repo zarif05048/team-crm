@@ -25,6 +25,7 @@ type Admin = ReturnType<typeof createAdminClient>;
 /** Who/where the bot is talking to — needed by tools that send media. */
 interface SendContext {
   waId: string;
+  phoneNumber?: string | null;
   phoneNumberId: string;
 }
 
@@ -264,7 +265,7 @@ export async function runBotReply(trigger: BotTrigger): Promise<void> {
       .from("conversations")
       .select(
         `id, bot_enabled,
-         contact:contacts(wa_id, name, profile_name),
+         contact:contacts(wa_id, phone_number, name, profile_name),
          whatsapp_number:whatsapp_numbers(phone_number_id),
          conversation_tags(tag:tags(name))`,
       )
@@ -358,6 +359,7 @@ export async function runBotReply(trigger: BotTrigger): Promise<void> {
 
     const contact = conv.contact as unknown as {
       wa_id: string;
+      phone_number: string | null;
       name: string | null;
       profile_name: string | null;
     };
@@ -367,6 +369,7 @@ export async function runBotReply(trigger: BotTrigger): Promise<void> {
 
     const sendCtx: SendContext = {
       waId: contact.wa_id,
+      phoneNumber: contact.phone_number,
       phoneNumberId: number.phone_number_id,
     };
     const replyText = await converse(
@@ -599,7 +602,7 @@ async function executeTool(
         dateText: input.preferred_date ?? "",
         timeText: input.preferred_time,
         notes: input.extra_notes,
-        phone: sendCtx.waId,
+        phone: sendCtx.phoneNumber ?? undefined,
       });
       const sheetLine = sheet.ok
         ? `✅ Added to the TCA minor surgical list → tab "${sheet.tab}"\n${sheet.url}`

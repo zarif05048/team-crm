@@ -1,4 +1,5 @@
 "use client";
+import { contactName } from "@/lib/contact-phone";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -35,7 +36,7 @@ export function ConversationList({
     <ul className="divide-y divide-slate-100">
       {conversations.map((c) => {
         const active = pathname === `/inbox/${c.id}`;
-        const name = c.contact.name ?? c.contact.profile_name ?? c.contact.wa_id;
+        const name = contactName(c.contact);
         const preview = c.last_message?.body ?? "";
         const outbound = c.last_message?.direction === "outbound";
         return (

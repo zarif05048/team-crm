@@ -4,6 +4,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { formatTime } from "@/lib/utils";
 import { getContacts } from "@/lib/data/contacts";
 import { STAGE_LABELS } from "@/lib/types";
+import { contactName, contactPhone } from "@/lib/contact-phone";
 
 export default async function ContactsPage() {
   const contacts = await getContacts();
@@ -31,7 +32,7 @@ export default async function ContactsPage() {
         <div className="flex-1 overflow-y-auto p-4">
           <div className="mx-auto max-w-3xl divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
             {contacts.map((c) => {
-              const name = c.name ?? c.profile_name ?? c.wa_id;
+              const name = contactName(c);
               return (
                 <div
                   key={c.id}
@@ -43,7 +44,7 @@ export default async function ContactsPage() {
                       {name}
                     </p>
                     <p className="truncate text-xs text-slate-400">
-                      +{c.wa_id}
+                      {contactPhone(c)}
                     </p>
                   </div>
                   {c.stage && (

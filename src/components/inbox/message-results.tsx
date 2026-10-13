@@ -1,4 +1,5 @@
 "use client";
+import { contactName } from "@/lib/contact-phone";
 
 import Link from "next/link";
 import { Avatar } from "@/components/ui/avatar";
@@ -30,7 +31,7 @@ export function MessageResults({
       <ul className="divide-y divide-slate-100">
         {hits.map((hit) => {
           const name =
-            hit.contact.name ?? hit.contact.profile_name ?? hit.contact.wa_id;
+            contactName(hit.contact);
           return (
             <li key={hit.id}>
               <Link

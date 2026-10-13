@@ -38,7 +38,8 @@ create table if not exists public.whatsapp_numbers (
 -- ----------------------------------------------------------------------------
 create table if not exists public.contacts (
   id            uuid primary key default gen_random_uuid(),
-  wa_id         text not null unique,             -- customer phone in wa format e.g. 60123456789
+  wa_id         text not null unique,             -- stable WhatsApp routing identity; may be a LID
+  phone_number  text check (phone_number is null or phone_number ~ '^[0-9]{7,15}$'), -- verified phone only
   name          text,                             -- editable display name
   profile_name  text,                             -- name WhatsApp reports
   created_at    timestamptz not null default now(),

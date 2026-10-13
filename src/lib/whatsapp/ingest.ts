@@ -127,19 +127,20 @@ async function ensureContact(
     .maybeSingle();
 
   if (existing) {
-    // Backfill the WhatsApp profile name if we don't have one yet.
-    if (profileName && !existing.name) {
-      await supabase
-        .from("contacts")
-        .update({ profile_name: profileName, updated_at: new Date().toISOString() })
-        .eq("id", existing.id);
-    }
+    // Cloud API sender IDs are phone numbers. Refresh the verified number
+    // together with any missing profile name, checking the write result.
+    const { error } = await supabase.from("contacts").update({
+      phone_number: waId,
+      ...(profileName && !existing.name ? { profile_name: profileName } : {}),
+      updated_at: new Date().toISOString(),
+    }).eq("id", existing.id);
+    if (error) throw new Error(`ensureContact: ${error.message}`);
     return existing.id;
   }
 
   const { data, error } = await supabase
     .from("contacts")
-    .insert({ wa_id: waId, name: profileName ?? null, profile_name: profileName ?? null })
+    .insert({ wa_id: waId, phone_number: waId, name: profileName ?? null, profile_name: profileName ?? null })
     .select("id")
     .single();
   if (error) throw new Error(`ensureContact: ${error.message}`);

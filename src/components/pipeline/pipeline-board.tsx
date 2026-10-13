@@ -1,4 +1,5 @@
 "use client";
+import { contactName } from "@/lib/contact-phone";
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
@@ -214,7 +215,7 @@ function PipelineCard({
   onRemove: (p: PatientCard, name: string) => void;
 }) {
   const c = p.latest;
-  const name = c.contact.name ?? c.contact.profile_name ?? c.contact.wa_id;
+  const name = contactName(c.contact);
   const warning = pipelineWarning({
     stage: p.stage,
     bookingDate: c.contact.pipeline_booking_date,

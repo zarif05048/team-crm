@@ -1,0 +1,31 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import vm from "node:vm";
+import ts from "typescript";
+import { PGlite } from "@electric-sql/pglite";
+
+const db = new PGlite();
+await db.exec(`create table contacts (id text primary key, wa_id text unique);
+create table conversations (id text primary key, contact_id text, whatsapp_number_id text);
+create table whatsapp_numbers (id text primary key, phone_number_id text);
+insert into contacts values ('lid','25804197126221'),('cloud','60123456789');
+insert into whatsapp_numbers values ('branch','unofficial:60139237548'),('official','123');
+insert into conversations values ('old-thread','lid','branch'),('api-thread','cloud','official');`);
+const sql = readFileSync("supabase/migrations/2026-10-13_contact_phone_numbers.sql", "utf8");
+await db.exec(sql);
+await db.exec(sql); // safe to reapply
+const { rows } = await db.query("select * from contacts order by id");
+assert.equal(rows.find(r => r.id === "lid").phone_number, null);
+assert.equal(rows.find(r => r.id === "cloud").phone_number, "60123456789");
+await db.exec("update contacts set phone_number='60179254285' where id='lid'");
+assert.equal((await db.query("select contact_id from conversations where id='old-thread'")).rows[0].contact_id, "lid");
+await assert.rejects(db.exec("update contacts set phone_number='25804197126221@lid' where id='lid'"));
+const module = { exports: {} };
+const js = ts.transpileModule(readFileSync("src/lib/contact-phone.ts", "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+vm.runInNewContext(js, { exports: module.exports, module });
+assert.equal(module.exports.contactPhone({ wa_id: "25804197126221", phone_number: null }), "Phone number unavailable");
+assert.equal(module.exports.contactPhone({ phone_number: "60179254285" }), "+60179254285");
+assert.equal(module.exports.contactName({ wa_id: "25804197126221" }), "WhatsApp contact");
+assert.equal(module.exports.contactName({ name: "UmieMira", phone_number: "60179254285" }), "UmieMira");
+await db.close();
+console.log("Contact migration, verified display and preserved chat identity checks passed.");

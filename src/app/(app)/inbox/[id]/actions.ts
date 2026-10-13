@@ -12,7 +12,7 @@ export type SendState = { ok: boolean; error?: string; conversationId?: string }
 interface ConvForSend {
   id: string;
   last_inbound_at: string | null;
-  contact: { id: string; wa_id: string; name: string | null; profile_name: string | null };
+  contact: { id: string; wa_id: string; phone_number: string | null; name: string | null; profile_name: string | null };
   whatsapp_number: { id: string; phone_number_id: string; waba_id: string | null };
 }
 
@@ -27,7 +27,7 @@ async function loadConversation(conversationId: string) {
     .from("conversations")
     .select(
       `id, last_inbound_at,
-       contact:contacts(id, wa_id, name, profile_name),
+       contact:contacts(id, wa_id, phone_number, name, profile_name),
        whatsapp_number:whatsapp_numbers(id, phone_number_id, waba_id)`,
     )
     .eq("id", conversationId)
@@ -551,7 +551,7 @@ export async function addTcaEntry(
     timeText: entry.time,
     doctor: entry.doctor,
     notes: entry.notes,
-    phone: conv.contact.wa_id,
+    phone: conv.contact.phone_number ?? undefined,
   });
 
   const supabase = await createClient();

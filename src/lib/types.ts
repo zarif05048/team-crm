@@ -40,6 +40,7 @@ export interface WhatsappNumber {
 export interface Contact {
   id: string;
   wa_id: string;
+  phone_number: string | null;
   name: string | null;
   profile_name: string | null;
   created_at: string;

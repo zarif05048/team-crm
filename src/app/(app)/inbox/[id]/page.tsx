@@ -23,6 +23,7 @@ import { getTeamMembers } from "@/lib/data/team";
 import { getCannedReplies } from "@/lib/data/canned";
 import { getWhatsappNumbers } from "@/lib/data/numbers";
 import { isWindowOpen } from "@/lib/types";
+import { contactName, contactPhone } from "@/lib/contact-phone";
 
 export default async function ThreadPage({
   params,
@@ -54,10 +55,7 @@ export default async function ThreadPage({
     .filter((n) => n.phone_number_id.startsWith("unofficial:") && n.is_active !== false)
     .map((n) => ({ id: n.id, display_name: n.display_name }));
 
-  const name =
-    conversation.contact.name ??
-    conversation.contact.profile_name ??
-    conversation.contact.wa_id;
+  const name = contactName(conversation.contact);
   // Bridged threads (unofficial marketing number, delivered by the sender
   // program) have no Meta 24h-window rule — always open for free-text replies.
   const bridged = conversation.whatsapp_number.phone_number_id?.startsWith("unofficial:") ?? false;
@@ -89,7 +87,7 @@ export default async function ThreadPage({
               <LineBadge displayName={conversation.whatsapp_number.display_name} />
             </div>
             <p className="truncate text-xs text-slate-400">
-              +{conversation.contact.wa_id} · via{" "}
+              {contactPhone(conversation.contact)} · via{" "}
               {conversation.whatsapp_number.display_name}
             </p>
           </div>

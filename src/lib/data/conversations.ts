@@ -11,7 +11,7 @@ import type {
 export interface ConversationRow extends Conversation {
   // List views only need the display fields; getConversation returns the full
   // contact (typed loosely here so both fit).
-  contact: Pick<Contact, "id" | "wa_id" | "name" | "profile_name"> &
+  contact: Pick<Contact, "id" | "wa_id" | "phone_number" | "name" | "profile_name"> &
     Partial<Contact>;
   whatsapp_number: Pick<WhatsappNumber, "id" | "display_name" | "phone_display"> &
     Partial<Pick<WhatsappNumber, "phone_number_id">>; // selected by getConversation (bridged-thread detection)
@@ -38,7 +38,7 @@ export interface ConversationListRow {
   stage: Conversation["stage"];
   bot_enabled: boolean;
   last_message_at: string;
-  contact: Pick<Contact, "id" | "wa_id" | "name" | "profile_name">;
+  contact: Pick<Contact, "id" | "wa_id" | "phone_number" | "name" | "profile_name">;
   // Attached client-side from the numbers list, not joined per row — see
   // getConversations.
   whatsapp_number: Pick<WhatsappNumber, "id" | "display_name"> | null;
@@ -100,7 +100,7 @@ export async function getConversations(): Promise<ConversationListRow[]> {
       .from("conversations")
       .select(
         `${LIST_COLUMNS},
-         contact:contacts(id, wa_id, name, profile_name),
+         contact:contacts(id, wa_id, phone_number, name, profile_name),
          assignee:profiles!conversations_assigned_to_fkey(id, full_name),
          conversation_tags(tag:tags(id, name, color))`,
       )
@@ -150,7 +150,7 @@ export async function getWeightLossPipeline(): Promise<PipelineConversationRow[]
       .from("conversations")
       .select(
         `${LIST_COLUMNS}, stage_entered_at,
-         contact:contacts(id, wa_id, name, profile_name, pipeline_booking_date, pipeline_follow_up_at),
+         contact:contacts(id, wa_id, phone_number, name, profile_name, pipeline_booking_date, pipeline_follow_up_at),
          assignee:profiles!conversations_assigned_to_fkey(id, full_name),
          conversation_tags(tag:tags(id, name, color)),
          wl:conversation_tags!inner(tag_id)`,
@@ -239,7 +239,7 @@ export async function searchConversations(
 
   const clauses = [`name.ilike.*${q}*`, `profile_name.ilike.*${q}*`];
   for (const candidate of phoneCandidates(q)) {
-    clauses.push(`wa_id.ilike.*${candidate}*`);
+    clauses.push(`phone_number.ilike.*${candidate}*`);
   }
 
   const supabase = await createClient();
@@ -248,7 +248,7 @@ export async function searchConversations(
       .from("conversations")
       .select(
         `${LIST_COLUMNS},
-         contact:contacts!inner(id, wa_id, name, profile_name),
+         contact:contacts!inner(id, wa_id, phone_number, name, profile_name),
          assignee:profiles!conversations_assigned_to_fkey(id, full_name),
          conversation_tags(tag:tags(id, name, color))`,
       )
@@ -273,7 +273,7 @@ export interface MessageHit {
   body: string;
   direction: Message["direction"];
   created_at: string;
-  contact: Pick<Contact, "wa_id" | "name" | "profile_name">;
+  contact: Pick<Contact, "wa_id" | "phone_number" | "name" | "profile_name">;
   whatsapp_number_id: string;
 }
 
@@ -304,7 +304,7 @@ export async function searchMessages(
       `id, conversation_id, body, direction, created_at,
        conversation:conversations!inner(
          whatsapp_number_id,
-         contact:contacts(wa_id, name, profile_name))`,
+         contact:contacts(wa_id, phone_number, name, profile_name))`,
     )
     // ilike escapes nothing, so % and _ from the user would act as wildcards.
     .ilike("body", `%${q.replace(/[%_]/g, "")}%`)
@@ -324,7 +324,7 @@ export async function searchMessages(
     created_at: string;
     conversation: {
       whatsapp_number_id: string;
-      contact: Pick<Contact, "wa_id" | "name" | "profile_name"> | null;
+      contact: Pick<Contact, "wa_id" | "phone_number" | "name" | "profile_name"> | null;
     } | null;
   };
 

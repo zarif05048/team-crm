@@ -44,7 +44,7 @@ function haystack(c: ConversationListRow): string {
   return [
     c.contact.name,
     c.contact.profile_name,
-    c.contact.wa_id,
+    c.contact.phone_number,
     c.last_message?.body,
     c.assignee?.full_name,
     ...c.tags.map((t) => t.name),
@@ -77,7 +77,7 @@ export function useInboxSearch(
     return conversations.filter((c) => {
       const text = haystack(c);
       if (text.includes(query)) return true;
-      return phones.some((p) => c.contact.wa_id.includes(p));
+      return phones.some((p) => (c.contact.phone_number ?? "").includes(p));
     });
   }, [conversations, query]);
 
