@@ -9,6 +9,7 @@ import { MessageResults } from "@/components/inbox/message-results";
 import { useInboxSearch } from "@/components/inbox/use-inbox-search";
 import { lineLabel } from "@/components/ui/line-badge";
 import type { ConversationListRow } from "@/lib/data/conversations";
+import { ResizableSplit } from "@/components/resizable-split";
 
 /**
  * Responsive master/detail shell.
@@ -80,13 +81,11 @@ export function InboxShell({
     !searching;
 
   return (
-    <div className="flex h-full">
-      <div
-        className={cn(
-          "w-full flex-col border-r border-slate-200 bg-surface lg:flex lg:max-w-sm",
-          threadOpen ? "hidden lg:flex" : "flex",
-        )}
-      >
+    <ResizableSplit id="inbox" label="Resize inbox and conversation" defaultWidth={384}
+      minWidth={280} maxWidth={720} minRemaining={360}
+      leftClassName={cn("w-full flex-col border-r border-slate-200 bg-surface", threadOpen ? "hidden lg:flex" : "flex")}
+      rightClassName={threadOpen ? "flex" : "hidden lg:flex"}
+      left={<>
         <header className="flex h-14 items-center justify-between border-b border-slate-200 px-4">
           <h1 className="text-base font-semibold text-slate-900">Inbox</h1>
           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
@@ -183,11 +182,8 @@ export function InboxShell({
             </div>
           )}
         </div>
-      </div>
-
-      <div className={cn("min-w-0 flex-1", threadOpen ? "flex" : "hidden lg:flex")}>
-        {children}
-      </div>
-    </div>
+      </>}>
+      {children}
+    </ResizableSplit>
   );
 }

@@ -125,6 +125,15 @@ body {
 [data-theme="dark"] mark { background: #f4c56b; color: #111111; }
 .theme-toggle { transition: background-color 160ms, border-color 160ms, color 160ms; }
 
+.panel-resizer { width: 10px; cursor: col-resize; touch-action: none; background: var(--surface); }
+.panel-resizer::before { content: ""; position: absolute; inset-block: 0; left: 50%; width: 1px; background: var(--color-slate-200); }
+.panel-resizer-grip { z-index: 1; height: 32px; width: 4px; border-radius: 4px; background: var(--color-slate-400); }
+.panel-resizer:hover, .panel-resizer:focus-visible, .panel-resizer.is-dragging { background: color-mix(in srgb, var(--surface) 88%, #22d3ee); }
+.panel-resizer:hover .panel-resizer-grip, .panel-resizer:focus-visible .panel-resizer-grip, .panel-resizer.is-dragging .panel-resizer-grip { background: #22d3ee; }
+.panel-resizer:focus-visible { outline: 2px solid #22d3ee; outline-offset: -2px; }
+html.crm-resizing, html.crm-resizing * { cursor: col-resize !important; user-select: none !important; }
+@media (min-width: 64rem) { .resizable-pane { width: var(--pane-width); } }
+
 .appearance-panel { background-image: radial-gradient(ellipse at 100% 0%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 60%); }
 [data-theme="dark"] .appearance-panel { background-image: none; }
 [data-theme="dark"] .crm-login { background: #000; }

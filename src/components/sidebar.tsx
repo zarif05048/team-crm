@@ -31,7 +31,7 @@ export function Sidebar({ profile }: { profile: Profile }) {
   return (
     <aside
       className={cn(
-        "crm-sidebar w-16 flex-col items-center py-4 text-white lg:flex lg:w-60 lg:items-stretch lg:px-3",
+        "crm-sidebar h-full w-full flex-col items-center py-4 text-white lg:flex lg:items-stretch lg:px-3",
         onThread ? "hidden lg:flex" : "flex",
       )}
     >
@@ -42,7 +42,7 @@ export function Sidebar({ profile }: { profile: Profile }) {
           <img
             src="/logo.png"
             alt="Hijraa Clinic"
-            className="h-8 w-auto object-contain lg:h-12"
+            className="h-8 w-auto max-w-full object-contain lg:h-12"
           />
         </div>
         <p className="mt-2 hidden text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-accent-400 lg:block">

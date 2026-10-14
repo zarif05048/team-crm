@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { Sidebar } from "@/components/sidebar";
+import { WorkspaceLayout } from "@/components/workspace-layout";
 import { AttentionAlerts } from "@/components/notifications/attention-alerts";
 import { PushSetup } from "@/components/notifications/push-setup";
 import type { Profile } from "@/lib/types";
@@ -26,13 +26,10 @@ export default async function AppLayout({
   if (!profile) redirect("/login");
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar profile={profile as Profile} />
-      <main className="crm-main flex min-w-0 flex-1 flex-col overflow-hidden">
-        {children}
-      </main>
+    <>
+      <WorkspaceLayout profile={profile as Profile}>{children}</WorkspaceLayout>
       <AttentionAlerts />
       <PushSetup />
-    </div>
+    </>
   );
 }
