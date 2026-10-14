@@ -22,7 +22,7 @@ export function NumbersList({ numbers }: { numbers: WhatsappNumber[] }) {
   };
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white">
+    <section className="rounded-xl border border-slate-200 bg-surface">
       <header className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
         <Phone className="h-4 w-4 text-slate-500" />
         <h2 className="text-sm font-semibold text-slate-800">
@@ -53,7 +53,7 @@ export function NumbersList({ numbers }: { numbers: WhatsappNumber[] }) {
                   <button
                     onClick={() => save(n.id)}
                     disabled={pending}
-                    className="rounded-lg p-1.5 text-brand-600 hover:bg-brand-50"
+                    className="rounded-lg p-1.5 text-primary hover:bg-brand-50"
                     aria-label="Save name"
                   >
                     <Check className="h-4 w-4" />
@@ -81,7 +81,7 @@ export function NumbersList({ numbers }: { numbers: WhatsappNumber[] }) {
             <span
               className={
                 n.is_active
-                  ? "rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700"
+                  ? "rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-primary"
                   : "rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600"
               }
             >

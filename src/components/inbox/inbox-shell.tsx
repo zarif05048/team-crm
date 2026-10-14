@@ -83,7 +83,7 @@ export function InboxShell({
     <div className="flex h-full">
       <div
         className={cn(
-          "w-full flex-col border-r border-slate-200 bg-white lg:flex lg:max-w-sm",
+          "w-full flex-col border-r border-slate-200 bg-surface lg:flex lg:max-w-sm",
           threadOpen ? "hidden lg:flex" : "flex",
         )}
       >
@@ -112,7 +112,7 @@ export function InboxShell({
               type="text"
               placeholder="Search name or phone number…"
               aria-label="Search conversations"
-              className="h-9 w-full rounded-lg border border-slate-300 bg-white pl-8 pr-8 text-sm text-slate-800 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+              className="h-9 w-full rounded-lg border border-slate-300 bg-surface pl-8 pr-8 text-sm text-slate-800 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
             />
             {query && (
               <button
@@ -136,7 +136,7 @@ export function InboxShell({
               value={activeLine}
               onChange={(e) => setLine(e.target.value)}
               aria-label="Filter by WhatsApp line"
-              className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              className="w-full rounded-md border border-slate-300 bg-surface px-2.5 py-1.5 text-sm font-medium text-slate-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
             >
               <option value="all">All lines ({conversations.length})</option>
               {lines.map((l) => (

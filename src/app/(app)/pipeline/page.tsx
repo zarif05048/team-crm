@@ -27,7 +27,7 @@ export default async function PipelinePage() {
   return (
     <div className="flex h-full flex-col">
       <RealtimeRefresh includeContacts />
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-surface px-6">
         <h1 className="text-base font-semibold text-slate-900">
           Weight-loss pipeline
         </h1>

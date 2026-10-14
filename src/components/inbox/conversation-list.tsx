@@ -92,7 +92,7 @@ export function ConversationList({
                     </span>
                   )}
                   {c.stage !== "new" && (
-                    <span className="rounded bg-brand-100 px-1.5 py-0.5 text-[10px] font-medium capitalize text-brand-700">
+                    <span className="rounded bg-brand-100 px-1.5 py-0.5 text-[10px] font-medium capitalize text-primary">
                       {c.stage}
                     </span>
                   )}

@@ -19,15 +19,15 @@ export default function LoginPage() {
       <div className="pointer-events-none absolute -top-32 right-[-10%] h-96 w-96 rounded-full bg-accent-500/20 blur-3xl" />
       <div className="pointer-events-none absolute bottom-[-20%] left-[-10%] h-96 w-96 rounded-full bg-brand-500/30 blur-3xl" />
 
-      <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-white p-8 shadow-2xl shadow-brand-950/50">
+      <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-surface p-8 shadow-2xl shadow-brand-950/50">
         <div className="mb-6 flex flex-col items-center text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/logo.png"
             alt="Hijraa Clinic"
-            className="mb-3 h-20 w-auto object-contain"
+            className="mb-3 h-20 w-auto rounded-xl bg-white p-2 object-contain"
           />
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-600">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
             Marketing CRM
           </p>
           <p className="mt-1 text-sm text-slate-500">
@@ -74,7 +74,7 @@ export default function LoginPage() {
         <button
           type="button"
           onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-          className="mt-4 w-full text-center text-sm text-brand-600 hover:underline"
+          className="mt-4 w-full text-center text-sm text-primary hover:underline"
         >
           {mode === "signin"
             ? "Need an account? Sign up"

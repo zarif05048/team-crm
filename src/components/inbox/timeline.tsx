@@ -151,9 +151,9 @@ function MessageBubble({
           "max-w-[85%] rounded-2xl px-3 py-2 text-sm shadow-sm sm:max-w-[75%]",
           outbound
             ? fromBot
-              ? "rounded-br-sm bg-emerald-600 text-white"
+              ? "rounded-br-sm bg-bot text-white"
               : "rounded-br-sm bg-brand-600 text-white"
-            : "rounded-bl-sm bg-white text-slate-800",
+            : "rounded-bl-sm bg-surface text-slate-800",
           active && "ring-2 ring-amber-400 ring-offset-2 ring-offset-slate-50",
         )}
       >
@@ -171,11 +171,7 @@ function MessageBubble({
         <p
           className={cn(
             "mt-1 flex items-center justify-end gap-1 text-right text-[10px]",
-            outbound
-              ? fromBot
-                ? "text-emerald-100"
-                : "text-brand-100"
-              : "text-slate-400",
+            outbound ? "text-white/80" : "text-slate-400",
           )}
           title={formatFullTime(m.created_at)}
           suppressHydrationWarning

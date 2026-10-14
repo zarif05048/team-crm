@@ -96,7 +96,7 @@ export function ThreadToolbar({
         value={assignedTo ?? ""}
         onChange={(e) => onAssign(e.target.value)}
         disabled={pending}
-        className="h-8 max-w-[150px] flex-1 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-700 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:opacity-50"
+        className="h-8 max-w-[150px] flex-1 rounded-lg border border-slate-300 bg-surface px-2 text-sm text-slate-700 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:opacity-50"
       >
         <option value="">Unassigned</option>
         {members.map((m) => (
@@ -111,7 +111,7 @@ export function ThreadToolbar({
         value={stage}
         onChange={(e) => onStage(e.target.value)}
         disabled={pending}
-        className="h-8 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-700 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:opacity-50"
+        className="h-8 rounded-lg border border-slate-300 bg-surface px-2 text-sm text-slate-700 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:opacity-50"
       >
         {STAGE_ORDER.map((s) => (
           <option key={s} value={s}>
@@ -132,7 +132,7 @@ export function ThreadToolbar({
         className={
           botEnabled
             ? "flex h-8 items-center gap-1.5 rounded-lg bg-violet-100 px-2.5 text-xs font-medium text-violet-700 hover:bg-violet-200 disabled:opacity-50"
-            : "flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-500 hover:bg-slate-100 disabled:opacity-50"
+            : "flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-surface px-2.5 text-xs font-medium text-slate-500 hover:bg-slate-100 disabled:opacity-50"
         }
       >
         <Bot className="h-4 w-4" />
@@ -151,7 +151,7 @@ export function ThreadToolbar({
         className={
           isStaffChat
             ? "flex h-8 items-center gap-1.5 rounded-lg bg-indigo-600 px-2.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-            : "flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-500 hover:bg-slate-100 disabled:opacity-50"
+            : "flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-surface px-2.5 text-xs font-medium text-slate-500 hover:bg-slate-100 disabled:opacity-50"
         }
       >
         <Headset className="h-4 w-4" />
@@ -168,7 +168,7 @@ export function ThreadToolbar({
         <span
           className={
             status === "open"
-              ? "rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700"
+              ? "rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-primary"
               : "rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600"
           }
         >

@@ -69,7 +69,7 @@ export function TeamManager({
   };
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white">
+    <section className="rounded-xl border border-slate-200 bg-surface">
       <header className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
         <div className="flex items-center gap-2">
           <Users className="h-4 w-4 text-slate-500" />
@@ -114,7 +114,7 @@ export function TeamManager({
             onChange={(e) =>
               setForm({ ...form, role: e.target.value as Role })
             }
-            className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700"
+            className="h-10 rounded-lg border border-slate-300 bg-surface px-3 text-sm text-slate-700"
           >
             <option value="agent">Agent</option>
             <option value="admin">Admin</option>
@@ -149,7 +149,7 @@ export function TeamManager({
                 value={m.role}
                 disabled={pending || isSelf}
                 onChange={(e) => changeRole(m.id, e.target.value as Role)}
-                className="h-8 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-700 disabled:opacity-50"
+                className="h-8 rounded-lg border border-slate-300 bg-surface px-2 text-sm text-slate-700 disabled:opacity-50"
               >
                 <option value="agent">Agent</option>
                 <option value="admin">Admin</option>

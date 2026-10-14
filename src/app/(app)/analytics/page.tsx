@@ -10,7 +10,7 @@ const LINE_DOT: Record<string, string> = {
 
 function SummaryCard({ bucket, lines }: { bucket: Bucket; lines: string[] }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 bg-surface p-5 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
         {bucket.label}
       </p>
@@ -48,7 +48,7 @@ function PeriodTable({
   // still shows shape instead of a row of slivers.
   const peak = Math.max(1, ...buckets.map((b) => b.total));
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <section className="rounded-2xl border border-slate-200 bg-surface shadow-sm">
       <header className="flex items-baseline justify-between border-b border-slate-100 px-5 py-3">
         <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
         <span className="text-xs text-slate-400">{hint}</span>
@@ -102,7 +102,7 @@ export default async function AnalyticsPage() {
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-surface px-6">
         <h1 className="text-base font-semibold text-slate-900">Weight-loss enquiries</h1>
         <span className="hidden text-xs text-slate-400 sm:block">
           Counted from the messages themselves, in clinic time

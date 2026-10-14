@@ -37,7 +37,7 @@ export function CannedManager({ replies }: { replies: CannedReply[] }) {
     });
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white">
+    <section className="rounded-xl border border-slate-200 bg-surface">
       <header className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
         <MessageSquareText className="h-4 w-4 text-slate-500" />
         <h2 className="text-sm font-semibold text-slate-800">Quick replies</h2>

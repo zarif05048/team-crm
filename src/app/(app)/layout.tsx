@@ -28,7 +28,7 @@ export default async function AppLayout({
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar profile={profile as Profile} />
-      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <main className="crm-main flex min-w-0 flex-1 flex-col overflow-hidden">
         {children}
       </main>
       <AttentionAlerts />

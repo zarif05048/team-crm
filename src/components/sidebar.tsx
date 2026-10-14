@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Profile } from "@/lib/types";
+import { SidebarAppearance } from "@/components/theme-controls";
 
 const nav = [
   { href: "/inbox", label: "Inbox", icon: Inbox, adminOnly: false },
@@ -30,7 +31,7 @@ export function Sidebar({ profile }: { profile: Profile }) {
   return (
     <aside
       className={cn(
-        "w-16 flex-col items-center bg-gradient-to-b from-brand-950 via-brand-900 to-brand-800 py-4 text-white lg:flex lg:w-60 lg:items-stretch lg:px-3",
+        "crm-sidebar w-16 flex-col items-center py-4 text-white lg:flex lg:w-60 lg:items-stretch lg:px-3",
         onThread ? "hidden lg:flex" : "flex",
       )}
     >
@@ -59,11 +60,13 @@ export function Sidebar({ profile }: { profile: Profile }) {
               <Link
                 key={item.href}
                 href={item.href}
+                aria-label={item.label}
+                title={item.label}
                 className={cn(
                   "relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
                   active
                     ? "bg-white/10 text-white shadow-inner"
-                    : "text-brand-100/70 hover:bg-white/5 hover:text-white",
+                    : "text-white/60 hover:bg-white/5 hover:text-white",
                 )}
               >
                 {active && (
@@ -76,17 +79,19 @@ export function Sidebar({ profile }: { profile: Profile }) {
           })}
       </nav>
 
+      <SidebarAppearance />
       <div className="mt-auto border-t border-white/10 pt-3">
         <div className="hidden px-3 pb-2 lg:block">
           <p className="truncate text-sm font-medium text-white">
             {profile.full_name ?? profile.email}
           </p>
-          <p className="text-xs capitalize text-brand-200/60">{profile.role}</p>
+          <p className="text-xs capitalize text-white/45">{profile.role}</p>
         </div>
         <form action="/auth/signout" method="post">
           <button
             type="submit"
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-brand-100/70 transition-colors hover:bg-white/5 hover:text-white"
+            aria-label="Sign out"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-white/60 transition-colors hover:bg-white/5 hover:text-white"
           >
             <LogOut className="h-5 w-5 shrink-0" />
             <span className="hidden lg:block">Sign out</span>

@@ -40,7 +40,7 @@ export function TagBar({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-200 bg-white px-4 py-1.5">
+    <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-200 bg-surface px-4 py-1.5">
       <TagIcon className="h-3.5 w-3.5 shrink-0 text-slate-400" />
       {tags.map((t) => (
         <span

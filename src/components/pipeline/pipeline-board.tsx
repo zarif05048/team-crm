@@ -182,7 +182,7 @@ export function PipelineBoard({
               <span className="text-sm font-semibold text-slate-700">
                 {STAGE_LABELS[stage]}
               </span>
-              <span className="rounded-full bg-white px-2 text-xs font-medium text-slate-500">
+              <span className="rounded-full bg-surface px-2 text-xs font-medium text-slate-500">
                 {cards.length}
               </span>
             </div>
@@ -230,7 +230,7 @@ function PipelineCard({
       data-pipeline-card={p.contactId}
       className={cn(
         "relative rounded-lg border shadow-sm transition-shadow hover:shadow",
-        warning ? "border-yellow-400 bg-yellow-100" : "border-slate-200 bg-white",
+        warning ? "border-yellow-400 bg-yellow-100" : "border-slate-200 bg-surface",
       )}
     >
       <Link
@@ -364,7 +364,7 @@ function FollowUpControls({ p, name, today, disabled }: {
           setDate(next);
           save(next);
         }}
-        className="mt-2 block w-full min-w-0 rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-800 focus:border-brand-500 focus:outline-none disabled:opacity-60"
+        className="mt-2 block w-full min-w-0 rounded border border-slate-300 bg-surface px-2 py-1.5 text-xs text-slate-800 focus:border-brand-500 focus:outline-none disabled:opacity-60"
       />
       <p aria-live="polite" className={cn("mt-1 text-[11px]", failed ? "text-red-700" : "text-slate-500")}>
         {pending ? "Saving…" : status}

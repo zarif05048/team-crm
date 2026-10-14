@@ -24,6 +24,7 @@ import { getCannedReplies } from "@/lib/data/canned";
 import { getWhatsappNumbers } from "@/lib/data/numbers";
 import { isWindowOpen } from "@/lib/types";
 import { contactName, contactPhone } from "@/lib/contact-phone";
+import { ThemeToggle } from "@/components/theme-controls";
 
 export default async function ThreadPage({
   params,
@@ -72,7 +73,7 @@ export default async function ThreadPage({
           lastMessageAt={messages.length ? messages[messages.length - 1].created_at : null}
         />
         {/* Thread header */}
-        <header className="flex h-14 items-center gap-2 border-b border-slate-200 bg-white px-3 sm:gap-3 sm:px-4">
+        <header className="flex h-14 items-center gap-2 border-b border-slate-200 bg-surface px-3 sm:gap-3 sm:px-4">
           <Link
             href="/inbox"
             className="-ml-1 flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 lg:hidden"
@@ -92,10 +93,11 @@ export default async function ThreadPage({
             </p>
           </div>
           <ThreadSearchToggle />
+          <ThemeToggle className="lg:hidden" />
           <span
             className={
               windowOpen
-                ? "rounded-full bg-brand-50 px-2 py-1 text-xs font-medium text-brand-700"
+                ? "rounded-full bg-brand-50 px-2 py-1 text-xs font-medium text-primary"
                 : "rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700"
             }
           >

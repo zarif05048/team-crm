@@ -59,17 +59,17 @@ export function TcaButton({
         type="button"
         onClick={() => setOpen(true)}
         title="Add this patient to the TCA minor surgical list (Google Sheet)"
-        className="flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-500 hover:bg-slate-100"
+        className="flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-surface px-2.5 text-xs font-medium text-slate-500 hover:bg-slate-100"
       >
         <Scissors className="h-4 w-4" />
         TCA list
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-0 sm:items-center sm:p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm p-0 sm:items-center sm:p-4">
           <form
             onSubmit={onSubmit}
-            className="max-h-full w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-4 shadow-xl sm:rounded-2xl"
+            className="max-h-full w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 shadow-xl sm:rounded-2xl"
           >
             <div className="mb-3 flex items-center gap-2">
               <Scissors className="h-4 w-4 text-teal-600" />

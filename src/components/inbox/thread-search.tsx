@@ -193,7 +193,7 @@ export function ThreadSearchToggle() {
       aria-pressed={open}
       className={
         open
-          ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-brand-700"
+          ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-primary"
           : "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
       }
     >
@@ -220,7 +220,7 @@ export function ThreadSearchBar() {
   return (
     <div
       role="search"
-      className="flex items-center gap-1.5 border-b border-slate-200 bg-white px-3 py-2 sm:gap-2 sm:px-4"
+      className="flex items-center gap-1.5 border-b border-slate-200 bg-surface px-3 py-2 sm:gap-2 sm:px-4"
     >
       <Search className="hidden h-4 w-4 shrink-0 text-slate-400 sm:block" />
       <input

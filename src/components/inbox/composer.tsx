@@ -126,7 +126,7 @@ export function Composer({
   const isNote = mode === "note";
 
   return (
-    <footer className="border-t border-slate-200 bg-white p-3">
+    <footer className="border-t border-slate-200 bg-surface p-3">
       {/* Mode tabs */}
       <div className="mb-2 flex gap-1">
         <TabButton
@@ -177,7 +177,7 @@ export function Composer({
         <div className="relative">
           {/* Mention autocomplete */}
           {mentionMatches.length > 0 && (
-            <ul className="absolute bottom-full mb-1 w-56 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
+            <ul className="absolute bottom-full mb-1 w-56 overflow-hidden rounded-lg border border-slate-200 bg-surface shadow-lg">
               {mentionMatches.map((u) => (
                 <li key={u.id}>
                   <button
@@ -203,7 +203,7 @@ export function Composer({
                 <Zap className="h-3.5 w-3.5" /> Quick replies
               </button>
               {showCanned && (
-                <ul className="absolute bottom-full z-10 mb-1 max-h-64 w-72 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                <ul className="absolute bottom-full z-10 mb-1 max-h-64 w-72 overflow-y-auto rounded-lg border border-slate-200 bg-surface shadow-lg">
                   {cannedReplies.map((r) => (
                     <li key={r.id}>
                       <button
@@ -234,7 +234,7 @@ export function Composer({
               <select
                 value={fromLine}
                 onChange={(e) => setFromLine(e.target.value)}
-                className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                className="rounded-lg border border-slate-300 bg-surface px-2 py-1 text-xs font-medium text-slate-700 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               >
                 {sendableLines.map((l) => (
                   <option key={l.id} value={l.id}>
@@ -314,7 +314,7 @@ function TabButton({
         "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
         active
           ? tone === "emerald"
-            ? "bg-brand-100 text-brand-700"
+            ? "bg-brand-100 text-primary"
             : "bg-amber-100 text-amber-700"
           : "text-slate-500 hover:bg-slate-100",
       )}
