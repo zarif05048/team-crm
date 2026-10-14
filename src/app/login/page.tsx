@@ -14,7 +14,7 @@ export default function LoginPage() {
   );
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-brand-950 via-brand-900 to-brand-700 p-4">
+    <div className="crm-login relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-brand-950 via-brand-900 to-brand-700 p-4">
       {/* soft heartbeat-cyan glow, echoing the Hijraa logo */}
       <div className="pointer-events-none absolute -top-32 right-[-10%] h-96 w-96 rounded-full bg-accent-500/20 blur-3xl" />
       <div className="pointer-events-none absolute bottom-[-20%] left-[-10%] h-96 w-96 rounded-full bg-brand-500/30 blur-3xl" />

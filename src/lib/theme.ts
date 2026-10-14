@@ -13,7 +13,7 @@ export function applyTheme(preference: ThemePreference): void {
   root.dataset.themePreference = preference;
   root.dataset.theme = dark ? "dark" : "light";
   root.style.colorScheme = dark ? "dark" : "light";
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#080f1e" : "#f4f6fd");
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#000000" : "#f4f6fd");
   window.dispatchEvent(new Event(THEME_EVENT));
 }
 
@@ -24,4 +24,4 @@ export function setThemePreference(preference: ThemePreference): void {
 
 // Runs before the body is painted, so saved dark mode never flashes white.
 // No user input or credentials are interpolated into this script.
-export const THEME_BOOTSTRAP = `(()=>{let p="system";try{const s=localStorage.getItem("${THEME_STORAGE_KEY}");if(s==="dark"||s==="light")p=s;}catch{}const d=p==="dark"||(p==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);const r=document.documentElement;r.dataset.themePreference=p;r.dataset.theme=d?"dark":"light";r.style.colorScheme=d?"dark":"light";document.querySelector('meta[name="theme-color"]')?.setAttribute("content",d?"#080f1e":"#f4f6fd");})();`;
+export const THEME_BOOTSTRAP = `(()=>{let p="system";try{const s=localStorage.getItem("${THEME_STORAGE_KEY}");if(s==="dark"||s==="light")p=s;}catch{}const d=p==="dark"||(p==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);const r=document.documentElement;r.dataset.themePreference=p;r.dataset.theme=d?"dark":"light";r.style.colorScheme=d?"dark":"light";document.querySelector('meta[name="theme-color"]')?.setAttribute("content",d?"#000000":"#f4f6fd");})();`;

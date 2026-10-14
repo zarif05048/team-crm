@@ -12,6 +12,11 @@ before the body paints; the controller updates native control colors and the
 browser/PWA theme color. Restricted storage still permits session switching.
 
 `globals.css` defines surfaces, text, brand accents and status palettes.
+Dark mode uses true black backgrounds and neutral charcoal surfaces; blue
+and cyan remain accents. Text and secondary labels use bright neutral grays.
+Small metadata is at least 12px in dark mode. Disabled control labels remain
+legible, search highlights use dark text on gold, and tag labels automatically
+choose black or white for contrast against their stored colors.
 Use `bg-surface` for cards, menus and form controls, and `text-primary` for
 brand-colored text. Keep fixed white for the logo chip and text on solid
 message/action backgrounds. Use fixed black for modal backdrops.

@@ -17,7 +17,7 @@ function fixture(saved, prefersDark = false, blocked = false) {
   return {root,meta,media,mediaEvents,events,window,api,context,values};
 }
 
-let f=fixture("dark");assert.equal(f.root.dataset.theme,"dark");assert.equal(f.root.style.colorScheme,"dark");assert.equal(f.meta.content,"#080f1e");
+let f=fixture("dark");assert.equal(f.root.dataset.theme,"dark");assert.equal(f.root.style.colorScheme,"dark");assert.equal(f.meta.content,"#000000");
 f=fixture("light",true);assert.equal(f.root.dataset.theme,"light");
 f=fixture(undefined,true);assert.equal(f.root.dataset.theme,"dark");assert.equal(f.root.dataset.themePreference,"system");
 f=fixture("invalid");assert.equal(f.root.dataset.themePreference,"system");

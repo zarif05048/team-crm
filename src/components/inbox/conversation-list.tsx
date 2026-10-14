@@ -1,5 +1,6 @@
 "use client";
 import { contactName } from "@/lib/contact-phone";
+import { tagTextColor } from "@/lib/tag-contrast";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -100,7 +101,7 @@ export function ConversationList({
                     <span
                       key={t.id}
                       className="rounded px-1.5 py-0.5 text-[10px] font-medium text-white"
-                      style={{ backgroundColor: t.color }}
+                      style={{ backgroundColor: t.color, color: tagTextColor(t.color) }}
                     >
                       {t.name}
                     </span>

@@ -171,7 +171,7 @@ function MessageBubble({
         <p
           className={cn(
             "mt-1 flex items-center justify-end gap-1 text-right text-[10px]",
-            outbound ? "text-white/80" : "text-slate-400",
+            outbound ? "text-white" : "text-slate-400",
           )}
           title={formatFullTime(m.created_at)}
           suppressHydrationWarning

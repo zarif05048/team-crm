@@ -66,7 +66,7 @@ export function Sidebar({ profile }: { profile: Profile }) {
                   "relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
                   active
                     ? "bg-white/10 text-white shadow-inner"
-                    : "text-white/60 hover:bg-white/5 hover:text-white",
+                    : "text-white/80 hover:bg-white/5 hover:text-white",
                 )}
               >
                 {active && (
@@ -85,13 +85,13 @@ export function Sidebar({ profile }: { profile: Profile }) {
           <p className="truncate text-sm font-medium text-white">
             {profile.full_name ?? profile.email}
           </p>
-          <p className="text-xs capitalize text-white/45">{profile.role}</p>
+          <p className="text-xs capitalize text-white/75">{profile.role}</p>
         </div>
         <form action="/auth/signout" method="post">
           <button
             type="submit"
             aria-label="Sign out"
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-white/60 transition-colors hover:bg-white/5 hover:text-white"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-white/80 transition-colors hover:bg-white/5 hover:text-white"
           >
             <LogOut className="h-5 w-5 shrink-0" />
             <span className="hidden lg:block">Sign out</span>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Tag as TagIcon, X, Plus } from "lucide-react";
 import { addTag, removeTag } from "@/app/(app)/inbox/[id]/actions";
 import type { Tag } from "@/lib/types";
+import { tagTextColor } from "@/lib/tag-contrast";
 
 export function TagBar({
   conversationId,
@@ -46,7 +47,7 @@ export function TagBar({
         <span
           key={t.id}
           className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-white"
-          style={{ backgroundColor: t.color }}
+          style={{ backgroundColor: t.color, color: tagTextColor(t.color) }}
         >
           {t.name}
           <button

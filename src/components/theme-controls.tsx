@@ -59,7 +59,7 @@ export function SidebarAppearance() {
   return (
     <div className="mb-4 w-full">
       <div className="hidden rounded-2xl border border-white/10 bg-white/5 p-2.5 lg:block">
-        <p className="mb-2 flex items-center gap-1.5 px-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/50">
+        <p className="mb-2 flex items-center gap-1.5 px-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/75">
           <Sparkles className="h-3 w-3 text-cyan-300" /> Appearance
         </p>
         <div className="grid grid-cols-3 gap-1" role="group" aria-label="Color theme">
@@ -67,7 +67,7 @@ export function SidebarAppearance() {
             <button key={value} type="button" aria-pressed={preference === value}
               aria-label={`Use ${label.toLowerCase()} theme`} onClick={() => setThemePreference(value)}
               className={cn("flex flex-col items-center gap-1.5 rounded-xl py-2 text-[10px] font-medium transition-colors",
-                preference === value ? "bg-white/15 text-white shadow-sm ring-1 ring-cyan-300/30" : "text-white/50 hover:bg-white/5 hover:text-white")}>
+                preference === value ? "bg-white/15 text-white shadow-sm ring-1 ring-cyan-300/30" : "text-white/75 hover:bg-white/5 hover:text-white")}>
               <Icon className="h-3.5 w-3.5" />{label}
             </button>
           ))}
