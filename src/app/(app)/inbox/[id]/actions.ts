@@ -6,6 +6,7 @@ import { sendText, sendTemplate } from "@/lib/whatsapp/send";
 import { addToTcaList } from "@/lib/sheets/tca";
 import { isWindowOpen, type LeadStage } from "@/lib/types";
 import { WEIGHT_LOSS_TAG } from "@/lib/data/conversations";
+import { recordBookingStage } from "@/lib/pipeline-booking";
 
 export type SendState = { ok: boolean; error?: string; conversationId?: string };
 
@@ -591,10 +592,11 @@ export async function addTcaEntry(
         .from("conversation_tags")
         .upsert({ conversation_id: conversationId, tag_id: tag.id });
   }
-  await supabase
-    .from("conversations")
-    .update({ stage: "qualified" })
-    .eq("id", conversationId);
+  try {
+    await recordBookingStage(supabase, conversationId);
+  } catch {
+    return { ok: false, error: "Booking saved, but its pipeline update needs checking. Please move the card to Booking." };
+  }
 
   if (!sheet.ok) {
     return {

@@ -19,6 +19,7 @@ import { addToTcaList, malaysiaToday } from "@/lib/sheets/tca";
 import { BOT_SYSTEM_PROMPT } from "./knowledge";
 import { pricingSection, lookupMedication } from "./pricing";
 import { scopedRosterText, guardDutyReply } from "./roster";
+import { recordBookingStage } from "@/lib/pipeline-booking";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -601,10 +602,7 @@ async function executeTool(
         mentions: [],
       });
       await addTag(supabase, conversationId, "booking", "#0ea5e9");
-      await supabase
-        .from("conversations")
-        .update({ stage: "qualified" })
-        .eq("id", conversationId);
+      await recordBookingStage(supabase, conversationId);
       return "Booking recorded. Staff will confirm the slot with the patient soon.";
     }
     if (tool.name === "book_minor_surgery") {
@@ -639,10 +637,7 @@ async function executeTool(
       });
       await addTag(supabase, conversationId, "minor-surgery", "#0d9488");
       await addTag(supabase, conversationId, "booking", "#0ea5e9");
-      await supabase
-        .from("conversations")
-        .update({ stage: "qualified" })
-        .eq("id", conversationId);
+      await recordBookingStage(supabase, conversationId);
       return "Recorded in the minor surgical list. Tell the patient staff will confirm the doctor and the exact slot with them here.";
     }
     if (tool.name === "alert_staff") {
