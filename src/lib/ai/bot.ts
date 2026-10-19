@@ -112,7 +112,7 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: "check_doctor_roster",
     description:
-      "Read the LIVE CMS doctor schedule (Etc → Schedule), per branch/shift for TODAY and TOMORROW, including who is on duty now. Always call this before answering doctor-duty, jadual doktor or female-doctor availability enquiries. Copy doctor names and shift times exactly. If the requested date is later than tomorrow, a shift has no doctor recorded, or the tool fails, ask staff to confirm; never claim the bot has no CMS access.",
+      "Read the LIVE CMS doctor schedule (Etc → Schedule), per branch/shift for UP TO TWO WEEKS AHEAD, as far as the clinic has published it — HARI INI, ESOK, LUSA and the following days by weekday with their dates — including who is on duty now. Always call this before answering doctor-duty, jadual doktor, \"Dr X kerja bila?\", lusa / weekday / this-week or female-doctor availability enquiries. Copy doctor names, days and shift times exactly. If the requested date is beyond the days shown or marked \"belum diterbitkan\", a shift has no doctor recorded, or the tool fails, ask staff to confirm; never claim the bot has no CMS access.",
     input_schema: { type: "object", properties: {} },
   },
   {
@@ -204,7 +204,7 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: "lookup_medication",
     description:
-      "Search the clinic's medication and supplies price list (Stock → Pricing in the clinic system) by name — brand or generic, any spelling. Returns up to 8 matching items with their cash price per unit. Call this BEFORE answering any question about whether the clinic has a medicine/cream/inhaler/injection or what it costs. Prices only — it does not know today's stock level.",
+      "Search the clinic's medication and supplies list (Stock → Pricing in the clinic system) by name — brand or generic, any spelling. Returns up to 8 matching items with name, generic and group. IT RETURNS NO PRICES — never quote a price for a medicine (owner, 7 Sep 2026). Call this BEFORE answering whether the clinic has a medicine/cream/inhaler/injection; if they ask what it costs, say staff will confirm the price. It does not know today's stock level. A test, scan or procedure already in your clinic facts or the live service list needs no lookup to say the clinic does it.",
     input_schema: {
       type: "object",
       properties: {

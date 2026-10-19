@@ -87,23 +87,49 @@ const CAT_LABEL: Record<string, string> = {
 };
 const rm = (n: number) => (Number.isInteger(n) ? `RM${n}` : `RM${n.toFixed(2)}`);
 
+/* WHAT THE BOT MAY SAY ABOUT MONEY (owner, 7 Sep 2026; this line caught up
+   19 Oct 2026). A procedure, a test or a scan is quoted as a rounded BAND
+   around the catalogue figure, never the figure itself; a medicine is never
+   priced at all; only what the clinic advertises (consultation fee, packages)
+   stays exact. The fleet's cms.js priceBand / buildPricingSection, word for
+   word, so both lines quote the same thing the same way. */
+function timeMy(hhmm: string): string {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm || "");
+  if (!m) return hhmm || "";
+  const h = Number(m[1]), mm = m[2], h12 = h % 12 || 12;
+  const part = h < 12 ? "pagi" : h < 15 ? "tengah hari" : h < 19 ? "petang" : "malam";
+  return `${h12}:${mm} ${part} (${h12}${mm === "00" ? "" : ":" + mm}${h < 12 ? "AM" : "PM"})`;
+}
+export function priceBand(price: number | null): string | null {
+  const n = Number(price);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  const step = n < 50 ? 5 : n < 200 ? 10 : n < 1000 ? 50 : 100;
+  // 1e-9: 100 * 1.1 is 110.00000000000001 in binary floating point
+  const low = Math.max(step, Math.floor((n * 0.9) / step + 1e-9) * step);
+  let high = Math.ceil((n * 1.1) / step - 1e-9) * step;
+  if (high <= low) high = low + step;
+  return `${rm(low)}–${rm(high)}`;
+}
+
 export function buildPricingSection(p: PricingList): string {
   if (!p?.services?.length) return "";
   const lines: string[] = [];
-  lines.push(`## SENARAI HARGA RASMI KLINIK (dari sistem klinik, harga CASH/SELF-PAY, versi ${p.version || "?"})`);
+  lines.push("## SENARAI PERKHIDMATAN KLINIK + ANGGARAN HARGA (dari sistem klinik, kadar cash/self-pay, versi " + (p.version || "?") + ")");
   lines.push("Peraturan untuk senarai ini:");
-  lines.push("- Ini harga RASMI semasa, jadi bila pesakit BERTANYA harga, sebut harga yang tersenarai — bukan anggaran.");
-  lines.push("- Sebut ia harga cash/self-pay; pesakit panel/insurans ikut kadar panel masing-masing.");
-  lines.push("- Untuk prosedur/rawatan, tambah bahawa harga akhir bergantung pada penilaian doktor (saiz/kerumitan kes).");
-  lines.push('- Item bertanda "(ikut kes)" tiada harga tetap — doktor tentukan selepas pemeriksaan; jangan teka angka.');
+  lines.push("- Setiap item di sini diberi JULAT ANGGARAN, bukan harga tepat. Bila pesakit BERTANYA harga, sebut julat itu (contoh: \"anggaran RM60–RM80\") dan JANGAN sebut satu angka tepat.");
+  lines.push("- Sentiasa tambah bahawa harga sebenar disahkan di klinik — ia bergantung pada penilaian doktor (saiz/kerumitan kes).");
+  lines.push("- Sebut ia kadar cash/self-pay; pesakit panel/insurans ikut kadar panel masing-masing.");
+  lines.push("- Item bertanda \"(ikut kes)\" tiada harga tetap — doktor tentukan selepas pemeriksaan; jangan teka angka.");
   lines.push("- Harga di sini MENGATASI senarai anggaran lama di atas bila kedua-duanya ada. Jika sesuatu tiada di sini, guna anggaran lama (sebagai anggaran) atau serahkan kepada staf.");
-  lines.push("- Yuran konsultasi doktor dan pakej rasmi (checkup, program berat badan, khatan, house call) kekal seperti bahagian lain.");
-  lines.push("- UBAT: senarai ubat TIDAK ada di sini. Bila pesakit tanya tentang ubat tertentu (ada tak / berapa harga), guna alat lookup_medication dahulu; jangan kata klinik tiada ubat itu tanpa mencari.");
+  lines.push("- Yuran konsultasi doktor dan pakej rasmi (checkup, program berat badan, khatan, house call) KEKAL harga tepat seperti bahagian lain — itu harga yang klinik sendiri iklankan.");
+  lines.push("- UBAT: JANGAN SEBUT HARGA UBAT LANGSUNG — bukan angka, bukan julat, bukan \"lebih kurang\". Senarai ubat TIDAK ada di sini. Bila pesakit tanya tentang ubat tertentu (ada tak / berapa harga), guna alat lookup_medication dahulu; jangan kata klinik tiada ubat itu tanpa mencari.");
   if (p.consult?.ranges?.length) {
     lines.push("");
-    lines.push("### Yuran konsultasi doktor (self-pay)");
-    for (const r of p.consult.ranges) if (r && r.fee != null) lines.push(`- ${r.from}–${r.to}: ${rm(r.fee)}`);
-    if (p.consult.weekend_ph != null) lines.push(`- Cuti umum: ${rm(p.consult.weekend_ph)}`);
+    lines.push("### Yuran konsultasi doktor (self-pay) — INI YANG BETUL, mengatasi angka yuran di bahagian lain");
+    const weekdays = p.consult.weekend_ph != null ? " (Ahad–Khamis)" : "";
+    for (const r of p.consult.ranges) if (r && r.fee != null) lines.push(`- ${timeMy(r.from)} hingga ${timeMy(r.to)}${weekdays}: ${rm(r.fee)}`);
+    // the CMS's weekend rate is charged all day on every Friday and Saturday, and on public holidays
+    if (p.consult.weekend_ph != null) lines.push(`- Jumaat, Sabtu dan cuti umum, sepanjang hari: ${rm(p.consult.weekend_ph)}`);
   }
   const byCat: Record<string, PricedService[]> = {};
   for (const s of p.services) (byCat[s.category] ??= []).push(s);
@@ -114,7 +140,8 @@ export function buildPricingSection(p: PricingList): string {
     lines.push(`### ${CAT_LABEL[cat] ?? cat}`);
     for (const s of rows) {
       const extra = s.description && s.description !== s.name ? ` — ${s.description}` : "";
-      lines.push(`- ${s.name}: ${s.open || s.price == null ? "(ikut kes)" : rm(s.price)}${extra}`);
+      const band = s.open || s.price == null ? null : priceBand(s.price);
+      lines.push(`- ${s.name}: ${band ? "anggaran " + band : "(ikut kes)"}${extra}`);
     }
   }
   return lines.join("\n");
@@ -143,22 +170,23 @@ export function searchMedications(p: PricingList | null, query: string, limit = 
   let hits = scored.filter((x) => x.any === words.length);
   if (!hits.length) hits = scored.filter((x) => x.any > 0);
   hits.sort((a, b) => b.all - a.all || a.m.name.localeCompare(b.m.name));
-  return hits.slice(0, limit).map(({ m }) => {
-    const price = m.open || m.price == null ? "harga ikut kes" : rm(m.price) + (m.unit ? ` / ${m.unit.toLowerCase()}` : "");
-    return [m.name, m.generic ? `(${m.generic})` : "", m.group ? `[${m.group}]` : "", `— ${price}`, m.chronic ? "· ubat kronik" : ""]
+  // Name, generic, group — deliberately NO price (owner, 7 Sep 2026): a figure
+  // left in the tool's answer is a figure in front of the model.
+  return hits.slice(0, limit).map(({ m }) =>
+    [m.name, m.generic ? `(${m.generic})` : "", m.group ? `[${m.group}]` : "", m.chronic ? "· ubat kronik" : ""]
       .filter(Boolean)
-      .join(" ");
-  });
+      .join(" "));
 }
 
 /** What the lookup_medication tool hands back to the model. */
 export async function lookupMedication(query: string): Promise<string> {
   const p = await getPricing();
-  if (!p) return "The clinic's price list is not available right now — tell the patient staff will check and reply here.";
+  if (!p) return "The clinic's medication list is not available right now — tell the patient staff will check and reply here.";
   const hits = searchMedications(p, query, 8);
-  if (!hits.length) return `No item matching "${query}" in the clinic's medication price list. Do not say the clinic has none — say staff will check and reply here.`;
+  if (!hits.length) return `No item matching "${query}" in the clinic's medication list. If it is a test, scan or procedure named in your clinic facts or the live service list (e.g. HPV DNA, pap smear, ECG, X-ray), the clinic DOES do it — answer from those facts. For a medicine, retry once with the generic or English name; if still nothing, do not say the clinic has none — say staff will check and reply here.`;
   return (
-    "Matching items (cash/self-pay price per unit; panel patients follow their panel; this is the price list, NOT today's stock):\n" +
+    "Matching items — the clinic carries these (this is the catalogue: NO stock level and NO panel coverage — for those, say staff will confirm).\n" +
+    "NO PRICES: never quote or estimate what a medicine costs. If the patient asked about cost, say staff will confirm the price here, and they may walk in any time.\n" +
     hits.map((h) => `- ${h}`).join("\n")
   );
 }

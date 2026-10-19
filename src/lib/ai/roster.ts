@@ -1,4 +1,6 @@
-// Same CMS doctor rota used by the WhatsApp fleet: today, tomorrow and now.
+// Same CMS doctor rota used by the WhatsApp fleet: up to two weeks ahead as far
+// as HR has published (today, tomorrow, lusa and the rest by weekday) and who
+// is on duty now.
 // Only roster data is requested. No patient lookup or WhatsApp send occurs here.
 interface Doctor { name: string; female?: boolean }
 interface BranchRoster {
@@ -7,7 +9,7 @@ interface BranchRoster {
   extras: { name: string; doctors: Doctor[] }[];
   now?: Doctor[];
 }
-interface Roster { today?: string; now?: string; days: { label: string; dmy: string; branches: BranchRoster[] }[] }
+interface Roster { today?: string; now?: string; days: { label: string; dmy: string; unpublished?: boolean; branches: BranchRoster[] }[] }
 
 const TTL_MS = 5 * 60_000;
 let cached: { text: string | null; body: Roster | null; at: number } | null = null;
@@ -28,7 +30,8 @@ export function rosterText(p: Roster | null): string | null {
     const lines = [`${day.label} (${day.dmy}):`];
     for (const b of day.branches || []) {
       lines.push(`${b.name}:`);
-      if (!b.shifts.length && !b.extras.length) lines.push("  (tiada jadual direkodkan untuk hari ini)");
+      if (day.unpublished) lines.push("  (jadual belum diterbitkan oleh klinik — staf akan sahkan)");
+      else if (!b.shifts.length && !b.extras.length) lines.push(day.label === "HARI INI" ? "  (tiada jadual direkodkan untuk hari ini)" : "  (tiada jadual direkodkan untuk hari itu)");
       for (const s of b.shifts) {
         const label = `${timeMy(s.from).replace(/ \(.*\)$/, "")} hingga ${timeMy(s.to).replace(/ \(.*\)$/, "")} (${timeMy(s.from).replace(/^.*\(|\)$/g, "")}-${timeMy(s.to).replace(/^.*\(|\)$/g, "")})`;
         lines.push(`  ${label}: ${s.doctors.length ? s.doctors.map(docLine).join(", ") : "(tiada doktor dijadualkan)"}`);
@@ -50,7 +53,9 @@ export async function fetchRosterText(): Promise<string | null> {
   }
   if (cached && Date.now() - cached.at < TTL_MS) return cached.text;
   try {
-    const res = await fetch(`${process.env.CMS_URL.replace(/\/$/, "")}/api/bot/roster`, {
+    // two weeks ahead as far as published (19 Oct 2026); a CMS without the
+    // parameter answers two days
+    const res = await fetch(`${process.env.CMS_URL.replace(/\/$/, "")}/api/bot/roster?days=14`, {
       headers: { "x-reminder-token": process.env.CMS_REMINDER_TOKEN },
       signal: AbortSignal.timeout(15_000),
       cache: "no-store",
@@ -82,13 +87,82 @@ export async function fetchRosterText(): Promise<string | null> {
    once a sentence or heading turns to tomorrow ("esok", "Isnin" when today is
    Sunday), tomorrow's doctors are allowed too. Any other name and the reply is
    replaced with the rota itself. Only the clinic(s) the patient named count;
-   none named, both. A rota the CMS could not supply is not guessed at here. */
+   none named, both. A rota the CMS could not supply is not guessed at here.
+   A WEEK OF ROTA (19 Oct 2026), as in the fleet: each sentence is checked
+   against the day(s) it names — "hari ini", "esok", "lusa", a weekday or a
+   dd/mm date — and one naming none carries on from the sentence before (the
+   first from the patient's question; "Dr Ashbir kerja bila?" allows the whole
+   week). A night shift counts on the morning after it too. A doctor said NOT
+   to be on duty ("Dr Ashbir tidak bertugas…", "bukan Dr Zarif") is a right
+   answer, not a wrong name. */
 const DUTY_TALK = /\b(doc|doktor|doctor|dr|dokter)\b|bertugas|on ?duty|jadual|syif|\bshift\b|siapa.*(jaga|kerja)/i;
 const CLINIC_DOCTORS = ["ashbir", "zarif", "rafiq", "fatihah", "umairah", "ziad", "nadiah", "sakinah", "fizah", "hafizah"];
 const DAY_WORDS = [["ahad", "sunday"], ["isnin", "monday"], ["selasa", "tuesday"], ["rabu", "wednesday"], ["khamis", "thursday"], ["jumaat", "friday"], ["sabtu", "saturday"]];
-const TOMORROW_WORD = /\b(esok|esk|besok|bsk|tomorrow|lusa)\b/i;
+const TOMORROW_WORD = /\b(esok|esk|besok|bsk|tomorrow)\b/i;
+const LUSA_WORD = /\b(lusa|day after tomorrow)\b/i;
+const WEEK_WORD = /\b(minggu (ni|ini|depan)|this week|next week|seminggu|7 hari)\b/i;
 const TODAY_WORD = /\b(hari ini|harini|hari ni|today|tonight|sekarang|skrg|now)\b|\b(malam|mlm|petang|ptg|pagi|tengah ?hari)\s+(ni|ini)\b/i;
+const ASKS_WHEN = /\b(bila|bile|when|hari apa|which day|what day|jadual|schedule|rota)\b/i;
+const DATE_IN_TEXT = /\b(\d{1,2})\/(\d{1,2})(?:\/\d{2,4})?\b/g;
+const OFF_DUTY_AFTER = /^[^.!?\n]{0,25}?\b(?:tidak|tak|x|bukan|not|isn't|is not|tiada|takde|tak ada|no longer)\b(?:\s+\S+){0,2}?\s*\b(?:bertugas|kerja|bekerja|on duty|working|dijadualkan|scheduled|dalam jadual|in the (?:schedule|roster|rota)|on the (?:schedule|roster|rota)|ada)\b|^[^.!?\n]{0,15}?\b(?:cuti|off|day off|on leave)\b/i;
+const OFF_DUTY_BEFORE = /\b(?:bukan|not|selain|kecuali|except|tiada|takde|no)\s+(?:dr\.?\s+)?$/i;
 const shortOf = (d: Doctor) => String(d?.name || "").replace(/^dr\.?\s+/i, "").trim().toLowerCase();
+const weekdayOf = (day: Roster["days"][number] | undefined) => {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(day?.dmy || ""));
+  return m ? new Date(Date.UTC(+m[3], +m[2] - 1, +m[1])).getUTCDay() : -1;
+};
+/** The rota days a text names, as indexes into body.days; null when it names none. */
+function daysNamed(body: Roster, text: string): number[] | null {
+  const t = String(text || ""), days = body.days || [], hit = new Set<number>();
+  let named = false, dated = false;
+  for (const m of t.matchAll(DATE_IN_TEXT)) {
+    named = dated = true;
+    const key = `${m[1].padStart(2, "0")}/${m[2].padStart(2, "0")}/`;
+    days.forEach((d, i) => { if (String(d.dmy || "").startsWith(key)) hit.add(i); });
+  }
+  if (TODAY_WORD.test(t)) { named = true; hit.add(0); }
+  if (TOMORROW_WORD.test(t)) { named = true; hit.add(1); }
+  if (LUSA_WORD.test(t)) { named = true; hit.add(2); }
+  if (WEEK_WORD.test(t)) { named = true; days.forEach((_, i) => hit.add(i)); }
+  // a date names its own day — the weekday beside it is only its label; with
+  // two weeks of rota a bare weekday is either one, "Isnin depan" next week's
+  if (!dated) {
+    const nextSunday = 7 - Math.max(0, weekdayOf(days[0]));
+    DAY_WORDS.forEach((words, dow) => {
+      const w = words.join("|");
+      const next = new RegExp(`\\b(?:${w})\\s+(?:depan|hadapan)\\b|\\bnext\\s+(?:${w})\\b`, "i").test(t);
+      if (!next && !new RegExp(`\\b(?:${w})\\b`, "i").test(t)) return;
+      named = true;
+      days.forEach((d, i) => { if (weekdayOf(d) === dow && (!next || (i >= nextSunday && i < nextSunday + 7))) hit.add(i); });
+    });
+  }
+  // a day past the rota is named but empty: nobody can be quoted for it
+  return named ? [...hit].filter((i) => i < days.length).sort((a, b) => a - b) : null;
+}
+const EVENING_WORD = /\b(petang|ptg|malam|mlm|evening|night|tonight)\b/i;
+/** Who may be named for those days at the clinics in scope. */
+function allowedOn(body: Roster, idxs: number[], scope: string[], seg: string): Set<string> {
+  const ok = new Set<string>();
+  const inScope = (day: Roster["days"][number] | undefined) => (day?.branches || []).filter((b) => scope.includes(b.name));
+  for (const i of idxs) {
+    for (const b of inScope(body.days[i])) {
+      for (const s of [...b.shifts, ...b.extras]) for (const d of s.doctors) ok.add(shortOf(d));
+      if (i === 0) for (const d of b.now || []) ok.add(shortOf(d));
+    }
+    // the night before runs into this morning — not into this evening
+    if (EVENING_WORD.test(seg)) continue;
+    for (const b of inScope(body.days[i - 1])) for (const s of b.shifts) if (String(s.to) <= String(s.from)) for (const d of s.doctors) ok.add(shortOf(d));
+  }
+  return ok;
+}
+const saidOffDuty = (seg: string, at: number, len: number) =>
+  OFF_DUTY_AFTER.test(seg.slice(at + len)) || OFF_DUTY_BEFORE.test(seg.slice(Math.max(0, at - 20), at));
+/** The days a question is about: the ones it names, else the whole rota for a WHEN question, else today. */
+function askedDays(body: Roster, asked: string): number[] {
+  const named = daysNamed(body, asked);
+  if (named) return named;
+  return ASKS_WHEN.test(asked) ? (body.days || []).map((_, i) => i) : [0];
+}
 
 /** Is the chat (the patient's last three messages) about who is on duty? */
 export const aboutDuty = (patientTexts: string[]) => patientTexts.slice(-3).some((t) => DUTY_TALK.test(t));
@@ -103,36 +177,21 @@ export function rosterScope(body: Roster, patientTexts: string[]): string[] {
 export function scopedRoster(body: Roster, scope: string[]): Roster {
   return { ...body, days: body.days.map((d) => ({ ...d, branches: (d.branches || []).filter((b) => scope.includes(b.name)) })) };
 }
-function rostered(day: Roster["days"][number] | undefined, scope: string[], withNow: boolean): Set<string> {
-  const ok = new Set<string>();
-  for (const b of (day?.branches || []).filter((x) => scope.includes(x.name))) {
-    for (const s of [...b.shifts, ...b.extras]) for (const d of s.doctors) ok.add(shortOf(d));
-    if (withNow) for (const d of b.now || []) ok.add(shortOf(d));
-  }
-  return ok;
-}
-/** "Isnin" names a later day unless today IS Isnin. */
-function laterDayRe(todayIso?: string): RegExp {
-  const dow = /^\d{4}-\d{2}-\d{2}$/.test(String(todayIso || "")) ? new Date(`${todayIso}T12:00:00Z`).getUTCDay() : -1;
-  const words = DAY_WORDS.filter((_, i) => i !== dow).flat();
-  return new RegExp(`${TOMORROW_WORD.source}|\\b(${words.join("|")})\\b`, "i");
-}
-/** The doctor names in a reply that are not on the rota for the day each sentence is about. */
+/** The doctor names in a reply that are not on the rota for the day(s) each sentence is about. */
 export function offRota(body: Roster, scope: string[], patientTexts: string[], reply: string): string[] {
-  const [today, tomorrow] = body.days;
-  const todayOk = rostered(today, scope, true);
-  const laterOk = new Set([...todayOk, ...rostered(tomorrow, scope, false)]);
   const everyone = new Set(CLINIC_DOCTORS);
   for (const d of body.days) for (const b of d.branches || []) for (const s of [...b.shifts, ...b.extras]) for (const doc of s.doctors) everyone.add(shortOf(doc));
-  const LATER = laterDayRe(body.today);
   const asked = patientTexts[patientTexts.length - 1] || "";
-  let later = LATER.test(asked) && !TODAY_WORD.test(asked);
+  let current = askedDays(body, asked);
   const wrong = new Set<string>();
   for (const seg of String(reply || "").split(/\n+|(?<=[.!?])\s+/)) {
-    if (LATER.test(seg)) later = true;
-    else if (TODAY_WORD.test(seg)) later = false;
-    const ok = later ? laterOk : todayOk;
-    for (const n of everyone) if (n && !ok.has(n) && new RegExp(`\\b${n}\\b`, "i").test(seg)) wrong.add(n);
+    current = daysNamed(body, seg) || current;
+    const ok = allowedOn(body, current, scope, seg);
+    for (const n of everyone) {
+      if (!n || ok.has(n)) continue;
+      const m = new RegExp(`\\b${n}\\b`, "i").exec(seg);
+      if (m && !saidOffDuty(seg, m.index, n.length)) wrong.add(n);
+    }
   }
   return [...wrong];
 }
@@ -154,9 +213,14 @@ export function dutyReplacement(body: Roster | null, patientTexts: string[], rep
   const scope = rosterScope(body, patientTexts);
   const wrong = offRota(body, scope, patientTexts, reply);
   if (!wrong.length) return null;
-  const table = rosterText(scopedRoster(body, scope));
+  const asked = patientTexts[patientTexts.length - 1] || "";
+  // only the day(s) asked about — a fortnight is a lot to send for "malam ni?";
+  // a "bila?" gets the first week
+  const keep = new Set(daysNamed(body, asked) || (ASKS_WHEN.test(asked) ? body.days.map((_, i) => i).slice(0, 7) : [0, 1]));
+  const table = rosterText(scopedRoster({ ...body, days: body.days.filter((_, i) => keep.has(i)) }, scope))
+    ?? rosterText(scopedRoster(body, scope));
   if (!table) return null;
-  const en = langOf(patientTexts[patientTexts.length - 1] || "") === "en";
+  const en = langOf(asked) === "en";
   return { wrong, text: (en ? "Here is the doctor duty schedule from the clinic system:\n\n" : "Ini jadual doktor bertugas dari sistem klinik:\n\n") + table };
 }
 /** The reply to send: unchanged unless it names a doctor off the rota. */
