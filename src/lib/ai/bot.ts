@@ -18,7 +18,7 @@ import { sendText, sendImage } from "@/lib/whatsapp/send";
 import { addToTcaList, malaysiaToday } from "@/lib/sheets/tca";
 import { BOT_SYSTEM_PROMPT } from "./knowledge";
 import { pricingSection, lookupMedication } from "./pricing";
-import { fetchRosterText } from "./roster";
+import { scopedRosterText, guardDutyReply } from "./roster";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -356,6 +356,11 @@ export async function runBotReply(trigger: BotTrigger): Promise<void> {
 
     const messages = toClaudeMessages(history.slice().reverse());
     if (messages.length === 0) return;
+    // The patient's own words, oldest first — read before converse() adds its
+    // tool turns to `messages`. The duty guard checks the reply against them.
+    const patientTexts = messages
+      .filter((m) => m.role === "user" && typeof m.content === "string")
+      .map((m) => m.content as string);
 
     const contact = conv.contact as unknown as {
       wa_id: string;
@@ -372,13 +377,16 @@ export async function runBotReply(trigger: BotTrigger): Promise<void> {
       phoneNumber: contact.phone_number,
       phoneNumberId: number.phone_number_id,
     };
-    const replyText = await converse(
+    const modelText = await converse(
       supabase,
       trigger.conversationId,
       sendCtx,
       messages,
     );
-    if (!replyText) return;
+    if (!modelText) return;
+    // A duty answer naming a doctor who is not on the rota for that clinic and
+    // day is replaced with the rota itself (roster.ts, THE DUTY GUARD).
+    const replyText = await guardDutyReply(patientTexts, modelText);
     console.log(
       `[bot] reply for ${trigger.conversationId}: ${replyText.slice(0, 800)}`,
     );
@@ -456,6 +464,10 @@ async function converse(
   // the cached block. It changes at most hourly, so it rides inside the cache
   // rather than invalidating it; empty when CMS_URL is not configured.
   const prices = await pricingSection();
+  // the patient's own messages, for the rota tool (only the clinic they named)
+  const patientTexts = messages
+    .filter((m) => m.role === "user" && typeof m.content === "string")
+    .map((m) => m.content as string);
   const systemText = BOT_SYSTEM_PROMPT + (prices ? `
 
 ${prices}` : "");
@@ -507,7 +519,7 @@ ${prices}` : "");
     messages.push({ role: "assistant", content: response.content });
     const results: Anthropic.ToolResultBlockParam[] = [];
     for (const tool of toolUses) {
-      const output = await executeTool(supabase, conversationId, sendCtx, tool, isPekaB40Enquiry(messages));
+      const output = await executeTool(supabase, conversationId, sendCtx, tool, isPekaB40Enquiry(messages), patientTexts);
       results.push({
         type: "tool_result",
         tool_use_id: tool.id,
@@ -527,12 +539,13 @@ async function executeTool(
   sendCtx: SendContext,
   tool: Anthropic.ToolUseBlock,
   freeScreening = false,
+  patientTexts: string[] = [],
 ): Promise<string> {
   try {
     const input = tool.input as Record<string, string | undefined>;
     console.log(`[bot] tool ${tool.name}:`, JSON.stringify(input));
     if (tool.name === "check_doctor_roster") {
-      const roster = await fetchRosterText();
+      const roster = await scopedRosterText(patientTexts);
       return roster
         ? `DUTY SCHEDULE (live from CMS Etc → Schedule; relay the requested branch and shift exactly):\n${roster}`
         : "The doctor schedule could not be verified right now — ask staff to confirm with alert_staff. Do not guess a doctor or say this bot has no CMS access. This tool normally reads the live CMS schedule.";
