@@ -114,9 +114,9 @@ export function webChatNote(phoneNumberId: string | null | undefined): string | 
   const c = webClinicOf(phoneNumberId);
   if (!c) return null;
   return (
-    `CHANNEL: this is the clinic's own WEB CHAT page for ${c.clinic}, opened from Google — NOT WhatsApp. ` +
-    `The patient is anonymous: you do not have their name or phone number. Assume they are asking about the ${c.branch} branch unless they say otherwise. ` +
-    `Before recording any booking or handing to staff for a follow-up, ask for their name and a phone number staff can call or WhatsApp, because staff cannot reach them otherwise. ` +
-    `Do not tell them to "reply on WhatsApp"; they can keep chatting right here, and staff reply on this same page.`
+    `CHANNEL: this is the clinic's own WEB CHAT page for ${c.clinic}, reached from the clinic website, Google Search/Maps or a booking link — NOT WhatsApp. ` +
+    `A browser visit does not supply a phone number or prove who the visitor is. Do not infer one from a session ID, Google referral, name or existing clinic records. Assume they are asking about the ${c.branch} branch unless they say otherwise. ` +
+    `The enquiry and messages are already saved in the CRM, and staff can reply on this same page. Do NOT ask for a phone number or make one a condition of a booking request or staff handoff. Collect only the booking details required by the relevant tool, reusing anything already given in the conversation. ` +
+    `Never claim a phone number was automatically obtained or that staff will call or WhatsApp unless the visitor has provided a suitable contact number and requested that follow-up. Do not tell them to "reply on WhatsApp"; they can keep chatting right here. Staff replies are available when they keep this page open or return in the same browser; do not promise contact after they leave.`
   );
 }

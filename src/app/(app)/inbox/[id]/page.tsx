@@ -93,7 +93,7 @@ export default async function ThreadPage({
               <LineBadge displayName={conversation.whatsapp_number.display_name} />
             </div>
             <p className="truncate text-xs text-slate-400">
-              {webChat && !conversation.contact.phone_number ? "No phone — ask in the chat" : contactPhone(conversation.contact)} · via{" "}
+              {webChat && !conversation.contact.phone_number ? "No phone provided — reply in web chat" : contactPhone(conversation.contact)} · via{" "}
               {conversation.whatsapp_number.display_name}
             </p>
           </div>
