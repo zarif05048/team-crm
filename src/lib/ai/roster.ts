@@ -95,7 +95,16 @@ export async function fetchRosterText(): Promise<string | null> {
    week). A night shift counts on the morning after it too. A doctor said NOT
    to be on duty ("Dr Ashbir tidak bertugas…", "bukan Dr Zarif") is a right
    answer, not a wrong name. */
-const DUTY_TALK = /\b(doc|doktor|doctor|dr|dokter)\b|bertugas|on ?duty|jadual|syif|\bshift\b|siapa.*(jaga|kerja)/i;
+/* WHEN THE GUARD SPEAKS (27 Oct 2026), as in the fleet's ai.js: it had
+   started answering questions nobody asked ("dr rafiq bukan doc locum kan"
+   got the rota; "nak consult Dr Ashbir sahaja", after asking for his week,
+   got the rota in place of the right dates). The patient must be asking about
+   duty, a name counts only in a sentence that claims duty, and a follow-up
+   with no day of its own takes the days from the message before it. */
+const DOCTOR_WORD = /\b(doc|doktor|doctor|dr|dokter)\b/i;
+const DUTY_INTENT = /bertugas|on ?duty|jadual|syif|\bshift\b|\brota\b|\broster\b|\b(jaga|kerja|bekerja|ada|available|bila|bile|when|who|siapa|pukul|jam|waktu|masa|sekarang|skrg|now|today|tonight|tomorrow|esok|lusa|pagi|petang|ptg|malam|mlm|minggu|week)\b/i;
+const asksAboutDuty = (t: string) => /bertugas|on ?duty|syif|\bshift\b|\brota\b|\broster\b/i.test(t) || (DOCTOR_WORD.test(t) && DUTY_INTENT.test(t));
+const DUTY_CLAIM = /bertugas|on ?duty|syif|\bshift\b|\b(kerja|bekerja|jaga|available|ada di|pagi|petang|ptg|malam|mlm|tengah ?hari|morning|afternoon|evening|night|tonight|today|tomorrow|hari ini|esok|lusa|ahad|isnin|selasa|rabu|khamis|jumaat|sabtu|sunday|monday|tuesday|wednesday|thursday|friday|saturday|pukul)\b|\b\d{1,2}(:\d\d)?\s*(am|pm|pagi|petang|malam)\b|\b\d{1,2}\/\d{1,2}\b/i;
 const CLINIC_DOCTORS = ["ashbir", "zarif", "rafiq", "fatihah", "umairah", "ziad", "nadiah", "sakinah", "fizah", "hafizah"];
 const DAY_WORDS = [["ahad", "sunday"], ["isnin", "monday"], ["selasa", "tuesday"], ["rabu", "wednesday"], ["khamis", "thursday"], ["jumaat", "friday"], ["sabtu", "saturday"]];
 const TOMORROW_WORD = /\b(esok|esk|besok|bsk|tomorrow)\b/i;
@@ -157,15 +166,19 @@ function allowedOn(body: Roster, idxs: number[], scope: string[], seg: string): 
 }
 const saidOffDuty = (seg: string, at: number, len: number) =>
   OFF_DUTY_AFTER.test(seg.slice(at + len)) || OFF_DUTY_BEFORE.test(seg.slice(Math.max(0, at - 20), at));
-/** The days a question is about: the ones it names, else the whole rota for a WHEN question, else today. */
-function askedDays(body: Roster, asked: string): number[] {
-  const named = daysNamed(body, asked);
-  if (named) return named;
-  return ASKS_WHEN.test(asked) ? (body.days || []).map((_, i) => i) : [0];
+/** The days a question is about: the ones it names, else the whole rota for a WHEN question, else today.
+ *  A follow-up naming no day takes them from the patient's message before it. */
+function askedDays(body: Roster, asked: string, earlier: string[] = []): number[] {
+  for (const t of [asked, ...earlier.slice().reverse()]) {
+    const named = daysNamed(body, t);
+    if (named) return named;
+    if (ASKS_WHEN.test(t)) return (body.days || []).map((_, i) => i);
+  }
+  return [0];
 }
 
-/** Is the chat (the patient's last three messages) about who is on duty? */
-export const aboutDuty = (patientTexts: string[]) => patientTexts.slice(-3).some((t) => DUTY_TALK.test(t));
+/** Is the patient (in their last three messages) asking who is on duty? */
+export const aboutDuty = (patientTexts: string[]) => patientTexts.slice(-3).some(asksAboutDuty);
 
 /** The clinic(s) the patient named lately; none named, every clinic. */
 export function rosterScope(body: Roster, patientTexts: string[]): string[] {
@@ -181,12 +194,20 @@ export function scopedRoster(body: Roster, scope: string[]): Roster {
 export function offRota(body: Roster, scope: string[], patientTexts: string[], reply: string): string[] {
   const everyone = new Set(CLINIC_DOCTORS);
   for (const d of body.days) for (const b of d.branches || []) for (const s of [...b.shifts, ...b.extras]) for (const doc of s.doctors) everyone.add(shortOf(doc));
-  const asked = patientTexts[patientTexts.length - 1] || "";
-  let current = askedDays(body, asked);
+  const msgs = patientTexts.slice(-3);
+  let current = askedDays(body, msgs[msgs.length - 1] || "", msgs.slice(0, -1));
+  const segs = String(reply || "").split(/\n+|(?<=[.!?])\s+/);
+  // "Dr Ashbir bertugas di Paka pada:" and then the dates — an opening line
+  // before the first day the reply names is about the days the reply goes on to list
+  const replyDays = [...new Set(segs.flatMap((s) => daysNamed(body, s) || []))];
+  let dayYet = false;
   const wrong = new Set<string>();
-  for (const seg of String(reply || "").split(/\n+|(?<=[.!?])\s+/)) {
-    current = daysNamed(body, seg) || current;
-    const ok = allowedOn(body, current, scope, seg);
+  for (const seg of segs) {
+    const named = daysNamed(body, seg);
+    if (named) { current = named; dayYet = true; }
+    const days = named || (!dayYet && replyDays.length ? [...new Set([...current, ...replyDays])] : current);
+    if (!DUTY_CLAIM.test(seg)) continue;   // names a doctor without saying when they work
+    const ok = allowedOn(body, days, scope, seg);
     for (const n of everyone) {
       if (!n || ok.has(n)) continue;
       const m = new RegExp(`\\b${n}\\b`, "i").exec(seg);
