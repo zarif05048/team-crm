@@ -2,7 +2,8 @@ import { cn } from "@/lib/utils";
 
 /**
  * Small colored chip naming which WhatsApp line a conversation lives on
- * (Dungun / Paka / Marketing / anything else by its display name). With three
+ * (Dungun / Paka / Marketing / Google web chat / anything else by its display
+ * name). With three
  * clinic lines flowing into one inbox, this is how staff tell them apart.
  */
 
@@ -11,6 +12,11 @@ function classify(displayName: string | null | undefined): {
   classes: string;
 } {
   const dn = (displayName ?? "").toLowerCase();
+  // Google web chat (no WhatsApp) — before the branch names, which it contains.
+  if (dn.includes("google")) {
+    const where = dn.includes("paka") ? "Paka" : dn.includes("dungun") ? "Dungun" : "";
+    return { label: `Google${where ? ` · ${where}` : ""}`, classes: "bg-amber-100 text-amber-800 ring-amber-200" };
+  }
   // Order matters: the marketing line's name mentions both branches.
   if (dn.includes("marketing")) {
     return { label: "Marketing", classes: "bg-violet-100 text-violet-700 ring-violet-200" };

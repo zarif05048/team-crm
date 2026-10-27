@@ -204,6 +204,49 @@ Patient-facing FAQ bot on the WhatsApp line, powered by the Claude API
   test; the older `send-test-webhook.mjs` is unsigned and now 401s since
   META_APP_SECRET is set).
 
+## Google web chat — no WhatsApp (added 2026-10-27)
+
+The owner wanted Google and website enquiries to stop depending on a WhatsApp
+number Meta can restrict. Patients chat on the clinic's own page instead:
+**https://team-crm-one.vercel.app/chat/dungun** and **/chat/paka**.
+
+- Patient side (`src/app/chat/[clinic]/`): opens straight into the chat, no
+  name/phone asked (owner's rule), styled like a WhatsApp conversation (green
+  header, beige wallpaper, bubbles, ticks, "sedang menaip…"). The icon is a
+  WhatsApp-like green bubble with a medical cross — never WhatsApp's own logo
+  (`scripts/gen-webchat-icons.mjs` → `public/chat/`). A session UUID in
+  localStorage reopens the same thread on that phone. Polls every 2.5s while
+  visible.
+- API `src/app/api/webchat/[clinic]`: GET = the visitor's thread, POST = a
+  message (8 per minute cap, 1,000 chars). Both it and `/chat/*` are left out
+  of the proxy matcher (public, and no auth call per poll).
+- Storage reuses the WhatsApp tables (`src/lib/webchat.ts`), no migration:
+  line rows `web:dungun` / `web:paka` in `whatsapp_numbers` (created on the
+  first message, shown as "Google Chat · Dungun/Paka", amber badge), contacts
+  with `wa_id = web:<session>` named "Pelawat Google XXXX", messages with
+  `wa_message_id = web:<client id>` (dedupes retries), tag `google`.
+- Sending to a web visitor = storing the message: `postMessage` in
+  `lib/whatsapp/send.ts` returns ok for any `web:` line, so the bot's
+  text/leaflet/sticker paths work unchanged. Staff replies: `sendReply` stores
+  directly, no 24h window, no "send from another line" picker; templates are
+  refused.
+- The bot gets a CHANNEL note (`webChatNote`): anonymous visitor, assume that
+  clinic, ask for name + phone before any booking or handoff.
+- The Dungun and Paka websites (`hijraadungun.github.io`,
+  `hijraapaka.github.io`) point every former wa.me button here.
+
+## Bot provider: OpenRouter (2026-10-27)
+
+`src/lib/ai/model.ts` — with `OPENROUTER_API_KEY` set, the bot runs on
+OpenRouter (`anthropic/claude-haiku-5.5`, reasoning medium), the same as the
+clinic fleet. bot.ts still speaks the Anthropic message shape; the adapter
+converts both ways (tools ↔ functions, tool_result ↔ role "tool", reasoning
+handed back with tool calls, cache_control kept, 1h on Haiku 5.5). Without
+the key it falls back to Anthropic. Offline check:
+`node --experimental-strip-types scripts/test-openrouter-adapter.mjs`.
+The Anthropic account ran out of credit on 2026-10-19, which had silently
+stopped CRM bot replies.
+
 ## TCA minor surgical list → Google Sheet (added 2026-08-10)
 
 Procedure bookings are written straight into the clinic's own

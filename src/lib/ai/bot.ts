@@ -1,4 +1,5 @@
-// AI auto-reply bot: answers patient FAQs on WhatsApp via the Claude API.
+// AI auto-reply bot: answers patient FAQs on WhatsApp and the Google web chat,
+// through OpenRouter (Claude Haiku 5.5, same as the clinic fleet) — see model.ts.
 //
 // Flow: webhook ingests an inbound message → route schedules runBotReply()
 // after the 200 response (next/server `after`) → we wait a moment so rapid
@@ -7,7 +8,7 @@
 // staff handoff) → send the reply through the existing WhatsApp send path and
 // record it like any other outbound message (sent_by_bot = true).
 //
-// The bot never replies when: ANTHROPIC_API_KEY is unset, the conversation's
+// The bot never replies when: neither OPENROUTER_API_KEY nor ANTHROPIC_API_KEY is set, the conversation's
 // bot_enabled is false (staff took over), or a newer message superseded the
 // trigger (that message's own run replies instead).
 
@@ -20,6 +21,8 @@ import { BOT_SYSTEM_PROMPT } from "./knowledge";
 import { pricingSection, lookupMedication } from "./pricing";
 import { scopedRosterText, guardDutyReply } from "./roster";
 import { recordBookingStage } from "@/lib/pipeline-booking";
+import { createMessage, aiConfigured } from "./model";
+import { webChatNote } from "@/lib/webchat";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -253,8 +256,8 @@ const STICKER_THANKS_GAP_MS = 6 * 3_600_000;
 /** Entry point — called from the webhook route via next/server `after()`. */
 export async function runBotReply(trigger: BotTrigger): Promise<void> {
   try {
-    if (!process.env.ANTHROPIC_API_KEY) {
-      console.log("[bot] ANTHROPIC_API_KEY not set — bot disabled");
+    if (!aiConfigured()) {
+      console.log("[bot] no AI key (OPENROUTER_API_KEY / ANTHROPIC_API_KEY) — bot disabled");
       return;
     }
 
@@ -383,6 +386,7 @@ export async function runBotReply(trigger: BotTrigger): Promise<void> {
       trigger.conversationId,
       sendCtx,
       messages,
+      webChatNote(number.phone_number_id),
     );
     if (!modelText) return;
     // A duty answer naming a doctor who is not on the rota for that clinic and
@@ -459,8 +463,8 @@ async function converse(
   conversationId: string,
   sendCtx: SendContext,
   messages: Anthropic.MessageParam[],
+  channelNote: string | null = null,
 ): Promise<string | null> {
-  const anthropic = new Anthropic();
   // The clinic's live price list (Stock → Pricing in the CMS), appended to
   // the cached block. It changes at most hourly, so it rides inside the cache
   // rather than invalidating it; empty when CMS_URL is not configured.
@@ -474,7 +478,9 @@ async function converse(
 ${prices}` : "");
 
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-    const response = await anthropic.messages.create({
+    // OpenRouter (Haiku 5.5) when OPENROUTER_API_KEY is set; the model named
+    // here is only the Anthropic fallback (model.ts).
+    const response = await createMessage({
       model: "claude-sonnet-5",
       max_tokens: 1024,
       system: [
@@ -486,7 +492,7 @@ ${prices}` : "");
         // Today's date, so "esok"/"Khamis ni" can become a real date for the
         // surgical list. Kept in its own block AFTER the cached one: the big
         // prompt stays cacheable, only this short line changes daily.
-        { type: "text", text: todayNote() },
+        { type: "text", text: todayNote() + (channelNote ? "\n\n" + channelNote : "") },
       ],
       tools: TOOLS,
       tool_choice: round === MAX_TOOL_ROUNDS ? { type: "none" } : { type: "auto" },

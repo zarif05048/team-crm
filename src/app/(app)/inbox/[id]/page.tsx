@@ -24,6 +24,7 @@ import { getCannedReplies } from "@/lib/data/canned";
 import { getWhatsappNumbers } from "@/lib/data/numbers";
 import { isWindowOpen } from "@/lib/types";
 import { contactName, contactPhone } from "@/lib/contact-phone";
+import { isWeb } from "@/lib/webchat";
 import { ThemeToggle } from "@/components/theme-controls";
 
 export default async function ThreadPage({
@@ -51,15 +52,19 @@ export default async function ThreadPage({
     ]);
   if (!conversation) notFound();
 
+  // Google web chat: the visitor has no WhatsApp, so the reply stays on this
+  // thread (no line picker) and there is no 24h window (lib/webchat.ts).
+  const webChat = isWeb(conversation.whatsapp_number.phone_number_id);
+
   // Lines staff can send from: the clinic bot lines (Dungun / Paka / Marketing).
-  const sendableLines = allNumbers
+  const sendableLines = webChat ? [] : allNumbers
     .filter((n) => n.phone_number_id.startsWith("unofficial:") && n.is_active !== false)
     .map((n) => ({ id: n.id, display_name: n.display_name }));
 
   const name = contactName(conversation.contact);
   // Bridged threads (unofficial marketing number, delivered by the sender
   // program) have no Meta 24h-window rule — always open for free-text replies.
-  const bridged = conversation.whatsapp_number.phone_number_id?.startsWith("unofficial:") ?? false;
+  const bridged = webChat || (conversation.whatsapp_number.phone_number_id?.startsWith("unofficial:") ?? false);
   const windowOpen = bridged || isWindowOpen(conversation.last_inbound_at);
   const memberNames = Object.fromEntries(
     members.map((m) => [m.id, m.full_name ?? m.email ?? "Unknown"]),
@@ -88,7 +93,7 @@ export default async function ThreadPage({
               <LineBadge displayName={conversation.whatsapp_number.display_name} />
             </div>
             <p className="truncate text-xs text-slate-400">
-              {contactPhone(conversation.contact)} · via{" "}
+              {webChat && !conversation.contact.phone_number ? "No phone — ask in the chat" : contactPhone(conversation.contact)} · via{" "}
               {conversation.whatsapp_number.display_name}
             </p>
           </div>

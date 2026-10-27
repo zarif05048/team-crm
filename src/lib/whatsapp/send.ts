@@ -1,5 +1,7 @@
 // Outbound sending via the Meta WhatsApp Cloud API (Graph API).
 
+import { isWeb } from "@/lib/webchat";
+
 const GRAPH = "https://graph.facebook.com";
 
 function apiBase() {
@@ -19,6 +21,9 @@ async function postMessage(
   phoneNumberId: string,
   payload: Record<string, unknown>,
 ): Promise<SendResult> {
+  // Google web chat (lib/webchat.ts): nothing to send — the caller stores the
+  // message and the visitor's page reads it from there.
+  if (isWeb(phoneNumberId)) return { ok: true };
   const { version, token } = apiBase();
   try {
     const res = await fetch(`${GRAPH}/${version}/${phoneNumberId}/messages`, {

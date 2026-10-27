@@ -7,6 +7,7 @@ import { addToTcaList } from "@/lib/sheets/tca";
 import { isWindowOpen, type LeadStage } from "@/lib/types";
 import { WEIGHT_LOSS_TAG } from "@/lib/data/conversations";
 import { recordBookingStage } from "@/lib/pipeline-booking";
+import { isWeb } from "@/lib/webchat";
 
 export type SendState = { ok: boolean; error?: string; conversationId?: string };
 
@@ -109,6 +110,16 @@ export async function sendReply(
   const loaded = await loadConversation(conversationId);
   if ("error" in loaded) return { ok: false, error: loaded.error };
   const { user, conv } = loaded;
+
+  // Google web chat: the visitor has no WhatsApp, so the reply can only go on
+  // the page they are chatting on — stored here, read by their page. No 24h rule.
+  if (isWeb(conv.contact.wa_id) || isWeb(conv.whatsapp_number.phone_number_id)) {
+    if (viaNumberId && viaNumberId !== conv.whatsapp_number.id) {
+      return { ok: false, error: "This patient is on the Google web chat — reply in this thread." };
+    }
+    await recordOutbound(conversationId, user.id, "text", text, undefined);
+    return { ok: true };
+  }
 
   // "Send from" a different clinic line: reply to this same patient from another
   // of our WhatsApp numbers. That number is a separate WhatsApp chat, so the
@@ -218,6 +229,9 @@ export async function sendTemplateReply(
   const loaded = await loadConversation(conversationId);
   if ("error" in loaded) return { ok: false, error: loaded.error };
   const { user, conv } = loaded;
+  if (isWeb(conv.whatsapp_number.phone_number_id)) {
+    return { ok: false, error: "Templates are for WhatsApp — on the Google web chat just type a reply." };
+  }
 
   const result = await sendTemplate(
     conv.whatsapp_number.phone_number_id,
