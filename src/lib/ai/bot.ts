@@ -23,8 +23,10 @@ import { scopedRosterText, guardDutyReply } from "./roster";
 import { recordBookingStage } from "@/lib/pipeline-booking";
 import { createMessage, aiConfigured } from "./model";
 import { webChatNote } from "@/lib/webchat";
+import { buildConversationContext } from "./conversation-context";
 
 type Admin = ReturnType<typeof createAdminClient>;
+type DatedMessage = Anthropic.MessageParam & { sentAt?: string | number };
 
 /** Who/where the bot is talking to — needed by tools that send media. */
 interface SendContext {
@@ -362,7 +364,7 @@ export async function runBotReply(trigger: BotTrigger): Promise<void> {
     if (messages.length === 0) return;
     // The patient's own words, oldest first — read before converse() adds its
     // tool turns to `messages`. The duty guard checks the reply against them.
-    const patientTexts = messages
+    const patientTexts = buildConversationContext(messages, Date.now()).activeHistory
       .filter((m) => m.role === "user" && typeof m.content === "string")
       .map((m) => m.content as string);
 
@@ -424,9 +426,9 @@ export async function runBotReply(trigger: BotTrigger): Promise<void> {
 
 /** Map stored messages to Claude turns (inbound=user, outbound=assistant). */
 function toClaudeMessages(
-  rows: { direction: string; type: string; body: string | null }[],
-): Anthropic.MessageParam[] {
-  const turns: Anthropic.MessageParam[] = [];
+  rows: { direction: string; type: string; body: string | null; created_at?: string }[],
+): DatedMessage[] {
+  const turns: DatedMessage[] = [];
   for (const m of rows) {
     const text =
       m.body?.slice(0, 1500) || (m.type !== "text" ? `[${m.type}]` : "");
@@ -434,6 +436,7 @@ function toClaudeMessages(
     turns.push({
       role: m.direction === "inbound" ? "user" : "assistant",
       content: text,
+      sentAt: m.created_at,
     });
   }
   // The API requires the first turn to be from the user.
@@ -462,15 +465,17 @@ async function converse(
   supabase: Admin,
   conversationId: string,
   sendCtx: SendContext,
-  messages: Anthropic.MessageParam[],
+  messages: DatedMessage[],
   channelNote: string | null = null,
 ): Promise<string | null> {
+  const context = buildConversationContext(messages, Date.now());
+  messages = context.messages as Anthropic.MessageParam[];
   // The clinic's live price list (Stock → Pricing in the CMS), appended to
   // the cached block. It changes at most hourly, so it rides inside the cache
   // rather than invalidating it; empty when CMS_URL is not configured.
   const prices = await pricingSection();
   // the patient's own messages, for the rota tool (only the clinic they named)
-  const patientTexts = messages
+  const patientTexts = context.activeHistory
     .filter((m) => m.role === "user" && typeof m.content === "string")
     .map((m) => m.content as string);
   const systemText = BOT_SYSTEM_PROMPT + (prices ? `
@@ -492,7 +497,7 @@ ${prices}` : "");
         // Today's date, so "esok"/"Khamis ni" can become a real date for the
         // surgical list. Kept in its own block AFTER the cached one: the big
         // prompt stays cacheable, only this short line changes daily.
-        { type: "text", text: todayNote() + (channelNote ? "\n\n" + channelNote : "") },
+        { type: "text", text: [todayNote(), context.note, channelNote].filter(Boolean).join("\n\n") },
       ],
       tools: TOOLS,
       tool_choice: round === MAX_TOOL_ROUNDS ? { type: "none" } : { type: "auto" },
@@ -526,7 +531,7 @@ ${prices}` : "");
     messages.push({ role: "assistant", content: response.content });
     const results: Anthropic.ToolResultBlockParam[] = [];
     for (const tool of toolUses) {
-      const output = await executeTool(supabase, conversationId, sendCtx, tool, isPekaB40Enquiry(messages), patientTexts);
+      const output = await executeTool(supabase, conversationId, sendCtx, tool, isPekaB40Enquiry(context.activeHistory as Anthropic.MessageParam[]), patientTexts);
       results.push({
         type: "tool_result",
         tool_use_id: tool.id,

@@ -2,6 +2,7 @@
 // as HR has published (today, tomorrow, lusa and the rest by weekday) and who
 // is on duty now.
 // Only roster data is requested. No patient lookup or WhatsApp send occurs here.
+import { offShift } from "./doctor-shift-check";
 interface Doctor { name: string; female?: boolean }
 interface BranchRoster {
   name: string;
@@ -51,7 +52,10 @@ export async function fetchRosterText(): Promise<string | null> {
     console.warn("[bot] doctor roster: CMS connection not configured");
     return null;
   }
-  if (cached && Date.now() - cached.at < TTL_MS) return cached.text;
+  // `now` changes at shift boundaries. Never carry a positive cached rota
+  // into another clock minute; failed fetches retain the retry backoff.
+  if (cached && Date.now() - cached.at < TTL_MS &&
+      (!cached.body || Math.floor(Date.now() / 60_000) === Math.floor(cached.at / 60_000))) return cached.text;
   try {
     // two weeks ahead as far as published (19 Oct 2026); a CMS without the
     // parameter answers two days
@@ -232,7 +236,7 @@ export function langOf(text: string): "en" | "ms" | null {
 export function dutyReplacement(body: Roster | null, patientTexts: string[], reply: string): { text: string; wrong: string[] } | null {
   if (!aboutDuty(patientTexts) || !body || !Array.isArray(body.days) || !body.days.length) return null;
   const scope = rosterScope(body, patientTexts);
-  const wrong = offRota(body, scope, patientTexts, reply);
+  const wrong = [...offRota(body, scope, patientTexts, reply), ...offShift(body, scope, patientTexts, reply, daysNamed, askedDays)];
   if (!wrong.length) return null;
   const asked = patientTexts[patientTexts.length - 1] || "";
   // only the day(s) asked about — a fortnight is a lot to send for "malam ni?";
