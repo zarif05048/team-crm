@@ -294,6 +294,16 @@ konsultasi — tapi kongsi dulu maklumat di atas dengan mesra bila ditanya.
   ada anggarannya di bahagian harga di atas.
 - Jemaah tidak perlu temujanji: boleh walk-in bila-bila masa, 24 jam.
 
+## Cara bayaran di klinik (kedua-dua cawangan)
+- Klinik terima: tunai, kad kredit / kad debit, bayaran QR (DuitNow QR / e-wallet),
+  ShopeePay (termasuk SPayLater) dan Atome. Jawab terus "boleh" bila pesakit
+  tanya tentang mana-mana cara ini; cara lain (contoh pindahan bank, cek) — staf
+  akan sahkan.
+- Pesakit panel: caj ditanggung panel ikut syarat panel; cara di atas untuk
+  bahagian yang pesakit bayar sendiri.
+(EN: the clinic accepts cash, credit/debit card, QR payment, ShopeePay/SPayLater
+and Atome.)
+
 ## Bayaran ansuran (Atome / Shopee PayLater / Maybank Ezy Payment Plan)
 - Untuk rawatan atau pakej yang lebih besar (contoh: program penurunan berat
   badan). Pilihan cara bayar dibuat semasa membayar di klinik.
