@@ -18,7 +18,7 @@ const bot=load('src/lib/ai/bot.ts',name=>{
   if(name==='@/lib/sheets/tca')return tca;
   if(name==='./knowledge')return{BOT_SYSTEM_PROMPT:'synthetic'};
   if(name==='./peka-b40')return{isPekaB40Enquiry:()=>false};
-  if(['@/lib/supabase/admin','@/lib/whatsapp/send','./pricing','./roster'].includes(name))return{};
+  if(['@/lib/supabase/admin','@/lib/whatsapp/send','./pricing','./roster','./bot-rules','./model','@/lib/webchat','./conversation-context'].includes(name))return{};
   throw Error('Unexpected import '+name);
 });
 await bot.executeTool(db,'test-conversation',{}, {name:'book_appointment',input:{patient_name:'TEST',service:'house call',branch:'Paka',preferred_time:'tomorrow'}});
@@ -29,7 +29,7 @@ const actions=load('src/app/(app)/inbox/[id]/actions.ts',name=>{
   if(name==='@/lib/supabase/admin')return{createAdminClient:()=>db};
   if(name==='@/lib/sheets/tca')return tca;
   if(name==='@/lib/data/conversations')return{WEIGHT_LOSS_TAG:'weight-loss'};
-  if(['@/lib/whatsapp/send','@/lib/types'].includes(name))return{};
+  if(['@/lib/whatsapp/send','@/lib/types','@/lib/webchat'].includes(name))return{};
   throw Error('Unexpected action import '+name);
 });
 const result=await actions.module.exports.addTcaEntry('test-conversation',{patientName:'TEST',procedure:'synthetic',branch:'Paka',date:'2026-10-26'});
