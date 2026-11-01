@@ -19,10 +19,11 @@ import { sendText, sendImage } from "@/lib/whatsapp/send";
 import { addToTcaList, malaysiaToday } from "@/lib/sheets/tca";
 import { BOT_SYSTEM_PROMPT } from "./knowledge";
 import { pricingSection, lookupMedication } from "./pricing";
+import { botRulesSection } from "./bot-rules";
 import { scopedRosterText, guardDutyReply } from "./roster";
 import { recordBookingStage } from "@/lib/pipeline-booking";
 import { createMessage, aiConfigured } from "./model";
-import { webChatNote } from "@/lib/webchat";
+import { webChatNote, webClinicOf } from "@/lib/webchat";
 import { buildConversationContext } from "./conversation-context";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -478,9 +479,13 @@ async function converse(
   const patientTexts = context.activeHistory
     .filter((m) => m.role === "user" && typeof m.content === "string")
     .map((m) => m.content as string);
+  // The owner's live rules from the CRM (bot-rules.ts), LAST so they win.
+  const rules = await botRulesSection(supabase, webClinicOf(sendCtx.phoneNumberId)?.branch ?? null);
   const systemText = BOT_SYSTEM_PROMPT + (prices ? `
 
-${prices}` : "");
+${prices}` : "") + (rules ? `
+
+${rules}` : "");
 
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
     // OpenRouter (Haiku 5.5) when OPENROUTER_API_KEY is set; the model named
