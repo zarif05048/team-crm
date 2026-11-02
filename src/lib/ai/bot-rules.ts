@@ -51,6 +51,19 @@ export function formatBotRules(rows: BotRuleRow[] | null | undefined): string {
   ].join("\n");
 }
 
+// A live rule can SUSPEND house calls (owner via Hermes, 1 Nov 2026); the
+// booking and handoff tools check it so a model that ignores the prompt still
+// cannot book one. Lifts when the rule is turned off. Same test as the fleet's
+// ai.js houseCallBlocked: one entry names house calls AND says suspended.
+const HOUSE_CALL_RE = /house\s*-?\s*calls?|home\s*visits?|lawatan\s*(ke\s*)?rumah|rawatan\s*(di\s*)?rumah/i;
+const SUSPENDED_RE = /suspend|digantung|gantung|dihentikan|ditangguhkan|not (currently )?(available|offered)|tidak (lagi )?(ditawarkan|disediakan)/i;
+export function houseCallBlocked(rulesText: string, ...texts: (string | undefined)[]): boolean {
+  const suspended = String(rulesText || "").split(/\n- /).slice(1).some((e) => HOUSE_CALL_RE.test(e) && SUSPENDED_RE.test(e));
+  return suspended && texts.some((t) => HOUSE_CALL_RE.test(String(t ?? "")));
+}
+export const HOUSE_CALL_REFUSAL =
+  "REFUSED — not recorded and staff were NOT told: house calls are currently suspended (the owner's live rule). Tell the patient politely, as that rule says, that house calls are temporarily suspended; do not collect details, offer a waitlist or promise a callback. In-clinic visits (24 jam) are fine.";
+
 /** Which rows a thread reads: everybody's, its channel's, and its clinic's. */
 export function botRuleScopes(webBranch: string | null): string[] {
   return webBranch ? ["all", "webchat", webBranch.toLowerCase()] : ["all", "whatsapp"];

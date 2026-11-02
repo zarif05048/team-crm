@@ -19,7 +19,7 @@ import { sendText, sendImage } from "@/lib/whatsapp/send";
 import { addToTcaList, malaysiaToday } from "@/lib/sheets/tca";
 import { BOT_SYSTEM_PROMPT } from "./knowledge";
 import { pricingSection, lookupMedication } from "./pricing";
-import { botRulesSection } from "./bot-rules";
+import { botRulesSection, houseCallBlocked, HOUSE_CALL_REFUSAL } from "./bot-rules";
 import { scopedRosterText, guardDutyReply } from "./roster";
 import { recordBookingStage } from "@/lib/pipeline-booking";
 import { createMessage, aiConfigured } from "./model";
@@ -604,6 +604,8 @@ async function executeTool(
       return "Leaflet image sent to the patient. Now send a short text follow-up.";
     }
     if (tool.name === "book_appointment") {
+      const rules = await botRulesSection(supabase, webClinicOf(sendCtx.phoneNumberId)?.branch ?? null);
+      if (houseCallBlocked(rules, input.service, input.extra_notes)) return HOUSE_CALL_REFUSAL;
       const body =
         `📅 Booking request (via AI bot)\n` +
         `Name: ${input.patient_name}\n` +
@@ -657,6 +659,11 @@ async function executeTool(
       return "Recorded in the minor surgical list. Tell the patient staff will confirm the doctor and the exact slot with them here.";
     }
     if (tool.name === "alert_staff") {
+      // emergencies always reach staff, whatever the reason mentions
+      if (input.urgency !== "urgent") {
+        const rules = await botRulesSection(supabase, webClinicOf(sendCtx.phoneNumberId)?.branch ?? null);
+        if (houseCallBlocked(rules, input.reason)) return HOUSE_CALL_REFUSAL;
+      }
       await alertStaff(supabase, conversationId, {
         reason: input.reason ?? "Patient needs staff",
         urgency: input.urgency === "urgent" ? "urgent" : "normal",

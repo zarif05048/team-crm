@@ -18,7 +18,9 @@ const bot=load('src/lib/ai/bot.ts',name=>{
   if(name==='@/lib/sheets/tca')return tca;
   if(name==='./knowledge')return{BOT_SYSTEM_PROMPT:'synthetic'};
   if(name==='./peka-b40')return{isPekaB40Enquiry:()=>false};
-  if(['@/lib/supabase/admin','@/lib/whatsapp/send','./pricing','./roster','./bot-rules','./model','@/lib/webchat','./conversation-context'].includes(name))return{};
+  if(name==='@/lib/webchat')return{webClinicOf:()=>null};
+  if(name==='./bot-rules')return{botRulesSection:async()=>'',houseCallBlocked:()=>false,HOUSE_CALL_REFUSAL:'refused'};
+  if(['@/lib/supabase/admin','@/lib/whatsapp/send','./pricing','./roster','./model','./conversation-context'].includes(name))return{};
   throw Error('Unexpected import '+name);
 });
 await bot.executeTool(db,'test-conversation',{}, {name:'book_appointment',input:{patient_name:'TEST',service:'house call',branch:'Paka',preferred_time:'tomorrow'}});
