@@ -4,6 +4,7 @@
 //
 //   node scripts/ship.mjs            check, test, push, then watch the deploy
 //   node scripts/ship.mjs --status   how the last ship from THIS PC went
+//   node scripts/ship.mjs --check    types + tests on uncommitted work too; pushes nothing
 //
 // Before the push: committed, on master, not behind GitHub, the live commit is
 // in this history and the previous deploy has finished (that is the lock
@@ -71,31 +72,36 @@ function run(label, file, args) {
   catch (e) { return `${label}:\n${String(e.stdout || "") + String(e.stderr || "")}`.split("\n").filter((l) => !/^\s+at /.test(l)).slice(-15).join("\n"); }
 }
 
-async function ship() {
-  if (git("status", "--porcelain", "--untracked-files=no")) die("uncommitted changes — commit them first");
+async function ship(checkOnly) {
+  if (!checkOnly && git("status", "--porcelain", "--untracked-files=no")) die("uncommitted changes — commit them first");
   if (git("rev-parse", "--abbrev-ref", "HEAD") !== "master") die("not on the master branch");
   git("fetch", "-q", "origin");
   if (!gitOk("merge-base", "--is-ancestor", "origin/master", "HEAD")) die("GitHub has newer commits — run: git pull --rebase");
   const head = git("rev-parse", "HEAD");
   const origin = git("rev-parse", "origin/master");
+  if (checkOnly) { runChecks(); console.log("Every check passes. Nothing was pushed (--check)."); return; }
   if (head === origin) die("nothing new to ship");
   const live = await liveSha();
   const first = process.argv.includes("--first");
   if (live === undefined && !first) die(`${SITE}/api/version does not answer — the site may be down; ask Claude`);
   if (live === null) die("the site does not report its commit (VERCEL_GIT_COMMIT_SHA) — ask Claude");
   if (live && live !== origin) die(`the previous push (${origin.slice(0, 7)}) is not live yet (site runs ${live.slice(0, 7)}) — wait, then check again`);
-  console.log("Type-checking and running the offline tests…");
-  const failed = [run("type check", join(ROOT, "node_modules/typescript/bin/tsc"), ["--noEmit", "-p", "."])];
-  for (const t of TESTS) failed.push(run(t, join(ROOT, "scripts", `${t}.mjs`), []));
-  const fails = failed.filter(Boolean);
-  if (fails.length) die(`${fails.length} check(s) failed — nothing was pushed:\n\n${fails.join("\n\n")}`);
-  console.log(`Types and ${TESTS.length} tests pass.`);
+  runChecks();
   git("push", "-q", "origin", "HEAD:master");
   const subject = git("log", "-1", "--format=%s");
   writeStatus({ state: "watching", commit: head, prev: live || origin, subject, by: who(), at: new Date().toISOString() });
   log(`SHIPPED ${head.slice(0, 7)} "${subject}" by ${who()}`);
   startWatcher();
   console.log(`\nPushed. Vercel deploys in ~2–4 minutes; the watcher rolls back by itself if ${head.slice(0, 7)} is not live and healthy within ${WATCH_MINUTES} minutes.\nCheck the outcome: node scripts/ship.mjs --status`);
+}
+
+function runChecks() {
+  console.log("Type-checking and running the offline tests…");
+  const failed = [run("type check", join(ROOT, "node_modules/typescript/bin/tsc"), ["--noEmit", "-p", "."])];
+  for (const t of TESTS) failed.push(run(t, join(ROOT, "scripts", `${t}.mjs`), []));
+  const fails = failed.filter(Boolean);
+  if (fails.length) die(`${fails.length} check(s) failed — nothing was pushed:\n\n${fails.join("\n\n")}`);
+  console.log(`Types and ${TESTS.length} tests pass.`);
 }
 
 async function watch() {
@@ -130,6 +136,6 @@ async function watch() {
 const arg = process.argv[2];
 if (arg === "--status") console.log(JSON.stringify({ ...readStatus(), siteRuns: await liveSha() }, null, 2));
 else if (arg === "--watch") await watch();
-else if (!arg || arg === "--first") await ship();
+else if (!arg || arg === "--first" || arg === "--check") await ship(arg === "--check");
 else die(`unknown option ${arg}`);
 if (!existsSync(STATUS) && arg === "--status") console.log("(nothing shipped from this PC yet)");
