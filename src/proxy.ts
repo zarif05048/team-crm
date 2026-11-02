@@ -20,7 +20,8 @@ export const config = {
      * - /chat/* and /api/webchat/* — the public Google web chat (patients, no
      *   login). Left out entirely rather than listed as public: the page polls
      *   every few seconds, and each pass here costs a Supabase auth call.
+     * - /api/version — the deployed commit id, for scripts/ship.mjs
      */
-    "/((?!_next/static|_next/image|favicon.ico|api/webhooks|api/cron|api/push|api/webchat|chat/|manifest.webmanifest|sw.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/webhooks|api/cron|api/push|api/webchat|api/version|chat/|manifest.webmanifest|sw.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

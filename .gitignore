@@ -45,3 +45,7 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+
+# scripts/ship.mjs (per PC)
+/.ship-status.json
+/ship.log
