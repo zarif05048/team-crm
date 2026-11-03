@@ -154,7 +154,7 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: "book_minor_surgery",
     description:
-      "Record a MINOR SURGERY / PROCEDURE appointment in the clinic's TCA minor surgical list (the doctors' scheduling sheet) and flag it for staff. Use this INSTEAD of book_appointment whenever the patient asks for, or agrees to, a procedure a doctor must do on a set date: chalazion/stye removal, wart, skin tag, mole, ganglion/sebaceous cyst, lipoma removal, incision & drainage (bisul/abses), nail avulsion or ingrown toenail, cryotherapy, excision biopsy, circumcision (sunat/khatan — ONLY when send_sunat_form says its booking form is closed or unavailable), joint and soft-tissue injections (knee, frozen shoulder, trigger finger, plantar fasciitis, PRP), aspiration, and the like. Ask for the patient's full name, which procedure, which branch and the date/time they want before calling it.",
+      "Record a MINOR SURGERY / PROCEDURE appointment in the clinic's TCA minor surgical list (the doctors' scheduling sheet) and flag it for staff. Use this INSTEAD of book_appointment whenever the patient asks for, or agrees to, a procedure a doctor must do on a set date: chalazion/stye removal, wart, skin tag, mole, ganglion/sebaceous cyst, lipoma removal, incision & drainage (bisul/abses), nail avulsion or ingrown toenail, cryotherapy, excision biopsy, circumcision (sunat/khatan — ONLY when send_sunat_form says its form is closed or unavailable), joint and soft-tissue injections (knee, frozen shoulder, trigger finger, plantar fasciitis, PRP), aspiration, and the like. Ask for the patient's full name, which procedure, which branch and the date/time they want before calling it.",
     input_schema: {
       type: "object",
       properties: {
@@ -193,7 +193,7 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: "send_sunat_form",
     description:
-      "Get the clinic's SUNAT / KHATAN (circumcision) BOOKING FORM link. Call it whenever someone wants to BOOK, register, reserve a slot or join the sunat programme — for one child, several, or an adult — INSTEAD of book_minor_surgery and instead of collecting names, ICs or dates in the chat. The form asks each child's name and MyKid/IC (the age is worked out from it), the address and the branch (Dungun/Paka); the clinic confirms the date later by WhatsApp. Put the link it returns in your reply exactly as given, on its own line. If it says the form is closed or unavailable, do what it says.",
+      "Get the clinic's SUNAT / KHATAN (circumcision) INTEREST FORM link. Call it whenever someone wants a sunat — to book, register, reserve a slot, join a sunat programme or hear when the next one is — for one child, several, or an adult, INSTEAD of book_minor_surgery and instead of collecting names, ICs or dates in the chat. The form takes each child's name and MyKid/IC (the age is worked out from it), the address and the branch (Dungun/Paka). There is no date and no payment yet: clinic staff get back to the family by WhatsApp with the dates and how to book. Put the link it returns in your reply exactly as given, on its own line. If it says the form is closed or unavailable, do what it says.",
     input_schema: { type: "object", properties: {} },
   },
   {
@@ -556,17 +556,19 @@ ${rules}` : "");
   return null;
 }
 
-/* The sunat programme's booking form (owner, 3 Nov 2026) — the same CMS link
-   the WhatsApp fleet sends (CMS Operation → Marketing → Sunathon). A WhatsApp
-   chat's link carries its number so the parent is not asked again; the web
-   chat has no number, so the form asks for one. While the CMS is not taking
-   bookings — or cannot be reached — the bot books a sunat as it always did. */
+/* The sunat INTEREST form (owner, 3 Nov 2026) — the same CMS link the WhatsApp
+   fleet sends (CMS Operation → Marketing → Sunathon: the interest list staff
+   later send a programme's booking form from). A WhatsApp chat's link carries
+   its number so the parent is not asked again; the web chat has no number, so
+   the form asks for one. No date and no fee at this stage. While the CMS has
+   the form switched off — or cannot be reached — the bot books a sunat as it
+   always did. */
 async function sunatFormLink(sendCtx: SendContext): Promise<string> {
   const asBefore = (why: string) =>
     `${why} Handle it as before: record a sunat request with book_minor_surgery (CIRCUMCISION SURGERY) once you have the name, branch and preferred date, and tell the patient staff will confirm.`;
   const base = (process.env.CMS_URL ?? "").replace(/\/$/, "");
   const token = process.env.CMS_REMINDER_TOKEN ?? "";
-  if (!base || !token) return asBefore("The sunat booking form is not connected here.");
+  if (!base || !token) return asBefore("The sunat interest form is not connected here.");
   const web = webClinicOf(sendCtx.phoneNumberId);
   try {
     const res = await fetch(`${base}/api/bot/sunat-link`, {
@@ -576,15 +578,13 @@ async function sunatFormLink(sendCtx: SendContext): Promise<string> {
       signal: AbortSignal.timeout(15_000),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const r = (await res.json()) as { open?: boolean; url?: string; fee?: number };
-    if (!r.open || !r.url) return asBefore("The sunat booking form is CLOSED right now.");
-    const fee = Number(r.fee) || 0;
-    return `SUNAT BOOKING FORM LINK: ${r.url}\n`
-      + "Give the patient this link EXACTLY as written, on its own line, and say: fill in each child's name and MyKid/IC, the address and the branch — one form can book several children — and the clinic will confirm the date by WhatsApp. Do not ask for their details in the chat."
-      + (fee ? ` Only if they ask about payment: a booking fee of RM${fee} per child is paid through the same link AFTER the clinic confirms the date — the full sunat price is unchanged.` : "");
+    const r = (await res.json()) as { open?: boolean; url?: string };
+    if (!r.open || !r.url) return asBefore("The sunat interest form is CLOSED right now.");
+    return `SUNAT INTEREST FORM LINK: ${r.url}\n`
+      + "Give the patient this link EXACTLY as written, on its own line, and say: fill in each child's name and MyKid/IC, the address and the branch — one form for several children. There is no date and no payment yet: clinic staff will get back to them by WhatsApp with the dates and how to book. Do not ask for their details in the chat, and do not promise a date or a slot.";
   } catch (err) {
     console.warn("[bot] sunat form link failed:", err);
-    return asBefore("The sunat booking form cannot be reached right now.");
+    return asBefore("The sunat interest form cannot be reached right now.");
   }
 }
 

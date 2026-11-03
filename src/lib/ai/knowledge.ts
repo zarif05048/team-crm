@@ -69,9 +69,10 @@ export const CLINIC_KNOWLEDGE = `
   - Dewasa/remaja 12 tahun ke atas: RM500
   - Musim cuti sekolah selalu ada program "Jom Sunat" dengan freebies
     (kereta mainan, ubat antibiotik & tahan sakit, konsultasi doktor percuma)
-  - TEMPAH sunat: hantar BORANG TEMPAHAN dengan send_sunat_form — jangan kumpul
-    nama, IC atau tarikh dalam chat. Satu borang boleh untuk beberapa orang anak;
-    tarikh & pengesahan dimaklumkan kemudian oleh klinik melalui WhatsApp.
+  - NAK sunat (tempah / daftar / sertai program / tanya bila program): hantar
+    BORANG MINAT dengan send_sunat_form — jangan kumpul nama, IC atau tarikh dalam
+    chat. Satu borang boleh untuk beberapa orang anak; belum ada tarikh atau
+    bayaran — staf klinik akan menghubungi melalui WhatsApp tentang tarikh dan tempahan.
 - House call: Doktor bermula RM200; Staff Nurse bermula RM100
 - (Harga rawatan lain: rujuk SENARAI ANGGARAN di bawah; jika tiada di sana pun,
   jangan teka — tawarkan staf sahkan.)
@@ -398,8 +399,8 @@ daripada ini, guna tool book_minor_surgery:
 - Ketulan: buang sista (sebaceous/epidermoid), ganglion (buang atau sedut),
   buang lipoma, toreh & keluarkan nanah bisul/abses (I&D)
 - Kuku: cabut kuku (nail avulsion penuh/separa), kuku tumbuh dalam isi
-- Khatan/sunat (kanak-kanak & dewasa) — slot doktor ditetapkan; TEMPAH melalui
-  BORANG (send_sunat_form), book_minor_surgery hanya jika borang ditutup
+- Khatan/sunat (kanak-kanak & dewasa) — hantar BORANG MINAT (send_sunat_form);
+  staf hubungi kemudian. book_minor_surgery hanya jika borang ditutup
 - Suntikan sendi/urat: lutut (intra-articular), bahu beku (frozen shoulder),
   trigger finger, De Quervain, plantar fasciitis/tumit, keloid, PRP
 - Lain-lain yang perlu slot doktor: sedut cecair lutut (knee aspiration),
