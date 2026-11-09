@@ -21,7 +21,7 @@ import {
   type LeadStage,
   type Tag,
 } from "@/lib/types";
-import { PIPELINES, type PipelineConversationRow, type PipelineKey } from "@/lib/data/conversations";
+import type { PipelineConversationRow } from "@/lib/data/conversations";
 
 const STAGE_ACCENT: Record<LeadStage, string> = {
   new: "border-t-sky-400",
@@ -103,14 +103,10 @@ function toPatients(conversations: PipelineConversationRow[]): PatientCard[] {
 export function PipelineBoard({
   conversations,
   today,
-  pipeline = "weight-loss",
 }: {
   conversations: PipelineConversationRow[];
   today: string;
-  /** Which board this is — what Delete takes the patient off. */
-  pipeline?: PipelineKey;
 }) {
-  const board = PIPELINES[pipeline];
   const router = useRouter();
   const [pending, start] = useTransition();
   const [dragOver, setDragOver] = useState<LeadStage | null>(null);
@@ -130,14 +126,14 @@ export function PipelineBoard({
   const remove = (p: PatientCard, name: string) => {
     if (
       !window.confirm(
-        `Remove ${name} from the ${board.label.toLowerCase()} pipeline?\n\n` +
-          `Their chats stay in the inbox. A fresh ${board.label.toLowerCase()} enquiry will ` +
-          `add them back to New. You can also add the "${board.tag}" tag in their chat.`,
+        `Remove ${name} from the pipeline?\n\n` +
+          "Their chats stay in the inbox. A fresh weight-loss enquiry will " +
+          'add them back to New. You can also add the "weight-loss" tag in their chat.',
       )
     )
       return;
     start(async () => {
-      const res = await removeFromPipeline(p.contactId, p.conversationIds, pipeline);
+      const res = await removeFromPipeline(p.contactId, p.conversationIds);
       if (!res.ok) window.alert(`Could not remove: ${res.error ?? "unknown error"}`);
       router.refresh();
     });

@@ -25,7 +25,7 @@ const SITE = "https://team-crm-one.vercel.app";
 const PAGES = ["/login", "/chat/dungun", "/chat/paka"];
 // Offline only. Left out: test-pipeline-actions (needs a running server) and
 // test-tca-sheet (signs in to Google).
-const TESTS = ["test-booking-pipeline", "test-booking-writers", "test-minor-surgery-pipeline", "test-bot-rules", "test-cms-booking-sync", "test-contact-phones",
+const TESTS = ["test-booking-pipeline", "test-booking-writers", "test-bot-rules", "test-cms-booking-sync", "test-contact-phones",
   "test-openrouter-adapter", "test-panel-size", "test-pipeline-follow-up", "test-theme", "test-webchat-source", "test-weight-loss-pipeline"];
 const WATCH_MINUTES = 15;
 const STATUS = join(ROOT, ".ship-status.json");
