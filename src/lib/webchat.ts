@@ -59,8 +59,39 @@ export async function findWebConversation(admin: Admin, clinic: WebClinic, sessi
   return data ? (data.id as string) : null;
 }
 
+/* Where the visitor found the chat link (owner, 9 Nov 2026: "which channel
+   brings patients"). Each place the link is posted carries ?src=… — the Google
+   profile, the websites' buttons, the Facebook/Instagram/TikTok bios — and the
+   thread is tagged with it, so the inbox shows the source on every chat. The
+   page remembers the FIRST source it was opened from (web-chat.tsx), so a
+   patient who comes back through a plain link keeps the original credit.
+   No ?src (or an unknown one) = the Google profile, as before this existed. */
+export const WEB_SOURCES = {
+  google: { tag: "google", color: "#f59e0b", label: "Google" },
+  website: { tag: "website", color: "#0d9488", label: "Website" },
+  facebook: { tag: "facebook", color: "#1877f2", label: "Facebook" },
+  instagram: { tag: "instagram", color: "#e1306c", label: "Instagram" },
+  tiktok: { tag: "tiktok", color: "#111827", label: "TikTok" },
+} as const;
+export type WebSource = keyof typeof WEB_SOURCES;
+const SOURCE_ALIASES: Record<string, WebSource> = {
+  google: "google", maps: "google", gbp: "google",
+  website: "website", web: "website", site: "website",
+  facebook: "facebook", fb: "facebook",
+  instagram: "instagram", ig: "instagram",
+  tiktok: "tiktok", tt: "tiktok",
+};
+/** A known source from a ?src= value, or null. */
+export function webSource(v: unknown): WebSource | null {
+  if (typeof v !== "string") return null;
+  return SOURCE_ALIASES[v.trim().toLowerCase()] ?? null;
+}
+
 /** Find or create line → contact → conversation for a visitor's first message. */
-export async function ensureWebConversation(admin: Admin, clinic: WebClinic, session: string): Promise<string> {
+export async function ensureWebConversation(
+  admin: Admin, clinic: WebClinic, session: string, source: WebSource | null = null,
+): Promise<string> {
+  const src = WEB_SOURCES[source ?? "google"];
   const c = WEB_CLINICS[clinic];
 
   const { data: line, error: lineErr } = await admin
@@ -80,7 +111,7 @@ export async function ensureWebConversation(admin: Admin, clinic: WebClinic, ses
     // patient gives a name.
     const { data: created, error } = await admin
       .from("contacts")
-      .insert({ wa_id: waId, name: `Pelawat Google ${session.slice(0, 4).toUpperCase()}` })
+      .insert({ wa_id: waId, name: `Pelawat ${src.label} ${session.slice(0, 4).toUpperCase()}` })
       .select("id")
       .single();
     if (error || !created) throw new Error(`web contact: ${error?.message}`);
@@ -100,7 +131,7 @@ export async function ensureWebConversation(admin: Admin, clinic: WebClinic, ses
     .select("id")
     .single();
   if (convErr || !newConv) throw new Error(`web conversation: ${convErr?.message}`);
-  await tagConversation(admin, newConv.id as string, "google", "#f59e0b");
+  await tagConversation(admin, newConv.id as string, src.tag, src.color);
   return newConv.id as string;
 }
 

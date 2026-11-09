@@ -234,6 +234,14 @@ number Meta can restrict. Patients chat on the clinic's own page instead:
   clinic, ask for name + phone before any booking or handoff.
 - The Dungun and Paka websites (`hijraadungun.github.io`,
   `hijraapaka.github.io`) point every former wa.me button here.
+- **Source tags (2026-11-09):** every posted link carries `?src=` —
+  `maps` (Google profile), `website` (the sites' buttons), `facebook`/`fb`,
+  `instagram`/`ig`, `tiktok`/`tt` (`WEB_SOURCES` in `lib/webchat.ts`). The page
+  keeps the FIRST source in localStorage and sends it with each message; the
+  thread is tagged with it (tag `google`/`website`/`facebook`/`instagram`/
+  `tiktok`) and the visitor named "Pelawat Facebook XXXX" etc. when the thread
+  is made. No/unknown src = Google, as before. Test:
+  `scripts/test-webchat-source.mjs`.
 
 ## Bot provider: OpenRouter (2026-10-27)
 

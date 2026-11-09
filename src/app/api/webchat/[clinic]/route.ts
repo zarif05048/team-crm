@@ -10,6 +10,7 @@ import {
   findWebConversation,
   isSessionId,
   isWebClinic,
+  webSource,
 } from "@/lib/webchat";
 
 // The public Google web chat (lib/webchat.ts). No login: the visitor's
@@ -64,11 +65,11 @@ export async function GET(request: Request, { params }: Ctx) {
   );
 }
 
-/** A visitor's message. Body: { s: session, id: client message id, text }. */
+/** A visitor's message. Body: { s: session, id: client message id, text, src?: where the link was found }. */
 export async function POST(request: Request, { params }: Ctx) {
   const { clinic } = await params;
   if (!isWebClinic(clinic)) return bad("unknown clinic", 404);
-  const body = (await request.json().catch(() => null)) as { s?: unknown; id?: unknown; text?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as { s?: unknown; id?: unknown; text?: unknown; src?: unknown } | null;
   if (!body || !isSessionId(body.s) || !isSessionId(body.id)) return bad("bad request");
   const text = typeof body.text === "string" ? body.text.trim() : "";
   if (!text) return bad("empty");
@@ -77,7 +78,8 @@ export async function POST(request: Request, { params }: Ctx) {
   const admin = createAdminClient();
   let conversationId: string;
   try {
-    conversationId = await ensureWebConversation(admin, clinic, body.s);
+    // the source only matters on the first message, when the thread is made and tagged
+    conversationId = await ensureWebConversation(admin, clinic, body.s, webSource(body.src));
   } catch (err) {
     console.error("[webchat] open conversation failed:", err);
     return bad("could not start the chat", 500);

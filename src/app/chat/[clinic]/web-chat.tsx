@@ -45,6 +45,23 @@ function newSession(clinic: string): string {
   return id;
 }
 
+/* Where this browser first found the chat link: ?src=facebook, ?src=maps… on
+   the links the clinic posts (lib/webchat.ts WEB_SOURCES). The FIRST one is
+   kept, so coming back later through a plain link does not take the credit
+   away from the post that brought them. Sent with each message; the server
+   only uses it when the thread is first made. */
+const srcKey = (clinic: string) => `hijraa-chat-src:${clinic}`;
+function rememberSource(clinic: string): string | null {
+  let fromUrl: string | null = null;
+  try { fromUrl = new URLSearchParams(window.location.search).get("src")?.slice(0, 20) || null; } catch { /* no URL */ }
+  try {
+    const kept = localStorage.getItem(srcKey(clinic));
+    if (kept) return kept;
+    if (fromUrl) localStorage.setItem(srcKey(clinic), fromUrl);
+  } catch { /* private mode: this visit's link only */ }
+  return fromUrl;
+}
+
 const hhmm = (iso: string) =>
   new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kuala_Lumpur", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(iso));
 const dayKey = (iso: string) =>
@@ -133,6 +150,9 @@ export function WebChat({ clinic, name }: { clinic: string; name: string }) {
     } catch { /* offline for a moment — the next tick tries again */ }
   }, [clinic, session, merge]);
 
+  // Note where the link came from as soon as the page opens, before any message.
+  useEffect(() => { rememberSource(clinic); }, [clinic]);
+
   // Read the thread while the page is on screen; pause when it is not.
   useEffect(() => {
     if (!session) return;
@@ -162,7 +182,7 @@ export function WebChat({ clinic, name }: { clinic: string; name: string }) {
       const r = await fetch(`/api/webchat/${clinic}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ s: sid, id: draft.clientId, text: draft.body }),
+        body: JSON.stringify({ s: sid, id: draft.clientId, text: draft.body, src: rememberSource(clinic) }),
       });
       if (r.status === 429) {
         const j = await r.json().catch(() => ({}));
