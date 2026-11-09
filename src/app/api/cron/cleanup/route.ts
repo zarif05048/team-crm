@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { authorizeCron, logCronRun } from "@/lib/cron-auth";
-import { moveUnansweredFollowUps } from "@/lib/pipeline-no-response";
+import { moveUnansweredFollowUpsAll } from "@/lib/pipeline-no-response";
 import { malaysiaDate } from "@/lib/pipeline-follow-up";
 
 // Node runtime (service-role client) and never cached.
@@ -46,7 +46,8 @@ async function runCleanup(request: Request) {
      the cleanup below, and never stopped by it. */
   let noResponse: { moved: number; error?: string };
   try {
-    noResponse = await moveUnansweredFollowUps(sb, malaysiaDate(new Date().toISOString()));
+    // every board: weight loss and minor surgery (2026-11-09)
+    noResponse = await moveUnansweredFollowUpsAll(sb, malaysiaDate(new Date().toISOString()));
   } catch (e) {
     noResponse = { moved: 0, error: e instanceof Error ? e.message : String(e) };
   }

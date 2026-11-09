@@ -118,29 +118,31 @@ export async function getConversations(): Promise<ConversationListRow[]> {
   return toListRows(convos, numbers);
 }
 
-/**
- * The tag that puts a thread on the Pipeline board. A database trigger adds it
- * the first time a patient's message mentions weight loss (and starts the
- * thread in "new") — see migration 2026-09-23_weight_loss_pipeline.sql. Staff
- * can also add or remove it by hand from the thread's tag bar.
- */
-export const WEIGHT_LOSS_TAG = "weight-loss";
+// The boards live in lib/pipelines.ts (no server imports, so the client board
+// can use them); re-exported here for server callers.
+import { PIPELINES, type PipelineKey } from "@/lib/pipelines";
+export { WEIGHT_LOSS_TAG, MINOR_SURGERY_TAG, PIPELINES, isPipelineKey, type PipelineKey } from "@/lib/pipelines";
+
+/** Weight-loss board — kept for older callers. */
+export async function getWeightLossPipeline(): Promise<PipelineConversationRow[]> {
+  return getPipeline("weight-loss");
+}
 
 /**
- * Weight-loss enquiries only, for the Pipeline board. Not taken from
+ * One board's threads (those carrying its tag). Not taken from
  * getConversations(): that is the newest 200 threads of every kind, so an
- * older weight-loss lead would silently fall off the board.
+ * older lead would silently fall off the board.
  *
  * Same narrow columns as the inbox list — the board refreshes on the same
  * realtime events, so the same egress care applies.
  */
-export async function getWeightLossPipeline(): Promise<PipelineConversationRow[]> {
+export async function getPipeline(key: PipelineKey): Promise<PipelineConversationRow[]> {
   const supabase = await createClient();
 
   const { data: tag } = await supabase
     .from("tags")
     .select("id")
-    .eq("name", WEIGHT_LOSS_TAG)
+    .eq("name", PIPELINES[key].tag)
     .maybeSingle();
   // No tag yet = the migration hasn't been run; nothing is in the pipeline.
   if (!tag) return [];
@@ -162,7 +164,7 @@ export async function getWeightLossPipeline(): Promise<PipelineConversationRow[]
   ]);
 
   if (error) {
-    console.error("[data] getWeightLossPipeline:", error.message);
+    console.error(`[data] getPipeline(${key}):`, error.message);
     return [];
   }
   if (!convos?.length) return [];
@@ -170,7 +172,7 @@ export async function getWeightLossPipeline(): Promise<PipelineConversationRow[]
   // `wl` only exists to filter the rows; don't hand it to the board.
   for (const c of convos as Record<string, unknown>[]) delete c.wl;
   const rows = toListRows(convos, numbers) as PipelineConversationRow[];
-  // Replies on ANY line count, even if that thread isn't tagged weight-loss.
+  // Replies on ANY line count, even if that thread isn't on this board.
   const { data: replies, error: replyError } = await supabase
     .from("conversations")
     .select("contact_id, last_inbound_at")

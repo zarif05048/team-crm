@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { WEIGHT_LOSS_TAG } from "@/lib/data/conversations";
+import { PIPELINES, WEIGHT_LOSS_TAG, type PipelineKey } from "@/lib/data/conversations";
 import { unansweredFollowUps } from "@/lib/pipeline-follow-up";
 
 /**
@@ -17,8 +17,9 @@ import { unansweredFollowUps } from "@/lib/pipeline-follow-up";
 export async function moveUnansweredFollowUps(
   sb: SupabaseClient,
   today: string,
+  tagName: string = WEIGHT_LOSS_TAG,
 ): Promise<{ moved: number; error?: string }> {
-  const { data: tag } = await sb.from("tags").select("id").eq("name", WEIGHT_LOSS_TAG).maybeSingle();
+  const { data: tag } = await sb.from("tags").select("id").eq("name", tagName).maybeSingle();
   if (!tag) return { moved: 0 };
 
   const { data: convos, error } = await sb
@@ -67,4 +68,24 @@ export async function moveUnansweredFollowUps(
     .select("id");
   if (moveError) return { moved: 0, error: moveError.message };
   return { moved: moved?.length ?? 0 };
+}
+
+/** The same sweep for every board (the daily cron). One board's failure does
+ *  not stop the others; the errors are reported together. */
+export async function moveUnansweredFollowUpsAll(
+  sb: SupabaseClient,
+  today: string,
+): Promise<{ moved: number; error?: string }> {
+  let moved = 0;
+  const errors: string[] = [];
+  for (const key of Object.keys(PIPELINES) as PipelineKey[]) {
+    try {
+      const r = await moveUnansweredFollowUps(sb, today, PIPELINES[key].tag);
+      moved += r.moved;
+      if (r.error) errors.push(`${key}: ${r.error}`);
+    } catch (e) {
+      errors.push(`${key}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  return errors.length ? { moved, error: errors.join("; ") } : { moved };
 }
