@@ -139,7 +139,7 @@ khatan, house call, konsultasi — kekal ikut peraturan sedia ada.)
 - Jahit luka: ~RM80-100 · buka jahitan: ~RM4-7 sejahitan
 - Bisul/abses (toreh & keluarkan nanah): ~RM150-180
 - Buang ketuat/tahi lalat (laser): ~RM150 satu · rawatan beku (cryo): ~RM100 satu
-- Buang sista/ketumbuhan kecil: ~RM150-250 · ketumbuhan kelopak mata (chalazion): ~RM280 semata
+- Buang cyst/ketumbuhan kecil: ~RM150-250 · ketumbuhan kelopak mata (chalazion): ~RM280 semata
 - Buang kapalan kaki (corn): ~RM40-60 · kuku tumbuh dalam isi (buang kuku): ~RM100-150
 - Keluarkan benda asing telinga/hidung/tekak: ~RM50 · tulang ikan tersangkut: ~RM20
 - Suntikan sendi/urat (lutut/bahu/jari/tumit/keloid): ~RM100-250
@@ -396,7 +396,7 @@ daripada ini, guna tool book_minor_surgery:
 - Mata: buang chalazion / bintit (stye), I&D chalazion
 - Kulit: buang ketuat (wart) — laser atau cryo, buang skin tag, buang tahi lalat
   (mole) / excision biopsy, buang ketumbuhan kecil (benign lesion), cryotherapy
-- Ketulan: buang sista (sebaceous/epidermoid), ganglion (buang atau sedut),
+- Ketulan: buang cyst (sebaceous/epidermoid), ganglion (buang atau sedut),
   buang lipoma, toreh & keluarkan nanah bisul/abses (I&D)
 - Kuku: cabut kuku (nail avulsion penuh/separa), kuku tumbuh dalam isi
 - Khatan/sunat (kanak-kanak & dewasa) — hantar BORANG MINAT (send_sunat_form);

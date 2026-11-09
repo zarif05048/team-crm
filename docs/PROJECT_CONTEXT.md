@@ -369,7 +369,7 @@ on the same stages, columns, follow-up dates and Not Respond rule
 - Tag `minor-surgery`: added by the trigger in
   `2026-11-09_minor_surgery_pipeline.sql` on the first inbound message about a
   procedure on the TCA list (`is_minor_surgery_enquiry`: ketuat, tahi lalat,
-  skin tag, sista/cyst, lipoma, benjol, bisul/abses, kuku masuk, chalazion,
+  skin tag, cyst, lipoma, benjol, bisul/abses, kuku masuk, chalazion,
   "pembedahan kecil"…; calibrated on 60 days ≈ 49 threads), and — as before —
   by `book_minor_surgery` / the "TCA list" button, which also move the card to
   Booking. Sunat is NOT on this board (interest-form flow).
