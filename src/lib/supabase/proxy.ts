@@ -33,10 +33,16 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // IMPORTANT: do not run code between createServerClient and getUser().
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // IMPORTANT: do not run code between createServerClient and getClaims().
+  //
+  // getClaims, not getUser (9 Nov 2026): this runs on EVERY request, and
+  // getUser asked Supabase Auth over the network each time — ~6,000 calls a
+  // day, each logged twice (gateway + auth), on a free plan over its log
+  // quota. The project signs with an asymmetric key (ES256, JWKS published),
+  // so getClaims verifies the JWT here and still refreshes an expiring
+  // session into the cookies. Pages and actions keep their own getUser.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const user = claimsData?.claims ?? null;
 
   const path = request.nextUrl.pathname;
   const isPublic = PUBLIC_PATHS.some((p) => path.startsWith(p));
