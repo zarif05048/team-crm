@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendText, sendTemplate } from "@/lib/whatsapp/send";
 import { addToTcaList } from "@/lib/sheets/tca";
 import { isWindowOpen, type LeadStage } from "@/lib/types";
-import { WEIGHT_LOSS_TAG } from "@/lib/data/conversations";
+import { PIPELINES, isPipelineKey, type PipelineKey } from "@/lib/data/conversations";
 import { recordBookingStage } from "@/lib/pipeline-booking";
 import { isWeb } from "@/lib/webchat";
 
@@ -379,15 +379,19 @@ export async function setPatientStage(
 }
 
 /**
- * Pipeline board delete: take a patient off the board without touching their
- * chats. Removes the weight-loss tag from all their threads and marks the
- * contact so older/replayed messages cannot restore them. A fresh weight-loss
- * enquiry after removal starts a New prospect (2026-10-05_weight_loss_reenquiry.sql).
+ * Pipeline board delete: take a patient off ONE board without touching their
+ * chats. Removes that board's tag from all their threads and marks the contact
+ * in that board's own column, so older/replayed messages cannot restore them.
+ * A fresh enquiry after removal starts a New prospect
+ * (2026-10-05_weight_loss_reenquiry.sql, 2026-11-09_minor_surgery_pipeline.sql).
  */
 export async function removeFromPipeline(
   contactId: string,
   conversationIds: string[],
+  pipeline: PipelineKey = "weight-loss",
 ): Promise<ActionState> {
+  if (!isPipelineKey(pipeline)) return { ok: false, error: "Unknown pipeline." };
+  const board = PIPELINES[pipeline];
   const supabase = await createClient();
   const {
     data: { user },
@@ -399,14 +403,14 @@ export async function removeFromPipeline(
   // silently re-add an older message.
   const { error: markErr } = await admin
     .from("contacts")
-    .update({ pipeline_removed_at: new Date().toISOString() })
+    .update({ [board.removedColumn]: new Date().toISOString() })
     .eq("id", contactId);
   if (markErr) return { ok: false, error: markErr.message };
 
   const { data: tag } = await admin
     .from("tags")
     .select("id")
-    .eq("name", WEIGHT_LOSS_TAG)
+    .eq("name", board.tag)
     .maybeSingle();
   if (!tag || !conversationIds.length) return { ok: true };
 

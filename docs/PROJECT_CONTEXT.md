@@ -359,6 +359,27 @@ the weight-loss programme.
   patient whose threads disagree sits at the furthest stage (`STAGE_RANK`),
   with Not Respond between Follow Up and Booking.
 
+## Minor-surgery pipeline (added 2026-11-09)
+
+Owner: "focus on weight loss, minor surgery". `/pipeline` now has two tabs —
+Weight loss (`/pipeline`) and Minor surgery (`/pipeline?p=minor-surgery`) —
+on the same stages, columns, follow-up dates and Not Respond rule
+(`PIPELINES` in `lib/data/conversations.ts`; the cron sweeps both).
+
+- Tag `minor-surgery`: added by the trigger in
+  `2026-11-09_minor_surgery_pipeline.sql` on the first inbound message about a
+  procedure on the TCA list (`is_minor_surgery_enquiry`: ketuat, tahi lalat,
+  skin tag, sista/cyst, lipoma, benjol, bisul/abses, kuku masuk, chalazion,
+  "pembedahan kecil"…; calibrated on 60 days ≈ 49 threads), and — as before —
+  by `book_minor_surgery` / the "TCA list" button, which also move the card to
+  Booking. Sunat is NOT on this board (interest-form flow).
+- A thread already on the weight-loss board keeps its stage; staff are never
+  prospects; the migration backfilled the last 60 days only.
+- Delete on this board sets `contacts.surgery_removed_at` (its own column);
+  stage and the follow-up/booking dates are shared with weight loss (one per
+  thread / contact) — a patient on both boards shows the same stage on both.
+- Test: `scripts/test-minor-surgery-pipeline.mjs` (in the ship checks).
+
 ## Pipeline follow-up dates (2026-10-04)
 
 - Booking cards have an editable **Booking / follow-up date**. The former
