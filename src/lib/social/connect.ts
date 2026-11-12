@@ -16,6 +16,8 @@ export async function adminId(): Promise<string | null> {
 
 /** Back to Settings → Channels with one line saying what happened. */
 export function backToSettings(kind: "ok" | "error", message: string) {
+  // in the server log too: the banner is only seen by whoever connected
+  (kind === "ok" ? console.log : console.error)(`[connect] ${kind}: ${message.slice(0, 300)}`);
   const u = new URL(`${publicBase()}/settings`);
   u.searchParams.set(kind === "ok" ? "channel_ok" : "channel_error", message.slice(0, 300));
   u.hash = "channels";
