@@ -70,7 +70,7 @@ export async function sendSocial(phoneNumberId: string, to: string, payload: Soc
 /** The commenter's newest comment in this thread, and whether it has had its
  *  one private message. Read from the thread itself: inbound rows are the
  *  comments ("fbc:<comment id>"), outbound rows carry the marks above. */
-async function latestComment(phoneNumberId: string, waId: string): Promise<{ commentId: string; answered: boolean; at: string } | null> {
+async function latestComment(phoneNumberId: string, waId: string): Promise<{ conversationId: string; commentId: string; answered: boolean; at: string } | null> {
   const admin = createAdminClient();
   const { data: conv } = await admin.from("conversations")
     .select("id, contact:contacts!inner(wa_id), whatsapp_number:whatsapp_numbers!inner(phone_number_id)")
@@ -83,7 +83,7 @@ async function latestComment(phoneNumberId: string, waId: string): Promise<{ com
   const newest = list.find((m) => m.direction === "inbound" && !m.wa_message_id.startsWith("fbc:pr:") && !m.wa_message_id.startsWith("fbc:pub:"));
   if (!newest) return null;
   const commentId = bareId(newest.wa_message_id);
-  return { commentId, answered: list.some((m) => m.wa_message_id === privateReplyId(commentId)), at: newest.created_at };
+  return { conversationId: (conv as { id: string }).id, commentId, answered: list.some((m) => m.wa_message_id === privateReplyId(commentId)), at: newest.created_at };
 }
 
 async function sendOnComments(
@@ -114,7 +114,24 @@ async function sendOnComments(
     if (r.reconnect) await noteAccountError("facebook", pageId, r.error ?? "The page's access no longer works.", true);
     return { ok: false, error: r.error };
   }
-  // and say so under the comment — best effort: the private message already went
-  await replyToCommentPublicly(c.commentId, token, PUBLIC_ACK).catch(() => null);
+  // and say so under the comment. The private message already went, so a
+  // refusal here does not fail the send — but it is shown in the thread: the
+  // public note when it posts, Facebook's own words when it does not.
+  const ack = await replyToCommentPublicly(c.commentId, token, PUBLIC_ACK)
+    .catch((e) => ({ ok: false, error: (e as Error).message, commentId: undefined }));
+  const admin = createAdminClient();
+  if (ack.ok) {
+    await admin.from("messages").insert({
+      conversation_id: c.conversationId, wa_message_id: ack.commentId ? publicReplyId(ack.commentId) : null,
+      direction: "outbound", type: "text", body: `💬 Public reply: ${PUBLIC_ACK}`, status: "sent",
+      sent_by: null, sent_by_bot: false, created_at: new Date().toISOString(),
+    });
+  } else {
+    console.error("[facebook] public note under the comment failed:", ack.error);
+    await admin.from("notes").insert({
+      conversation_id: c.conversationId, author_id: null, mentions: [],
+      body: `⚠️ The private message was sent, but Facebook did not accept the public note under the comment: ${ack.error ?? "no reason given"}`,
+    });
+  }
   return { ok: true, waMessageId: privateReplyId(c.commentId) };
 }
