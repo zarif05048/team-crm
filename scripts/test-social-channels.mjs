@@ -467,6 +467,7 @@ await check("Hana's note for a review: public, private about health, WhatsApp on
   assert.match(note, /1–3 stars:.*WhatsApp 013-923 7548, https:\/\/wa\.me\/60139237548/);
   assert.match(note, /4–5 stars:.*No phone number or link/);
   assert.match(note, /Do NOT introduce yourself/);
+  assert.match(note, /no "welcome back"/);
   assert.equal(L.REVIEW_AUTO_REPLY_MIN_STARS, 4);
 });
 

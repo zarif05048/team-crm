@@ -54,7 +54,8 @@ export function googleAuthorizeUrl(redirectUri: string, state: string): string {
   u.searchParams.set("response_type", "code");
   u.searchParams.set("scope", GOOGLE_SCOPE);
   u.searchParams.set("access_type", "offline");
-  u.searchParams.set("prompt", "consent");
+  // select_account: Google always asks which account — Dungun and Paka are managed by different ones
+  u.searchParams.set("prompt", "consent select_account");
   u.searchParams.set("include_granted_scopes", "true");
   u.searchParams.set("state", state);
   return u.toString();
