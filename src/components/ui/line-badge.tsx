@@ -1,55 +1,49 @@
+import { Globe, Megaphone, MessageCircle, MessageSquareText, MessagesSquare, Music2, Phone, Star, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * Small colored chip naming which WhatsApp line a conversation lives on
- * (Dungun / Paka / Marketing / Google web chat / anything else by its display
- * name). With three
- * clinic lines flowing into one inbox, this is how staff tell them apart.
+ * Small chip naming which line a conversation lives on — the channel by
+ * colour and icon (WhatsApp green, Google Review amber, Facebook blue…), the
+ * branch in words. The colours are the .chan-* sets in globals.css, one for
+ * the light theme and one for the dark, so a badge reads the same in both
+ * (owner, 13 Nov 2026: "make the inbox colour design nice, more practical").
  */
 
-function classify(displayName: string | null | undefined): {
-  label: string;
-  classes: string;
-} {
+export type ChannelTone = "wa" | "review" | "fb" | "fbc" | "tt" | "web" | "mkt" | "other";
+
+const ICON: Record<ChannelTone, LucideIcon> = {
+  wa: MessageCircle, review: Star, fb: MessagesSquare, fbc: MessageSquareText,
+  tt: Music2, web: Globe, mkt: Megaphone, other: Phone,
+};
+
+/** The tag a line's threads all carry anyway — the badge already says it. */
+export const CHANNEL_TAG: Partial<Record<ChannelTone, string>> = {
+  review: "google-review", fb: "facebook", fbc: "facebook-comment", tt: "tiktok",
+};
+
+function classify(displayName: string | null | undefined): { label: string; tone: ChannelTone } {
   const dn = (displayName ?? "").toLowerCase();
-  // Google reviews (lib/social) — before the web chat, whose name also says Google.
-  if (dn.includes("review")) {
-    const where = dn.includes("paka") ? "Paka" : dn.includes("dungun") ? "Dungun" : "";
-    return { label: `Reviews${where ? ` · ${where}` : ""}`, classes: "bg-yellow-100 text-yellow-800 ring-yellow-200" };
-  }
-  // Google web chat (no WhatsApp) — before the branch names, which it contains.
-  if (dn.includes("google")) {
-    const where = dn.includes("paka") ? "Paka" : dn.includes("dungun") ? "Dungun" : "";
-    return { label: `Google${where ? ` · ${where}` : ""}`, classes: "bg-amber-100 text-amber-800 ring-amber-200" };
-  }
-  // Facebook Messenger / TikTok lines (lib/social) — also before the branch names.
-  if (dn.includes("facebook") || dn.includes("tiktok")) {
-    const where = dn.includes("paka") ? "Paka" : dn.includes("dungun") ? "Dungun" : "";
-    if (dn.includes("comments")) return { label: `FB Comments${where ? ` · ${where}` : ""}`, classes: "bg-indigo-100 text-indigo-800 ring-indigo-200" };
-    return dn.includes("facebook")
-      ? { label: `Facebook${where ? ` · ${where}` : ""}`, classes: "bg-blue-100 text-blue-800 ring-blue-200" }
-      : { label: `TikTok${where ? ` · ${where}` : ""}`, classes: "bg-slate-800 text-white ring-slate-900" };
-  }
-  // Order matters: the marketing line's name mentions both branches.
-  if (dn.includes("marketing")) {
-    return { label: "Marketing", classes: "bg-violet-100 text-violet-700 ring-violet-200" };
-  }
-  if (dn.includes("dungun")) {
-    return { label: "Dungun", classes: "bg-emerald-100 text-emerald-700 ring-emerald-200" };
-  }
-  if (dn.includes("paka")) {
-    return { label: "Paka", classes: "bg-sky-100 text-sky-700 ring-sky-200" };
-  }
-  return {
-    label: displayName || "Unknown line",
-    classes: "bg-slate-100 text-slate-600 ring-slate-200",
-  };
+  const where = dn.includes("paka") ? "Paka" : dn.includes("dungun") ? "Dungun" : "";
+  const at = (s: string) => (where ? `${s} · ${where}` : s);
+  // Order matters: names below contain each other ("Google Reviews" and
+  // "Google Chat" both say Google; the marketing line names both branches).
+  if (dn.includes("review")) return { label: at("Review"), tone: "review" };
+  if (dn.includes("google")) return { label: at("Web chat"), tone: "web" };
+  if (dn.includes("facebook")) return dn.includes("comments") ? { label: at("FB Comment"), tone: "fbc" } : { label: at("Facebook"), tone: "fb" };
+  if (dn.includes("tiktok")) return { label: at("TikTok"), tone: "tt" };
+  if (dn.includes("marketing")) return { label: "Marketing", tone: "mkt" };
+  if (where) return { label: `WhatsApp · ${where}`, tone: "wa" };
+  return { label: displayName || "Unknown line", tone: "other" };
 }
 
-/** Short line label ("Marketing" / "Dungun" / "Paka" / raw name) — used by the
- *  inbox line filter so its chips match the badges on each conversation. */
+/** The badge's words ("WhatsApp · Dungun", "Review · Paka"…) — also the
+ *  inbox filter's and the analytics' name for a line. */
 export function lineLabel(displayName: string | null | undefined): string {
   return classify(displayName).label;
+}
+/** Which channel colour a line takes. */
+export function lineTone(displayName: string | null | undefined): ChannelTone {
+  return classify(displayName).tone;
 }
 
 export function LineBadge({
@@ -59,15 +53,17 @@ export function LineBadge({
   displayName: string | null | undefined;
   className?: string;
 }) {
-  const { label, classes } = classify(displayName);
+  const { label, tone } = classify(displayName);
+  const Icon = ICON[tone];
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset",
-        classes,
+        "chan-badge inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold",
+        `chan-${tone}`,
         className,
       )}
     >
+      <Icon className="h-3 w-3 shrink-0" aria-hidden fill={tone === "review" ? "currentColor" : "none"} />
       {label}
     </span>
   );

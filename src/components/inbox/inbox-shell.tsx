@@ -14,12 +14,12 @@ import type { ConversationListRow } from "@/lib/data/conversations";
    line it names: "Facebook Dungun" is the page's Messenger AND its post
    comments. Each is matched on the line's badge label (line-badge.tsx). */
 const GROUPS = [
-  { key: "wa-dungun", label: "WhatsApp Dungun", match: (l: string) => l === "Dungun" },
-  { key: "wa-paka", label: "WhatsApp Paka", match: (l: string) => l === "Paka" },
-  { key: "gr-dungun", label: "Google Review Dungun", match: (l: string) => l === "Reviews · Dungun" },
-  { key: "gr-paka", label: "Google Review Paka", match: (l: string) => l === "Reviews · Paka" },
-  { key: "fb-dungun", label: "Facebook Dungun", match: (l: string) => /^(Facebook|FB Comments) · Dungun$/.test(l) },
-  { key: "fb-paka", label: "Facebook Paka", match: (l: string) => /^(Facebook|FB Comments) · Paka$/.test(l) },
+  { key: "wa-dungun", label: "WhatsApp Dungun", match: (l: string) => l === "WhatsApp · Dungun" },
+  { key: "wa-paka", label: "WhatsApp Paka", match: (l: string) => l === "WhatsApp · Paka" },
+  { key: "gr-dungun", label: "Google Review Dungun", match: (l: string) => l === "Review · Dungun" },
+  { key: "gr-paka", label: "Google Review Paka", match: (l: string) => l === "Review · Paka" },
+  { key: "fb-dungun", label: "Facebook Dungun", match: (l: string) => /^(Facebook|FB Comment) · Dungun$/.test(l) },
+  { key: "fb-paka", label: "Facebook Paka", match: (l: string) => /^(Facebook|FB Comment) · Paka$/.test(l) },
 ] as const;
 const groupOf = (label: string) => GROUPS.find((g) => g.match(label))?.key ?? null;
 import { ResizableSplit } from "@/components/resizable-split";

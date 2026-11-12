@@ -1,12 +1,11 @@
 "use client";
 import { contactName } from "@/lib/contact-phone";
-import { tagTextColor } from "@/lib/tag-contrast";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Avatar } from "@/components/ui/avatar";
 import { Highlight } from "@/components/ui/highlight";
-import { LineBadge } from "@/components/ui/line-badge";
+import { CHANNEL_TAG, LineBadge, lineTone } from "@/components/ui/line-badge";
 import { cn, formatTime } from "@/lib/utils";
 import type { ConversationListRow } from "@/lib/data/conversations";
 
@@ -40,13 +39,18 @@ export function ConversationList({
         const name = contactName(c.contact);
         const preview = c.last_message?.body ?? "";
         const outbound = c.last_message?.direction === "outbound";
+        const tone = lineTone(c.whatsapp_number?.display_name);
+        // the tag every thread on this line carries says what the badge already says
+        const tags = c.tags.filter((t) => t.name !== CHANNEL_TAG[tone]);
         return (
           <li key={c.id}>
             <Link
               href={`/inbox/${c.id}`}
               className={cn(
-                "flex gap-3 px-4 py-3 transition-colors",
-                active ? "bg-brand-50" : "hover:bg-slate-50",
+                // a stripe in the channel's colour down the left edge: the list scans by channel at a glance
+                "chan-stripe flex gap-3 px-4 py-3 transition-colors",
+                `chan-${tone}`,
+                active ? "bg-brand-50" : c.unread > 0 ? "bg-slate-50/60 hover:bg-slate-50" : "hover:bg-slate-50",
               )}
             >
               <Avatar name={name} />
@@ -87,22 +91,23 @@ export function ConversationList({
                 </p>
                 <div className="mt-1 flex flex-wrap items-center gap-1.5">
                   <LineBadge displayName={c.whatsapp_number?.display_name} />
-                  {c.assignee && (
-                    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
-                      {c.assignee.full_name ?? "Assigned"}
-                    </span>
-                  )}
                   {c.stage !== "new" && (
-                    <span className="rounded bg-brand-100 px-1.5 py-0.5 text-[10px] font-medium capitalize text-primary">
+                    <span className="rounded-md bg-brand-100 px-1.5 py-0.5 text-[10px] font-semibold capitalize text-primary">
                       {c.stage}
                     </span>
                   )}
-                  {c.tags.map((t) => (
+                  {c.assignee && (
+                    <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">
+                      👤 {c.assignee.full_name ?? "Assigned"}
+                    </span>
+                  )}
+                  {/* tags: a dot in the tag's colour on a calm chip — a full colour fill on every row was loud */}
+                  {tags.map((t) => (
                     <span
                       key={t.id}
-                      className="rounded px-1.5 py-0.5 text-[10px] font-medium text-white"
-                      style={{ backgroundColor: t.color, color: tagTextColor(t.color) }}
+                      className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600"
                     >
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: t.color }} aria-hidden />
                       {t.name}
                     </span>
                   ))}

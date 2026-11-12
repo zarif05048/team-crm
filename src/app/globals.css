@@ -166,3 +166,27 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
 }
+
+/* Channel colours (owner, 13 Nov 2026: "make the inbox colour design nice,
+   more practical"): one set per channel — the line badge (components/ui/
+   line-badge.tsx) and the stripe down each inbox row. Plain hex, not the
+   palette: the dark theme remaps several palette shades, which had turned the
+   old badges into brown-on-black. */
+.chan-wa     { --chan-bg: #e8f8ee; --chan-fg: #0d7a3a; --chan-bd: #b7e9cb; --chan-stripe: #22c55e; }
+.chan-review { --chan-bg: #fff5d6; --chan-fg: #8a5600; --chan-bd: #f6d98a; --chan-stripe: #f5b301; }
+.chan-fb     { --chan-bg: #e8f0ff; --chan-fg: #1d4ed8; --chan-bd: #c0d4ff; --chan-stripe: #1877f2; }
+.chan-fbc    { --chan-bg: #eef0ff; --chan-fg: #4338ca; --chan-bd: #cfd3fa; --chan-stripe: #6366f1; }
+.chan-tt     { --chan-bg: #fdecf5; --chan-fg: #be185d; --chan-bd: #f8c6df; --chan-stripe: #ec4899; }
+.chan-web    { --chan-bg: #e5f7f4; --chan-fg: #0f766e; --chan-bd: #b3e6df; --chan-stripe: #14b8a6; }
+.chan-mkt    { --chan-bg: #f3eeff; --chan-fg: #6d28d9; --chan-bd: #ddcdff; --chan-stripe: #8b5cf6; }
+.chan-other  { --chan-bg: #f1f5f9; --chan-fg: #475569; --chan-bd: #dfe5ec; --chan-stripe: #94a3b8; }
+[data-theme="dark"] .chan-wa     { --chan-bg: #0e2a1a; --chan-fg: #6ee7a0; --chan-bd: #1d5236; }
+[data-theme="dark"] .chan-review { --chan-bg: #2c2208; --chan-fg: #fcd34d; --chan-bd: #5e4612; }
+[data-theme="dark"] .chan-fb     { --chan-bg: #0f1c3a; --chan-fg: #93b4ff; --chan-bd: #253f7a; }
+[data-theme="dark"] .chan-fbc    { --chan-bg: #191a3a; --chan-fg: #a9b4fd; --chan-bd: #35367c; }
+[data-theme="dark"] .chan-tt     { --chan-bg: #2e1222; --chan-fg: #f9a8d4; --chan-bd: #612346; }
+[data-theme="dark"] .chan-web    { --chan-bg: #0b2724; --chan-fg: #5eead4; --chan-bd: #1c4e48; }
+[data-theme="dark"] .chan-mkt    { --chan-bg: #221a3a; --chan-fg: #c4b5fd; --chan-bd: #44367c; }
+[data-theme="dark"] .chan-other  { --chan-bg: #1c1c1c; --chan-fg: #c2c2c2; --chan-bd: #383838; }
+.chan-badge { background: var(--chan-bg); color: var(--chan-fg); box-shadow: inset 0 0 0 1px var(--chan-bd); }
+.chan-stripe { box-shadow: inset 3px 0 0 var(--chan-stripe); }
