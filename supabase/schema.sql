@@ -334,8 +334,8 @@ alter table public.cron_runs enable row level security;
 -- sealed. Full rationale: supabase/migrations/2026-11-12_channel_accounts.sql
 create table if not exists public.channel_accounts (
   id                  uuid primary key default gen_random_uuid(),
-  provider            text not null check (provider in ('facebook', 'tiktok')),
-  external_id         text not null,                 -- Facebook page id / TikTok business account id
+  provider            text not null check (provider in ('facebook', 'tiktok', 'google')),
+  external_id         text not null,                 -- Facebook page id / TikTok business account id / Google location (accounts/1/locations/2)
   clinic              text not null check (clinic in ('dungun', 'paka')),
   name                text,                          -- the page's name / the account's @username
   access_token        text not null,                 -- sealed
@@ -353,6 +353,7 @@ create table if not exists public.channel_accounts (
 -- RLS on with no policies: service-role (server routes) only. No staff
 -- browser, and no realtime subscription, can read a row.
 alter table public.channel_accounts enable row level security;
+-- Google reviews are fetched every 10 minutes by pg_cron (supabase/migrations/2026-11-13_google_reviews.sql).
 
 -- ============================================================================
 --  Search indexes : inbox search by message text, name or phone

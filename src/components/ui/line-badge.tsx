@@ -12,6 +12,11 @@ function classify(displayName: string | null | undefined): {
   classes: string;
 } {
   const dn = (displayName ?? "").toLowerCase();
+  // Google reviews (lib/social) — before the web chat, whose name also says Google.
+  if (dn.includes("review")) {
+    const where = dn.includes("paka") ? "Paka" : dn.includes("dungun") ? "Dungun" : "";
+    return { label: `Reviews${where ? ` · ${where}` : ""}`, classes: "bg-yellow-100 text-yellow-800 ring-yellow-200" };
+  }
   // Google web chat (no WhatsApp) — before the branch names, which it contains.
   if (dn.includes("google")) {
     const where = dn.includes("paka") ? "Paka" : dn.includes("dungun") ? "Dungun" : "";

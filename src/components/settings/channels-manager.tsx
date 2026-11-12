@@ -11,7 +11,7 @@ import { disconnectChannel } from "@/app/(app)/settings/actions";
 
 export interface ChannelRow {
   id: string;
-  provider: "facebook" | "tiktok";
+  provider: "facebook" | "tiktok" | "google";
   clinic: "dungun" | "paka";
   name: string | null;
   status: "active" | "reauth";
@@ -19,15 +19,17 @@ export interface ChannelRow {
   connected_at: string;
 }
 
-const LABEL = { facebook: "Facebook", tiktok: "TikTok" } as const;
+const LABEL = { facebook: "Facebook", tiktok: "TikTok", google: "Google reviews" } as const;
 const BRANCH = { dungun: "Dungun", paka: "Paka" } as const;
 const linkBtn =
   "inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-surface px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50";
 
-export function ChannelsManager({ channels, tiktokReady, notice }: {
+export function ChannelsManager({ channels, tiktokReady, googleReady, notice }: {
   channels: ChannelRow[];
   /** the TikTok app's key and secret are on the server */
   tiktokReady: boolean;
+  /** the Google sign-in client's id and secret are on the server */
+  googleReady: boolean;
   notice?: { kind: "ok" | "error"; text: string } | null;
 }) {
   const router = useRouter();
@@ -45,7 +47,7 @@ export function ChannelsManager({ channels, tiktokReady, notice }: {
     <section id="channels" className="rounded-xl border border-slate-200 bg-surface">
       <header className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
         <MessagesSquare className="h-4 w-4 text-slate-500" />
-        <h2 className="text-sm font-semibold text-slate-800">Channels — Facebook &amp; TikTok</h2>
+        <h2 className="text-sm font-semibold text-slate-800">Channels — Facebook, TikTok &amp; Google reviews</h2>
         <span className="rounded-full bg-slate-100 px-2 text-xs text-slate-500">{channels.length}</span>
       </header>
 
@@ -86,6 +88,9 @@ export function ChannelsManager({ channels, tiktokReady, notice }: {
       <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-4 py-3">
         {/* plain links: each goes off to the provider's own sign-in page */}
         <a href="/api/connect/facebook/start" className={linkBtn}>Connect Facebook pages</a>
+        {googleReady
+          ? <a href="/api/connect/google/start" className={linkBtn}>Connect Google reviews</a>
+          : <span className="text-xs text-slate-400">Google reviews: waiting for the sign-in key (GOOGLE_BP_CLIENT_ID / GOOGLE_BP_CLIENT_SECRET on the server).</span>}
         {tiktokReady ? (
           <>
             <a href="/api/connect/tiktok/start?clinic=dungun" className={linkBtn}>Connect TikTok · Dungun</a>
@@ -99,7 +104,9 @@ export function ChannelsManager({ channels, tiktokReady, notice }: {
         Facebook pages are matched to a clinic by their name (Dungun / Paka); each brings its Messenger messages and the comments under its
         posts (a separate &quot;FB Comments&quot; line). Replies are possible for 24 hours after a person&apos;s last message on Facebook and 48 hours on
         TikTok; a comment gets one private message within 7 days, or a public reply any time. Connect again after the CRM adds a feature, so the
-        page grants it.
+        page grants it. Google reviews: sign in with the Google account that manages the clinic&apos;s Business Profile; new reviews arrive within
+        about 10 minutes, and a reply is posted publicly under the review (sending again replaces it). Hana thanks 4–5★ reviews herself and only
+        drafts a reply for 1–3★ ones, as an internal note for staff to check.
       </p>
     </section>
   );

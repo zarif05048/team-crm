@@ -1,7 +1,7 @@
 // What Meta and TikTok post to the webhooks, read into one shape the inbox
 // stores (lib/social/ingest.ts). Pure: no database, no network.
 import crypto from "node:crypto";
-import type { SocialChannel } from "./lines";
+import { reviewMessage, starCount, type SocialChannel } from "./lines";
 
 export interface SocialEvent {
   /** Messenger, a post comment, or TikTok — which inbox line it belongs on */
@@ -24,6 +24,8 @@ export interface SocialEvent {
   at: string;
   /** a post comment: the post it is under (its id, for its link) */
   postId?: string;
+  /** a Google review: may the bot answer it (new, and not answered yet) */
+  botMay?: boolean;
 }
 
 /* ------------------------------ Facebook ------------------------------ */
@@ -175,3 +177,50 @@ export function verifyTikTokSignature(
   const received = Buffer.from(s, "hex");
   return expected.length === received.length && crypto.timingSafeEqual(expected, received);
 }
+
+/* --------------------------- Google reviews --------------------------- */
+
+export interface GoogleReview {
+  reviewId?: string;
+  reviewer?: { displayName?: string; isAnonymous?: boolean };
+  starRating?: string;
+  comment?: string;
+  createTime?: string;
+  updateTime?: string;
+  reviewReply?: { comment?: string; updateTime?: string };
+}
+/** Reviews older than this are not brought in: the inbox keeps messages for a
+ *  year (api/cron/cleanup), and a review imported older would be deleted and
+ *  imported again every day. */
+export const REVIEW_MAX_AGE_DAYS = 180;
+/** The bot answers only a review this new — older unanswered ones wait for staff. */
+export const REVIEW_BOT_MAX_AGE_DAYS = 3;
+
+/** One Google review as inbox events: the review itself, and the clinic's
+ *  reply when it already has one (marked own: it is already on Google, so it
+ *  never takes the thread from the bot). `locationId` is "accounts/1/locations/2". */
+export function googleReviewEvents(locationId: string, r: GoogleReview, now = Date.now()): SocialEvent[] {
+  if (!r.reviewId || !r.createTime) return [];
+  const created = Date.parse(r.createTime);
+  if (!Number.isFinite(created) || now - created > REVIEW_MAX_AGE_DAYS * 86_400_000) return [];
+  const name = r.reviewer?.isAnonymous ? "Google user" : r.reviewer?.displayName?.trim() || "Google user";
+  const reply = r.reviewReply?.comment?.trim();
+  const out: SocialEvent[] = [{
+    provider: "greviews", accountId: locationId, userId: r.reviewId, userName: name, direction: "in",
+    messageId: r.reviewId, type: "text", body: reviewMessage(starCount(r.starRating), r.comment),
+    at: new Date(created).toISOString(),
+    botMay: !reply && now - created <= REVIEW_BOT_MAX_AGE_DAYS * 86_400_000,
+  }];
+  if (reply) {
+    const at = Date.parse(r.reviewReply?.updateTime ?? "");
+    out.push({
+      provider: "greviews", accountId: locationId, userId: r.reviewId, userName: name, direction: "out", own: true,
+      messageId: replyMessageKey(r.reviewId), type: "text", body: reply,
+      at: new Date(Number.isFinite(at) ? at : created).toISOString(),
+    });
+  }
+  return out;
+}
+/** The id the clinic's reply to a review is stored under ("gr:re:<review id>") —
+ *  the same whether the reply was posted from the CRM or found on Google. */
+export const replyMessageKey = (reviewId: string) => `re:${reviewId}`;

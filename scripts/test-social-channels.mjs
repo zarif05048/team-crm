@@ -405,4 +405,69 @@ await check("Facebook/TikTok replies send people on to the branch's WhatsApp", (
   assert.equal(L.withWhatsappLink(has, "dungun"), has);
 });
 
+/* --------------------------- Google reviews --------------------------- */
+
+const LOC = "accounts/111/locations/222";
+const NOW = Date.parse("2026-11-12T10:00:00Z");
+const review = (over) => ({ reviewId: "R1", reviewer: { displayName: "Siti Aminah" }, starRating: "FIVE", comment: "Doktor baik, tak lama tunggu",
+  createTime: "2026-11-12T08:00:00Z", updateTime: "2026-11-12T08:00:00Z", ...over });
+
+await check("a Google review line: its id carries the clinic and the profile path; no reply window", () => {
+  const line = L.socialLineOf(`gr:paka:${LOC}`);
+  eq(line, { provider: "greviews", account: "google", clinic: "paka", externalId: LOC, branch: "Paka", clinicName: "Klinik Hijraa 24 Jam Paka" });
+  assert.equal(L.providerOf("gr:R1"), "greviews");
+  assert.equal(L.lineName("greviews", "dungun"), "Google Reviews · Dungun");
+  assert.equal(L.socialWindowOpen("greviews", "2020-01-01T00:00:00Z", NOW), true, "a review can be answered years later");
+});
+
+await check("a review reads as its stars, then its words; the stars read back out", () => {
+  assert.equal(L.starCount("FOUR"), 4);
+  assert.equal(L.starCount("STAR_RATING_UNSPECIFIED"), null);
+  assert.equal(L.reviewMessage(5, " Bagus "), "⭐⭐⭐⭐⭐ 5/5\n\nBagus");
+  assert.equal(L.reviewMessage(2, ""), "⭐⭐ 2/5\n\n(stars only — no written review)");
+  assert.equal(L.reviewStars(L.reviewMessage(3, "Lama tunggu")), 3);
+  assert.equal(L.reviewStars("Hai, nak tanya harga"), null);
+});
+
+await check("Google reviews: a new unanswered one may go to the bot; an answered or old one may not", () => {
+  const fresh = E.googleReviewEvents(LOC, review({}), NOW);
+  eq(fresh.map((e) => [e.provider, e.userId, e.userName, e.direction, e.messageId, !!e.botMay]), [["greviews", "R1", "Siti Aminah", "in", "R1", true]]);
+  assert.match(fresh[0].body, /^⭐⭐⭐⭐⭐ 5\/5\n\nDoktor baik/u);
+  const answered = E.googleReviewEvents(LOC, review({ reviewReply: { comment: "Terima kasih!", updateTime: "2026-11-12T09:00:00Z" } }), NOW);
+  eq(answered.map((e) => [e.direction, e.messageId, !!e.own, !!e.botMay]), [["in", "R1", false, false], ["out", "re:R1", true, false]]);
+  const week = E.googleReviewEvents(LOC, review({ createTime: "2026-11-01T08:00:00Z" }), NOW);
+  assert.equal(week[0].botMay, false, "older than 3 days: staff, not the bot");
+  eq(E.googleReviewEvents(LOC, review({ createTime: "2026-01-01T08:00:00Z" }), NOW), [], "older than 180 days: not brought in at all");
+  assert.equal(E.googleReviewEvents(LOC, review({ reviewer: { isAnonymous: true, displayName: "x" } }), NOW)[0].userName, "Google user");
+});
+
+await check("a review lands on its profile's line, its reply beside it, and only a new one asks the bot", async () => {
+  const admin = fakeAdmin();
+  const GP = { provider: "google", external_id: LOC, clinic: "dungun", name: "Klinik Hijraa 24 Jam Dungun" };
+  const [newOne] = E.googleReviewEvents(LOC, review({}), NOW);
+  const t = await I.ingestSocialEvent(admin, GP, newOne);
+  assert.ok(t, "a new review asks the bot");
+  eq(admin.rows.whatsapp_numbers.map((r) => [r.phone_number_id, r.display_name]), [[`gr:dungun:${LOC}`, "Google Reviews · Dungun"]]);
+  eq(admin.rows.contacts.map((r) => [r.wa_id, r.name]), [["gr:R1", "Siti Aminah"]]);
+  eq(admin.rows.tags.map((x) => x.name), ["google-review"]);
+  assert.equal(await I.ingestSocialEvent(admin, GP, newOne), null, "the next sync finds it already here");
+  const [old, reply] = E.googleReviewEvents(LOC, review({ reviewId: "R2", reviewReply: { comment: "Terima kasih" } }), NOW);
+  assert.equal(await I.ingestSocialEvent(admin, GP, old), null, "answered already: not for the bot");
+  assert.equal(await I.ingestSocialEvent(admin, GP, reply), null);
+  const conv2 = admin.rows.messages.find((m) => m.wa_message_id === "gr:R2").conversation_id;
+  eq(admin.rows.messages.filter((m) => m.conversation_id === conv2).map((m) => [m.wa_message_id, m.direction]), [["gr:R2", "inbound"], ["gr:re:R2", "outbound"]]);
+  assert.equal(admin.rows.conversations.find((c) => c.id === conv2).bot_enabled, true, "a reply found on Google never takes the thread from the bot");
+});
+
+await check("Hana's note for a review: public, private about health, WhatsApp only for a complaint", () => {
+  const note = L.socialChatNote(`gr:dungun:${LOC}`);
+  assert.match(note, /GOOGLE REVIEW/);
+  assert.match(note, /NEVER confirm or suggest that the reviewer is or was a patient/);
+  assert.match(note, /never name a doctor/);
+  assert.match(note, /1–3 stars:.*WhatsApp 013-923 7548, https:\/\/wa\.me\/60139237548/);
+  assert.match(note, /4–5 stars:.*No phone number or link/);
+  assert.match(note, /Do NOT introduce yourself/);
+  assert.equal(L.REVIEW_AUTO_REPLY_MIN_STARS, 4);
+});
+
 console.log(`\nsocial channels: ${n} checks passed`);

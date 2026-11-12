@@ -115,5 +115,7 @@ export async function ingestSocialEvent(
   }
   // a comment that asks nothing ("mantap", a tagged friend) waits for staff, not the bot (lines.ts)
   if (ev.provider === "fbcomments" && !isEnquiryComment(ev.body)) return null;
+  // a Google review: only a new one nobody has answered (events.ts googleReviewEvents)
+  if (ev.provider === "greviews" && !ev.botMay) return null;
   return { conversationId: conversation, waMessageId };
 }

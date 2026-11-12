@@ -4,6 +4,8 @@ import { authorizeCron, logCronRun } from "@/lib/cron-auth";
 import { moveUnansweredFollowUpsAll } from "@/lib/pipeline-no-response";
 import { malaysiaDate } from "@/lib/pipeline-follow-up";
 import { renewAllTikTok } from "@/lib/social/accounts";
+import { syncGoogleReviews } from "@/lib/social/reviews";
+import { runBotReply } from "@/lib/ai/bot";
 
 // Node runtime (service-role client) and never cached.
 export const runtime = "nodejs";
@@ -63,6 +65,16 @@ async function runCleanup(request: Request) {
     tiktok = { renewed: 0, failed: 0, error: e instanceof Error ? e.message : String(e) };
   }
 
+  // Google reviews: the every-10-minutes run is Supabase's (api/cron/google-reviews); this is the fallback
+  let googleReviews: { seen: number; failed: number; error?: string };
+  try {
+    const r = await syncGoogleReviews(sb);
+    for (const t of r.triggers) await runBotReply(t);
+    googleReviews = { seen: r.seen, failed: r.failed.length };
+  } catch (e) {
+    googleReviews = { seen: 0, failed: 0, error: e instanceof Error ? e.message : String(e) };
+  }
+
   // Old messages beyond the retention window.
   const { count: messagesDeleted, error: msgErr } = await sb
     .from("messages")
@@ -95,6 +107,7 @@ async function runCleanup(request: Request) {
       ...(noResponse.error ? { noResponseError: noResponse.error } : {}),
       tiktokRenewed: tiktok.renewed,
       ...(tiktok.failed || tiktok.error ? { tiktokFailed: tiktok.failed, tiktokError: tiktok.error ?? null } : {}),
+      googleReviews,
     },
   });
 
@@ -109,6 +122,7 @@ async function runCleanup(request: Request) {
     noResponseError: noResponse.error ?? null,
     tiktokRenewed: tiktok.renewed,
     tiktokFailed: tiktok.failed,
+    googleReviews,
     ranAt: new Date().toISOString(),
   });
 }

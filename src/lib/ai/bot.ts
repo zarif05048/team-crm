@@ -25,7 +25,7 @@ import { scopedRosterText, guardDutyReply } from "./roster";
 import { recordBookingStage } from "@/lib/pipeline-booking";
 import { createMessage, aiConfigured } from "./model";
 import { webChatNote, webClinicOf } from "@/lib/webchat";
-import { socialChatNote, socialLineOf, stripIntro, withWhatsappLink } from "@/lib/social/lines";
+import { REVIEW_AUTO_REPLY_MIN_STARS, reviewStars, socialChatNote, socialLineOf, stripIntro, withWhatsappLink } from "@/lib/social/lines";
 import { buildConversationContext } from "./conversation-context";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -410,7 +410,27 @@ export async function runBotReply(trigger: BotTrigger): Promise<void> {
     const guarded = await guardDutyReply(patientTexts, modelText);
     // Facebook / TikTok: no "Saya Hana, pembantu AI", and always a WhatsApp link (lib/social/lines.ts)
     const socialLine = socialLineOf(number.phone_number_id);
-    const replyText = socialLine ? withWhatsappLink(stripIntro(guarded), socialLine.clinic) : guarded;
+    // a Google review: no introduction; the WhatsApp link only where the channel note asks for it (1–3★)
+    const replyText = socialLine?.provider === "greviews" ? stripIntro(guarded)
+      : socialLine ? withWhatsappLink(stripIntro(guarded), socialLine.clinic) : guarded;
+
+    /* A Google review of 1–3 stars is not answered by the bot (owner's plan,
+       12 Nov 2026): a reply to a complaint is public and stays there, so Hana
+       writes a draft as an internal note and a person checks and posts it. */
+    if (socialLine?.provider === "greviews") {
+      const { data: last } = await supabase.from("messages").select("body")
+        .eq("conversation_id", trigger.conversationId).eq("direction", "inbound")
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
+      const stars = reviewStars((last as { body: string | null } | null)?.body);
+      if (stars === null || stars < REVIEW_AUTO_REPLY_MIN_STARS) {
+        await supabase.from("notes").insert({
+          conversation_id: trigger.conversationId, author_id: null, mentions: [],
+          body: `💡 Suggested reply from Hana — NOT posted (${stars ?? "?"}★ reviews wait for a person). Check it, then send it from the reply box; it goes up publicly under the review:\n\n${replyText}`,
+        });
+        console.log(`[bot] review draft for ${trigger.conversationId} (${stars ?? "?"}★) left as a note`);
+        return;
+      }
+    }
     console.log(
       `[bot] reply for ${trigger.conversationId}: ${replyText.slice(0, 800)}`,
     );

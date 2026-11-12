@@ -8,6 +8,7 @@ import { NumbersList } from "@/components/settings/numbers-list";
 import { AppearanceSettings } from "@/components/theme-controls";
 import { ChannelsManager } from "@/components/settings/channels-manager";
 import { listAccounts } from "@/lib/social/accounts";
+import { googleConfigured } from "@/lib/social/google";
 import { tiktokConfigured } from "@/lib/social/tiktok";
 
 export default async function SettingsPage({ searchParams }: {
@@ -51,7 +52,7 @@ export default async function SettingsPage({ searchParams }: {
           <TeamManager members={members} currentUserId={profile.id} />
           <CannedManager replies={canned} />
           <NumbersList numbers={numbers} />
-          <ChannelsManager channels={channels} tiktokReady={tiktokConfigured()} notice={notice} />
+          <ChannelsManager channels={channels} tiktokReady={tiktokConfigured()} googleReady={googleConfigured()} notice={notice} />
         </div>
       </div>
     </div>

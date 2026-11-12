@@ -6,6 +6,8 @@ import { accessTokenFor, noteAccountError } from "./accounts";
 import { SOCIAL, bareId, chunkText, messageId, socialLineOf, withWhatsappLink, type SocialClinic } from "./lines";
 import { replyToCommentPublicly, sendFacebookMessage } from "./facebook";
 import { sendTikTokImage, sendTikTokText } from "./tiktok";
+import { replyToGoogleReview } from "./google";
+import { replyMessageKey } from "./events";
 
 export interface SocialSendResult { ok: boolean; waMessageId?: string; error?: string }
 export type SocialPayload =
@@ -45,6 +47,23 @@ export async function sendSocial(phoneNumberId: string, to: string, payload: Soc
   const target = bareId(to);
 
   if (line.provider === "fbcomments") return sendOnComments(phoneNumberId, to, line.externalId, line.clinic, token, payload);
+
+  /* A Google review has ONE public reply; posting again replaces it. Stored
+     as "gr:re:<review id>" — the id the next sync finds it under, so it is
+     not brought in a second time. */
+  if (line.provider === "greviews") {
+    if (payload.kind !== "text") return { ok: false, error: "A Google review takes a text reply only." };
+    const text = payload.body.trim().slice(0, s.maxText);
+    if (!text) return { ok: false, error: "Message is empty." };
+    try {
+      await replyToGoogleReview(token, line.externalId, target, text);
+    } catch (e) {
+      const err = e as Error & { reconnect?: boolean };
+      if (err.reconnect) await noteAccountError("google", line.externalId, err.message, true);
+      return { ok: false, error: `Google: ${err.message}` };
+    }
+    return { ok: true, waMessageId: messageId("greviews", replyMessageKey(target)) };
+  }
 
   /** One piece; a failure is noted on the account's row for Settings. */
   const one = async (content: SocialPayload): Promise<SocialSendResult> => {

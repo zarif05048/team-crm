@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { seal, unseal } from "./seal";
 import type { SocialClinic, SocialProvider } from "./lines";
 import { refreshTikTokToken } from "./tiktok";
+import { refreshGoogleToken } from "./google";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -77,11 +78,29 @@ export async function accessTokenFor(provider: SocialProvider, externalId: strin
   const { data } = await admin.from("channel_accounts").select("*")
     .eq("provider", provider).eq("external_id", externalId).maybeSingle();
   const row = data as Row | null;
-  if (!row) throw new Error(`This ${provider === "facebook" ? "Facebook page" : "TikTok account"} is not connected (Settings → Channels).`);
+  if (!row) throw new Error(`This ${provider === "facebook" ? "Facebook page" : provider === "google" ? "Google Business Profile" : "TikTok account"} is not connected (Settings → Channels).`);
   if (provider === "facebook") return unseal(row.access_token);
   const fresh = row.expires_at && Date.parse(row.expires_at) - Date.now() > 10 * 60_000;
   if (fresh) return unseal(row.access_token);
+  if (provider === "google") return (await renewGoogle(admin, row)) ?? unseal(row.access_token);
   return (await renewTikTok(admin, row)) ?? unseal(row.access_token);
+}
+
+/** A Google access token lasts an hour; the renewal token behind it does not
+ *  change and lasts until the owner revokes it — then the row says "Connect again". */
+async function renewGoogle(admin: Admin, row: Row): Promise<string | null> {
+  if (!row.refresh_token) { await markProblem(admin, row.id, "reauth", "No renewal token — connect Google again."); return null; }
+  try {
+    const t = await refreshGoogleToken(unseal(row.refresh_token));
+    await admin.from("channel_accounts").update({
+      access_token: seal(t.accessToken), expires_at: t.expiresAt, status: "active", last_error: null, updated_at: new Date().toISOString(),
+    }).eq("id", row.id);
+    return t.accessToken;
+  } catch (e) {
+    const reconnect = !!(e as { reconnect?: boolean }).reconnect;
+    await markProblem(admin, row.id, reconnect ? "reauth" : row.status, `Google sign-in renewal failed: ${(e as Error).message}`);
+    return null;
+  }
 }
 
 /** Renew one TikTok account's token. Two requests may arrive together; the

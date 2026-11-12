@@ -321,6 +321,29 @@ like a WhatsApp chat; staff and the AI bot answer from the same thread.
   sealing stays on META_APP_SECRET, so stored tokens still open.
 - Tests: `scripts/test-social-channels.mjs` (offline).
 
+## Google reviews in the inbox (added 2026-11-12)
+
+Owner: "can connect google review with crm". Same design as Facebook (lib/social):
+
+- Line `gr:<clinic>:accounts/<a>/locations/<l>` ("Google Reviews · Dungun"), one
+  thread per review (contact `gr:<review id>`), message `gr:<review id>`; the
+  clinic's reply is `gr:re:<review id>` whether posted here or found on Google.
+  The review body starts "⭐⭐⭐⭐⭐ 5/5" — the bot reads the stars back from it.
+- Connect: Settings → Channels → Connect Google reviews (Google sign-in,
+  scope business.manage, offline). One `channel_accounts` row per profile
+  (provider 'google'), renewal token sealed. Needs GOOGLE_BP_CLIENT_ID /
+  GOOGLE_BP_CLIENT_SECRET (Cloud project northern-union-514511-t2, OAuth app
+  "Hijraa CRM", In production) and migration 2026-11-13_google_reviews.sql.
+- No free push from Google, so pg_cron calls /api/cron/google-reviews every
+  10 min (no secret; refuses to run twice within 3 min; cron_runs keeps a
+  week) plus the daily cleanup cron as fallback. Each run reads the newest 50
+  reviews per profile; reviews older than 180 days are skipped (retention).
+- Bot: only a new (≤3 days) unanswered review. 4–5★ → Hana posts the public
+  reply; 1–3★ → her draft goes in as an internal note for staff. Channel note
+  forbids confirming anyone is a patient, naming doctors, or any health detail.
+  Staff reply = public reply under the review (sending again replaces it).
+- Tests: `scripts/test-social-channels.mjs` (Google reviews section).
+
 ## Bot provider: OpenRouter (2026-10-27)
 
 `src/lib/ai/model.ts` — with `OPENROUTER_API_KEY` set, the bot runs on

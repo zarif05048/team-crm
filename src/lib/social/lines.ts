@@ -18,11 +18,11 @@
 // the tests can all read it.
 
 /** Whose account a line runs on — what channel_accounts holds a token for. */
-export type SocialProvider = "facebook" | "tiktok";
+export type SocialProvider = "facebook" | "tiktok" | "google";
 /** A kind of inbox line: Messenger, the comments under a page's posts (owner,
  *  12 Nov 2026: "yes add comments too"), or TikTok messages. Comments run on
  *  the same Facebook page connection as Messenger. */
-export type SocialChannel = SocialProvider | "fbcomments";
+export type SocialChannel = "facebook" | "tiktok" | "fbcomments" | "greviews";
 export type SocialClinic = "dungun" | "paka";
 
 export const SOCIAL = {
@@ -45,6 +45,16 @@ export const SOCIAL = {
     /** TikTok: replies within 48 hours of the person's last message. */
     windowHours: 48,
     maxText: 2000,
+  },
+  /* Google reviews of the clinics' Business Profiles (owner, 12 Nov 2026: "can
+     connect google review with crm"). Each review is its own thread; the reply
+     is the clinic's PUBLIC answer under it, and a review has only one — sending
+     again replaces it. No window: a review can be answered any time. */
+  greviews: {
+    account: "google", prefix: "gr:", label: "Google Reviews", app: "Google reviews", tag: "google-review", color: "#fbbc04",
+    windowHours: 24 * 365 * 50,
+    /** Google refuses a reply over 4,096 characters. */
+    maxText: 4000,
   },
 } as const;
 
@@ -73,6 +83,7 @@ export function providerOf(id: string | null | undefined): SocialChannel | null 
   if (id.startsWith(SOCIAL.fbcomments.prefix)) return "fbcomments";
   if (id.startsWith(SOCIAL.facebook.prefix)) return "facebook";
   if (id.startsWith(SOCIAL.tiktok.prefix)) return "tiktok";
+  if (id.startsWith(SOCIAL.greviews.prefix)) return "greviews";
   return null;
 }
 export const isSocial = (id: string | null | undefined) => providerOf(id) !== null;
@@ -94,7 +105,7 @@ export interface SocialLine {
   /** whose connection it runs on (comments: the Facebook page) */
   account: SocialProvider;
   clinic: SocialClinic;
-  /** the Facebook page id / the TikTok business account id */
+  /** the Facebook page id / the TikTok business account id / the Google location ("accounts/1/locations/2") */
   externalId: string;
   branch: string;
   clinicName: string;
@@ -119,6 +130,9 @@ export function socialWindowOpen(provider: SocialChannel, lastInboundAt: string 
 /** What staff read when the window has closed — no template can reopen these. */
 export function windowClosedNote(provider: SocialChannel): string {
   const s = SOCIAL[provider];
+  if (provider === "greviews") {
+    return "A Google review can be answered at any time — your reply is posted publicly under it.";
+  }
   if (provider === "fbcomments") {
     return "Facebook only allows a private message about a comment within 7 days of it, and that time has passed. " +
       "Switch to Public reply to answer under the comment, or leave an Internal note.";
@@ -156,6 +170,20 @@ export function clinicFromName(name: string | null | undefined): SocialClinic | 
 export function socialChatNote(phoneNumberId: string | null | undefined): string | null {
   const line = socialLineOf(phoneNumberId);
   if (!line) return null;
+  if (line.provider === "greviews") {
+    const c = CLINICS[line.clinic];
+    return (
+      `CHANNEL: this is a GOOGLE REVIEW someone posted on the Google Business Profile of ${line.clinicName} — NOT a chat. ` +
+      `Their message shows the star rating (⭐, out of 5) and what they wrote (it may be empty: stars only). ` +
+      `Write the clinic's ONE PUBLIC reply to it, shown under the review on Google Search and Maps for everyone to read. ` +
+      `Write as the clinic team ("kami" / "we"), warm and personal, 1–3 short sentences, in the language of the review (Malay if it is empty or unclear). ` +
+      `Do NOT introduce yourself — no "Saya Hana", no "pembantu AI", no assistant name. No markdown, no lists, no hashtags, at most one emoji. ` +
+      `PRIVACY — the reply is public: NEVER confirm or suggest that the reviewer is or was a patient, never mention any visit, treatment, diagnosis, test, medicine, result or date, never name a doctor or staff member, and never repeat their name, phone or IC — even if they wrote these themselves. Thank them for their feedback in general terms. ` +
+      `4–5 stars: thank them warmly; you may echo, in general words, what they praised (e.g. friendly team, short wait, clean clinic). No phone number or link. ` +
+      `1–3 stars: thank them for the feedback, apologise that their experience fell short, say the team will look into it, and invite them to WhatsApp the ${c.branch} clinic so it can be put right: WhatsApp ${c.whatsapp}, ${c.waLink}. Never argue, never blame them, never deny what they say. ` +
+      `Do not ask questions you expect an answer to here, do not quote prices, and do not send posters or several messages.`
+    );
+  }
   if (line.provider === "fbcomments") {
     return (
       `CHANNEL: these are PUBLIC COMMENTS the person wrote under a post on the Facebook page of ${line.clinicName} — NOT WhatsApp, and not a private chat. ` +
@@ -213,3 +241,25 @@ export function withWhatsappLink(text: string, clinic: SocialClinic): string {
   const c = CLINICS[clinic];
   return `${text.trimEnd()}\n\nUntuk pertanyaan lanjut atau tempahan, WhatsApp kami di ${c.whatsapp}: ${c.waLink}`;
 }
+
+/* Google reviews (owner, 12 Nov 2026). A review's stars are written at the
+   head of its message ("⭐⭐⭐⭐⭐ 5/5"), so staff see them in the thread and the
+   bot reads them back from there. */
+const STAR_WORDS = { ONE: 1, TWO: 2, THREE: 3, FOUR: 4, FIVE: 5 } as const;
+/** "FIVE" → 5; anything else → null. */
+export function starCount(rating: string | null | undefined): number | null {
+  return (rating && (STAR_WORDS as Record<string, number>)[rating]) || null;
+}
+/** A review as the message staff read: its stars, then what they wrote. */
+export function reviewMessage(stars: number | null, comment: string | null | undefined): string {
+  const head = stars ? `${"⭐".repeat(stars)} ${stars}/5` : "Google review";
+  const text = (comment ?? "").trim();
+  return text ? `${head}\n\n${text}` : `${head}\n\n(stars only — no written review)`;
+}
+/** The stars back out of a review message; null when it is not one. */
+export function reviewStars(body: string | null | undefined): number | null {
+  const m = /^⭐+ ([1-5])\/5/u.exec(body ?? "");
+  return m ? Number(m[1]) : null;
+}
+/** 1–3★ reviews are only drafted by the bot; a person checks and posts the reply. */
+export const REVIEW_AUTO_REPLY_MIN_STARS = 4;

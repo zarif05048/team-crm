@@ -6,7 +6,7 @@ import { getCurrentProfile } from "@/lib/data/team";
 /** The address the providers send people back to — fixed, because each
  *  provider only accepts a redirect address registered with it. */
 export const publicBase = () => (process.env.PUBLIC_BASE_URL ?? "https://team-crm-one.vercel.app").replace(/\/+$/, "");
-export const callbackUrl = (provider: "facebook" | "tiktok") => `${publicBase()}/api/connect/${provider}/callback`;
+export const callbackUrl = (provider: "facebook" | "tiktok" | "google") => `${publicBase()}/api/connect/${provider}/callback`;
 export const webhookUrl = (provider: "facebook" | "tiktok") => `${publicBase()}/api/webhooks/${provider}`;
 
 export async function adminId(): Promise<string | null> {
