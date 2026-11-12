@@ -78,7 +78,23 @@ export async function facebookPagesFromCode(code: string, redirectUri: string): 
   const pages = await graph<{ data?: { id: string; name: string; access_token: string }[] }>("me/accounts", {
     query: { fields: "id,name,access_token", limit: "100", access_token: long.access_token },
   });
-  return (pages.data ?? []).filter((p) => p.id && p.access_token).map((p) => ({ id: p.id, name: p.name, accessToken: p.access_token }));
+  let list = (pages.data ?? []).filter((p) => p.id && p.access_token);
+  /* Facebook Login for Business can grant pages that me/accounts does not list
+     (seen 12 Nov 2026 on "Hijraa Pages Inbox": both pages ticked, me/accounts
+     empty). The token itself names them — debug_token's granular_scopes carry
+     the page ids — and each page then gives its own token. */
+  if (!list.length) {
+    const dbg = await graph<{ data?: { granular_scopes?: { scope: string; target_ids?: string[] }[] } }>("debug_token", {
+      query: { input_token: long.access_token, access_token: `${metaAppId()}|${appSecret()}` },
+    });
+    const ids = [...new Set((dbg.data?.granular_scopes ?? []).filter((g) => g.scope.startsWith("pages_")).flatMap((g) => g.target_ids ?? []))];
+    console.log(`[facebook] me/accounts empty; the token names ${ids.length} page(s)`);
+    const found = await Promise.all(ids.map((id) =>
+      graph<{ id: string; name: string; access_token?: string }>(id, { query: { fields: "id,name,access_token", access_token: long.access_token } })
+        .catch((e) => { console.error(`[facebook] page ${id}:`, (e as Error).message); return null; })));
+    list = found.filter((p): p is { id: string; name: string; access_token: string } => !!p?.id && !!p.access_token);
+  }
+  return list.map((p) => ({ id: p.id, name: p.name, accessToken: p.access_token }));
 }
 
 /** Have Meta send this page's messages to the app (the page's own switch). */
