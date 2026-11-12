@@ -14,6 +14,12 @@ function appSecret(): string {
 /** What the pages are asked for: list them, read and answer their messages,
  *  and switch on the webhook for each. */
 export const FB_SCOPES = ["pages_show_list", "pages_messaging", "pages_manage_metadata"];
+/* The Meta app is a BUSINESS app, whose sign-in (Facebook Login for Business)
+   ignores a scope list and asks for a saved configuration instead: "CRM
+   Facebook pages inbox" in the app dashboard (Facebook Login for Business ->
+   Configurations), a user access token with exactly FB_SCOPES. An identifier,
+   not a secret. Without it Facebook asked only for a name and a picture. */
+export const fbLoginConfigId = () => process.env.FB_LOGIN_CONFIG_ID || "2210627403187183";
 const PAGE_FIELDS = "messages,messaging_postbacks,message_echoes";
 
 async function graph<T>(path: string, init?: RequestInit & { query?: Record<string, string> }): Promise<T> {
@@ -34,7 +40,8 @@ export function facebookAuthorizeUrl(redirectUri: string, state: string): string
   u.searchParams.set("redirect_uri", redirectUri);
   u.searchParams.set("state", state);
   u.searchParams.set("response_type", "code");
-  u.searchParams.set("scope", FB_SCOPES.join(","));
+  u.searchParams.set("config_id", fbLoginConfigId());
+  u.searchParams.set("override_default_response_type", "true");
   return u.toString();
 }
 
