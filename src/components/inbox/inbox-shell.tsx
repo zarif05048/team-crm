@@ -9,6 +9,19 @@ import { MessageResults } from "@/components/inbox/message-results";
 import { useInboxSearch } from "@/components/inbox/use-inbox-search";
 import { lineLabel } from "@/components/ui/line-badge";
 import type { ConversationListRow } from "@/lib/data/conversations";
+
+/* The owner's six choices, in this order (13 Nov 2026). A choice gathers every
+   line it names: "Facebook Dungun" is the page's Messenger AND its post
+   comments. Each is matched on the line's badge label (line-badge.tsx). */
+const GROUPS = [
+  { key: "wa-dungun", label: "WhatsApp Dungun", match: (l: string) => l === "Dungun" },
+  { key: "wa-paka", label: "WhatsApp Paka", match: (l: string) => l === "Paka" },
+  { key: "gr-dungun", label: "Google Review Dungun", match: (l: string) => l === "Reviews · Dungun" },
+  { key: "gr-paka", label: "Google Review Paka", match: (l: string) => l === "Reviews · Paka" },
+  { key: "fb-dungun", label: "Facebook Dungun", match: (l: string) => /^(Facebook|FB Comments) · Dungun$/.test(l) },
+  { key: "fb-paka", label: "Facebook Paka", match: (l: string) => /^(Facebook|FB Comments) · Paka$/.test(l) },
+] as const;
+const groupOf = (label: string) => GROUPS.find((g) => g.match(label))?.key ?? null;
 import { ResizableSplit } from "@/components/resizable-split";
 
 /**
@@ -35,7 +48,7 @@ export function InboxShell({
   const pathname = usePathname();
   const threadOpen = pathname !== "/inbox" && pathname.startsWith("/inbox/");
 
-  // "all" or a whatsapp_number.id.
+  // "all", one of the six choices ("g:wa-dungun"…), or another line's whatsapp_number.id.
   const [line, setLine] = useState<string>("all");
 
   // Distinct lines present in the current list, with per-line counts.
@@ -50,6 +63,18 @@ export function InboxShell({
     }
     return [...m.values()].sort((a, b) => a.label.localeCompare(b.label));
   }, [conversations]);
+  // the six choices with their counts, and the lines none of them covers
+  const groupCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const l of lines) { const g = groupOf(l.label); if (g) counts.set(g, (counts.get(g) ?? 0) + l.count); }
+    return counts;
+  }, [lines]);
+  const otherLines = lines.filter((l) => !groupOf(l.label));
+  const lineIdsOf = (value: string): Set<string> | null => {
+    if (value === "all") return null;
+    if (value.startsWith("g:")) return new Set(lines.filter((l) => groupOf(l.label) === value.slice(2)).map((l) => l.id));
+    return new Set([value]);
+  };
 
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
@@ -58,20 +83,21 @@ export function InboxShell({
     query,
   );
 
-  // If the selected line has no conversations anymore, fall back to "all".
+  // A line that has gone from the list falls back to "all"; a choice stays (it may show 0).
   const activeLine =
-    line !== "all" && lines.some((l) => l.id === line) ? line : "all";
+    line === "all" || line.startsWith("g:") || lines.some((l) => l.id === line) ? line : "all";
+  const activeIds = lineIdsOf(activeLine);
   const onLine = (rows: ConversationListRow[]) =>
-    activeLine === "all"
+    activeIds === null
       ? rows
-      : rows.filter((c) => c.whatsapp_number?.id === activeLine);
+      : rows.filter((c) => !!c.whatsapp_number?.id && activeIds.has(c.whatsapp_number.id));
 
   const filtered = onLine(loaded);
   const olderResults = onLine(older);
   const messageHits =
-    activeLine === "all"
+    activeIds === null
       ? messages
-      : messages.filter((m) => m.whatsapp_number_id === activeLine);
+      : messages.filter((m) => !!m.whatsapp_number_id && activeIds.has(m.whatsapp_number_id));
   const searchQuery = query.trim().toLowerCase();
   const noResults =
     searchQuery.length > 0 &&
@@ -129,20 +155,29 @@ export function InboxShell({
           </div>
         </div>
 
-        {lines.length > 1 && (
+        {lines.length > 0 && (
           <div className="border-b border-slate-200 px-3 py-2">
             <select
               value={activeLine}
               onChange={(e) => setLine(e.target.value)}
-              aria-label="Filter by WhatsApp line"
+              aria-label="Filter by channel"
               className="w-full rounded-md border border-slate-300 bg-surface px-2.5 py-1.5 text-sm font-medium text-slate-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
             >
-              <option value="all">All lines ({conversations.length})</option>
-              {lines.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.label} ({l.count})
+              <option value="all">All messages ({conversations.length})</option>
+              {GROUPS.map((g, i) => (
+                <option key={g.key} value={`g:${g.key}`}>
+                  {i + 1}. {g.label} ({groupCounts.get(g.key) ?? 0})
                 </option>
               ))}
+              {otherLines.length > 0 && (
+                <optgroup label="Other lines">
+                  {otherLines.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.label} ({l.count})
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </div>
         )}
