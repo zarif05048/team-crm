@@ -149,6 +149,8 @@ export function socialChatNote(phoneNumberId: string | null | undefined): string
       `CHANNEL: these are PUBLIC COMMENTS the person wrote under a post on the Facebook page of ${line.clinicName} — NOT WhatsApp, and not a private chat. ` +
       `Your reply is sent to them as ONE PRIVATE Messenger message (Facebook allows only one per comment) AND the same words are posted PUBLICLY under their comment, for everyone reading the post. ` +
       `So write ONE short, complete message: answer what they asked (prices, opening hours, how to book), then invite them to reply in Messenger to continue. Assume the ${line.branch} branch unless they say otherwise. ` +
+      `Do NOT introduce yourself — no "Saya Hana", no "pembantu AI", no assistant name — just answer. ` +
+    `Write like a person at the clinic replying — warm, natural, conversational Malay (or the language they used), the way friendly staff text: short sentences, no bullet lists, no headings, no stiff or robotic phrasing, no "Sebagai pembantu AI". If someone sincerely asks whether they are talking to a bot or a person, answer honestly. ` +
       `Because it is public, keep it to what anyone may read: services, prices, hours, how to book. Never mention their health, symptoms, name, phone or IC, even if they wrote them. Do not send leaflets or several messages; no markdown.`
     );
   }
@@ -158,6 +160,8 @@ export function socialChatNote(phoneNumberId: string | null | undefined): string
     `The person wrote to the clinic's ${s.label} ${line.provider === "facebook" ? "page" : "account"}; no phone number is known and their profile name does not prove who they are. Assume they are asking about the ${line.branch} branch unless they say otherwise. ` +
     `Their messages are already saved in the CRM and staff can reply in this same chat, but only within ${s.windowHours} hours of the person's last message. ` +
     `So for a booking, or anything staff must follow up later, politely ask for a contact phone number as well (say staff may call or WhatsApp them) — but still record the request if they prefer not to give one. ` +
+    `Do NOT introduce yourself — no "Saya Hana", no "pembantu AI", no assistant name — just answer. ` +
+    `Write like a person at the clinic replying — warm, natural, conversational Malay (or the language they used), the way friendly staff text: short sentences, no bullet lists, no headings, no stiff or robotic phrasing, no "Sebagai pembantu AI". If someone sincerely asks whether they are talking to a bot or a person, answer honestly. ` +
     `Do not tell them to "reply on WhatsApp" as if they were already there; they can keep chatting right here. Plain text only: no markdown tables, and keep each reply well under ${s.maxText} characters.`
   );
 }
@@ -172,4 +176,17 @@ export function isEnquiryComment(text: string | null | undefined): boolean {
   const t = (text ?? "").replace(/@\[[^\]]*\]|@\S+/g, " ").trim();   // tagged friends are not words
   if (!/[a-zÀ-ɏ]{2,}/i.test(t)) return false;              // emoji / punctuation only
   return ENQUIRY.test(t);
+}
+
+/* No self-introduction on Facebook and TikTok (owner, 12 Nov 2026: "when
+   reply, no need to say saya hana, pembantu AI"). The general prompt tells the
+   bot to introduce itself in its first reply, and the channel note above says
+   not to here; this takes out a sentence that slips through anyway — only an
+   introduction ("Saya Hana…", "Hana, pembantu AI…", "Saya pembantu AI…"), never
+   the answer around it. */
+// a sentence ends at . ! ? a line break — or an emoji, which the bot often ends its introduction with
+const INTRO = /(^|[.!?\n]\s*)((hai|hi|helo|hello|salam|assalamualaikum)[^.!?\n\p{Extended_Pictographic}]{0,40}[,!.]?\s*)?(saya\s+(ialah\s+)?(hana|pembantu\s+ai)|ini\s+hana|hana\s*,?\s*(pembantu|ai\b)|i\s*'?\s*a?m\s+hana)[^.!?\n\p{Extended_Pictographic}]*[.!?\p{Extended_Pictographic}️]*\s*/giu;
+export function stripIntro(text: string): string {
+  const out = text.replace(INTRO, (_m, lead) => (lead && /[.!?]/.test(lead) ? lead.trimEnd() + " " : lead || "")).replace(/^\s+/, "").replace(/[ \t]+\n/g, "\n");
+  return out.trim() ? out : text;   // never send nothing
 }

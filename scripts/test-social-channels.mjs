@@ -363,4 +363,22 @@ await check("a comment lands on the page's Comments line, with a link to its pos
   eq(admin.rows.whatsapp_numbers.map((r) => r.display_name), ["Facebook Comments · Dungun", "Facebook · Dungun"]);
 });
 
+await check("Facebook/TikTok replies drop the 'Saya Hana, pembantu AI' introduction, never the answer", () => {
+  const cases = [
+    ["Saya Hana, pembantu AI Klinik Hijraa. Harga sunat RM250 untuk kanak-kanak.", "Harga sunat RM250 untuk kanak-kanak."],
+    ["Hai! Saya Hana, pembantu AI Klinik Hijraa 😊 Klinik buka 24 jam.", "Klinik buka 24 jam."],
+    ["Assalamualaikum Puan, saya Hana, pembantu AI di sini. Boleh, slot Sabtu ada.", "Boleh, slot Sabtu ada."],
+    ["Terima kasih atas soalan. Saya Hana pembantu AI. Harga RM50.", "Terima kasih atas soalan. Harga RM50."],
+    ["Hana, pembantu AI Klinik Hijraa di sini.\nHarga RM100.", "Harga RM100."],
+    ["Harga sunat RM250. Klinik buka 24 jam.", "Harga sunat RM250. Klinik buka 24 jam."],
+    ["Pakej Hana Sihat RM99.", "Pakej Hana Sihat RM99."],
+  ];
+  for (const [inp, want] of cases) assert.equal(L.stripIntro(inp).trim(), want, inp);
+  assert.equal(L.stripIntro("Saya Hana, pembantu AI Klinik Hijraa."), "Saya Hana, pembantu AI Klinik Hijraa.", "an introduction alone is never sent as nothing");
+  assert.match(L.socialChatNote("fb:dungun:P1"), /Do NOT introduce yourself/);
+  assert.match(L.socialChatNote("fbc:dungun:P1"), /Do NOT introduce yourself/);
+  assert.match(L.socialChatNote("fbc:dungun:P1"), /like a person/);
+  assert.match(L.socialChatNote("tt:dungun:A1"), /like a person/);
+});
+
 console.log(`\nsocial channels: ${n} checks passed`);
