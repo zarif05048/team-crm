@@ -70,7 +70,8 @@ function fbContent(m: NonNullable<FbMessaging["message"]>): Pick<SocialEvent, "t
 
 /** Every message in a Page webhook body. `appId` is this CRM's Meta app: an
  *  echo it sent itself is marked `own`. Delivery and read receipts are not messages. */
-export function parseFacebookWebhook(body: FbWebhookBody, appId: string): SocialEvent[] {
+export function parseFacebookWebhook(body: FbWebhookBody, appId: string | string[]): SocialEvent[] {
+  const ownIds = (Array.isArray(appId) ? appId : [appId]).filter(Boolean);
   const out: SocialEvent[] = [];
   if (body?.object !== "page") return out;
   for (const entry of body.entry ?? []) {
@@ -103,7 +104,7 @@ export function parseFacebookWebhook(body: FbWebhookBody, appId: string): Social
         if (!content.body && !content.mediaUrl) continue;
         out.push({
           provider: "facebook", accountId: pageId, userId, direction: echo ? "out" : "in",
-          own: echo && !!appId && String(ev.message.app_id ?? "") === appId,
+          own: echo && ownIds.includes(String(ev.message.app_id ?? "")),
           messageId: ev.message.mid, at, ...content,
         });
       } else if (ev.postback && ev.sender?.id) {

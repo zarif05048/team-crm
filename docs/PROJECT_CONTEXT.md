@@ -306,14 +306,20 @@ like a WhatsApp chat; staff and the AI bot answer from the same thread.
   `fbc:<commenter id>`, message `fbc:<comment id>` with a link to the post.
   Replying: ONE private Messenger message per comment within 7 days
   (`recipient.comment_id`; marked `fbc:pr:<comment id>` so a second is refused),
-  then the page posts PUBLIC_ACK under the comment; or a public reply any time
+  then the page posts publicAck under the comment (WhatsApp link, never Messenger — owner: "make sure priorities whatsapp from messenger"); or a public reply any time
   (composer switch "Reply as", marked `fbc:pub:<id>`). The bot answers only
   `isEnquiryComment` comments (a question or a service word; not tags, emoji,
   "mantap"), one short message. Meta's echo of that private reply is stored in
   the person's Messenger thread so the bot has context when they answer.
   Needs pages_read_engagement, pages_read_user_content, pages_manage_engagement
   in the Login config + App Review, and each page connected again.
-- Tests: `scripts/test-social-channels.mjs` (18 checks, offline).
+- **Two Meta apps** (owner chose a separate app for App Review): "Team CRM"
+  (1013631327812903) is WhatsApp; "Hijraa Pages Inbox" (1495824135726475,
+  Login config 4841726776106155, business 234860424837223) is the pages.
+  `facebook.ts` uses the pages app once `FB_APP_SECRET` is set; the webhook
+  accepts either app's signature and echoes from either are "own". Token
+  sealing stays on META_APP_SECRET, so stored tokens still open.
+- Tests: `scripts/test-social-channels.mjs` (offline).
 
 ## Bot provider: OpenRouter (2026-10-27)
 

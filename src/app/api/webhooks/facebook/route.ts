@@ -6,7 +6,7 @@ import { runBotReply, type BotTrigger } from "@/lib/ai/bot";
 import { parseFacebookWebhook, type FbWebhookBody } from "@/lib/social/events";
 import { accessTokenFor, findAccount, type ChannelAccount } from "@/lib/social/accounts";
 import { ingestSocialEvent } from "@/lib/social/ingest";
-import { facebookUserName, metaAppId } from "@/lib/social/facebook";
+import { facebookUserName, ownAppIds } from "@/lib/social/facebook";
 
 // Messenger messages for the connected Facebook pages (lib/social). Node
 // runtime (node:crypto), never cached; the bot reply runs after the 200.
@@ -25,7 +25,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const raw = await request.text();
-  if (!verifySignature(raw, request.headers.get("x-hub-signature-256"))) {
+  // signed by the pages' own app, or — until the pages are moved — the WhatsApp app
+  const sig = request.headers.get("x-hub-signature-256");
+  const pagesSecret = process.env.FB_APP_SECRET;
+  if (!(verifySignature(raw, sig) || (!!pagesSecret && verifySignature(raw, sig, pagesSecret)))) {
     console.warn("[facebook] invalid webhook signature");
     return new NextResponse("Invalid signature", { status: 401 });
   }
@@ -36,7 +39,7 @@ export async function POST(request: Request) {
     const admin = createAdminClient();
     const accounts = new Map<string, ChannelAccount | null>();
     const triggers: BotTrigger[] = [];
-    for (const ev of parseFacebookWebhook(body, metaAppId())) {
+    for (const ev of parseFacebookWebhook(body, ownAppIds())) {
       if (!accounts.has(ev.accountId)) accounts.set(ev.accountId, await findAccount(admin, "facebook", ev.accountId));
       const acc = accounts.get(ev.accountId);
       if (!acc) continue;   // a page that is not connected here

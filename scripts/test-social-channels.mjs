@@ -169,6 +169,16 @@ await check("Messenger: an echo is the page writing — ours when our own app se
   eq(evs.map((e) => [e.direction, e.userId, !!e.own]), [["out", "U1", true], ["out", "U1", false]]);
 });
 
+await check("two Meta apps (WhatsApp, and the pages' own): an echo from either is ours", () => {
+  const PAGES_APP = "1495824135726475";
+  const evs = E.parseFacebookWebhook(fb([
+    { sender: { id: "PAGE1" }, recipient: { id: "U1" }, timestamp: 1, message: { mid: "e1", text: "a", is_echo: true, app_id: Number(APP) } },
+    { sender: { id: "PAGE1" }, recipient: { id: "U1" }, timestamp: 2, message: { mid: "e2", text: "b", is_echo: true, app_id: Number(PAGES_APP) } },
+    { sender: { id: "PAGE1" }, recipient: { id: "U1" }, timestamp: 3, message: { mid: "e3", text: "c", is_echo: true, app_id: 263902037430900 } },
+  ]), [PAGES_APP, APP]);
+  eq(evs.map((e) => !!e.own), [true, true, false]);
+});
+
 /* ------------------------------- TikTok ------------------------------- */
 
 const tt = (event, content) => ({ event, user_openid: "BIZ1", content: JSON.stringify(content) });

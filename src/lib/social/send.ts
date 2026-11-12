@@ -3,7 +3,7 @@
 // the staff's send paths are the same code as for WhatsApp.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { accessTokenFor, noteAccountError } from "./accounts";
-import { SOCIAL, bareId, chunkText, messageId, socialLineOf } from "./lines";
+import { SOCIAL, bareId, chunkText, messageId, socialLineOf, withWhatsappLink, type SocialClinic } from "./lines";
 import { replyToCommentPublicly, sendFacebookMessage } from "./facebook";
 import { sendTikTokImage, sendTikTokText } from "./tiktok";
 
@@ -18,12 +18,16 @@ export type SocialPayload =
     }
   | { kind: "image"; link: string; caption?: string };
 
-/** What the page posts under a comment once it has been answered privately —
- *  so the commenter, and everyone reading the post, sees it was answered. */
-export const PUBLIC_ACK = "Terima kasih. Kami telah menghantar maklumat kepada anda melalui Messenger.";
+/* WhatsApp first (owner, 12 Nov 2026: "make sure priorities whatsapp from
+   messenger"): what goes up under a comment sends people on to the clinic's
+   WhatsApp, never to Messenger. */
+/** What the page posts under a comment once a staff member has answered it
+ *  privately — so the commenter, and everyone reading the post, sees it was answered. */
+export const publicAck = (clinic: SocialClinic) =>
+  withWhatsappLink("Terima kasih. Kami telah menghantar mesej peribadi kepada anda.", clinic);
 /** Hana's answer as it goes up under the comment (owner, 12 Nov 2026: "can hana
- *  comment in the facebook page also"): her words, and that she messaged them. */
-export const publicAnswer = (answer: string) => `${answer.trim()}\n\nKami juga telah menghantar mesej kepada anda melalui Messenger.`;
+ *  comment in the facebook page also"): her words, ending on the WhatsApp link. */
+export const publicAnswer = (answer: string, clinic: SocialClinic) => withWhatsappLink(answer.trim(), clinic);
 
 /** Marks in wa_message_id: which comment a private message answered, and a
  *  public reply's own comment id. A comment gets ONE private message ever. */
@@ -40,7 +44,7 @@ export async function sendSocial(phoneNumberId: string, to: string, payload: Soc
   catch (e) { return { ok: false, error: (e as Error).message }; }
   const target = bareId(to);
 
-  if (line.provider === "fbcomments") return sendOnComments(phoneNumberId, to, line.externalId, token, payload);
+  if (line.provider === "fbcomments") return sendOnComments(phoneNumberId, to, line.externalId, line.clinic, token, payload);
 
   /** One piece; a failure is noted on the account's row for Settings. */
   const one = async (content: SocialPayload): Promise<SocialSendResult> => {
@@ -96,7 +100,7 @@ async function latestComment(phoneNumberId: string, waId: string): Promise<{ con
 }
 
 async function sendOnComments(
-  phoneNumberId: string, waId: string, pageId: string, token: string, payload: SocialPayload,
+  phoneNumberId: string, waId: string, pageId: string, clinic: SocialClinic, token: string, payload: SocialPayload,
 ): Promise<SocialSendResult> {
   const c = await latestComment(phoneNumberId, waId);
   if (!c) return { ok: false, error: "No comment from this person to answer." };
@@ -128,7 +132,7 @@ async function sendOnComments(
   // public note when it posts, Facebook's own words when it does not.
   // the bot's answer is posted as it is (people reading the post see it too);
   // a staff member's private message stays private — only the short note
-  const publicText = payload.kind === "text" && payload.alsoPublic ? publicAnswer(text) : PUBLIC_ACK;
+  const publicText = payload.kind === "text" && payload.alsoPublic ? publicAnswer(text, clinic) : publicAck(clinic);
   const ack = await replyToCommentPublicly(c.commentId, token, publicText)
     .catch((e) => ({ ok: false, error: (e as Error).message, commentId: undefined }));
   const admin = createAdminClient();

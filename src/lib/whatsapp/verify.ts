@@ -8,8 +8,10 @@ import crypto from "node:crypto";
 export function verifySignature(
   rawBody: string,
   signatureHeader: string | null,
+  /** another Meta app's secret — the Facebook pages' own app (lib/social/facebook.ts) */
+  secret?: string,
 ): boolean {
-  const appSecret = process.env.META_APP_SECRET;
+  const appSecret = secret ?? process.env.META_APP_SECRET;
   // In local dev without an app secret yet, don't block — but warn.
   if (!appSecret) {
     console.warn(

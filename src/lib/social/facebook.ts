@@ -3,10 +3,22 @@
 const GRAPH = "https://graph.facebook.com";
 const version = () => process.env.WHATSAPP_API_VERSION || "v21.0";
 
-/** The CRM's Meta app id — an identifier, not a secret (docs/PROJECT_CONTEXT.md). */
-export const metaAppId = () => process.env.META_APP_ID || "1013631327812903";
+/* Two Meta apps (owner, 12 Nov 2026): "Team CRM" carries the WhatsApp line,
+   and "Hijraa Pages Inbox" the Facebook pages — a separate app, so Meta's App
+   Review of the page permissions never touches the WhatsApp line. The pages
+   move to the new app once its secret, FB_APP_SECRET, is on the server (and
+   the pages are reconnected); until then the old app carries on as before.
+   App and configuration ids are identifiers, not secrets. */
+const WHATSAPP_APP_ID = () => process.env.META_APP_ID || "1013631327812903";
+const PAGES_APP = { id: "1495824135726475", loginConfig: "4841726776106155" };
+const pagesAppReady = () => !!process.env.FB_APP_SECRET;
+
+/** The Meta app the Facebook pages are connected through. */
+export const metaAppId = () => (pagesAppReady() ? process.env.FB_APP_ID || PAGES_APP.id : WHATSAPP_APP_ID());
+/** Both apps: an echo either of them sent is this CRM's own send. */
+export const ownAppIds = () => [...new Set([metaAppId(), WHATSAPP_APP_ID()])];
 function appSecret(): string {
-  const s = process.env.META_APP_SECRET;
+  const s = pagesAppReady() ? process.env.FB_APP_SECRET : process.env.META_APP_SECRET;
   if (!s) throw new Error("META_APP_SECRET is not set");
   return s;
 }
@@ -23,7 +35,8 @@ export const FB_SCOPES = [
    Facebook pages inbox" in the app dashboard (Facebook Login for Business ->
    Configurations), a user access token with exactly FB_SCOPES. An identifier,
    not a secret. Without it Facebook asked only for a name and a picture. */
-export const fbLoginConfigId = () => process.env.FB_LOGIN_CONFIG_ID || "2210627403187183";
+export const fbLoginConfigId = () =>
+  pagesAppReady() ? process.env.FB_APP_LOGIN_CONFIG_ID || PAGES_APP.loginConfig : process.env.FB_LOGIN_CONFIG_ID || "2210627403187183";
 /** Messenger, and "feed" — which carries the comments under the page's posts. */
 const PAGE_FIELDS = "messages,messaging_postbacks,message_echoes,feed";
 
