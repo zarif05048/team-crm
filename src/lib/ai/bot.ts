@@ -25,7 +25,7 @@ import { scopedRosterText, guardDutyReply } from "./roster";
 import { recordBookingStage } from "@/lib/pipeline-booking";
 import { createMessage, aiConfigured } from "./model";
 import { webChatNote, webClinicOf } from "@/lib/webchat";
-import { socialChatNote, socialLineOf, stripIntro } from "@/lib/social/lines";
+import { socialChatNote, socialLineOf, stripIntro, withWhatsappLink } from "@/lib/social/lines";
 import { buildConversationContext } from "./conversation-context";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -408,8 +408,9 @@ export async function runBotReply(trigger: BotTrigger): Promise<void> {
     // A duty answer naming a doctor who is not on the rota for that clinic and
     // day is replaced with the rota itself (roster.ts, THE DUTY GUARD).
     const guarded = await guardDutyReply(patientTexts, modelText);
-    // Facebook / TikTok: no "Saya Hana, pembantu AI" (lib/social/lines.ts)
-    const replyText = socialLineOf(number.phone_number_id) ? stripIntro(guarded) : guarded;
+    // Facebook / TikTok: no "Saya Hana, pembantu AI", and always a WhatsApp link (lib/social/lines.ts)
+    const socialLine = socialLineOf(number.phone_number_id);
+    const replyText = socialLine ? withWhatsappLink(stripIntro(guarded), socialLine.clinic) : guarded;
     console.log(
       `[bot] reply for ${trigger.conversationId}: ${replyText.slice(0, 800)}`,
     );

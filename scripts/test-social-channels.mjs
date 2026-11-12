@@ -381,4 +381,18 @@ await check("Facebook/TikTok replies drop the 'Saya Hana, pembantu AI' introduct
   assert.match(L.socialChatNote("tt:dungun:A1"), /like a person/);
 });
 
+await check("Facebook/TikTok replies send people on to the branch's WhatsApp", () => {
+  // the channel notes ask for it, with that branch's number and link
+  assert.match(L.socialChatNote("fb:dungun:P1"), /WhatsApp 013-923 7548, link https:\/\/wa\.me\/60139237548/);
+  assert.match(L.socialChatNote("fbc:paka:P2"), /WhatsApp 018-592 5343, link https:\/\/wa\.me\/60185925343/);
+  assert.match(L.socialChatNote("tt:paka:A1"), /End EVERY reply by inviting them to continue on WhatsApp/);
+  assert.doesNotMatch(L.socialChatNote("fb:dungun:P1"), /ask for a contact phone number/);
+  // a reply without a link gets the branch's; one with a link is left alone
+  assert.equal(L.withWhatsappLink("Harga RM50.", "dungun"),
+    "Harga RM50.\n\nUntuk pertanyaan lanjut atau tempahan, WhatsApp kami di 013-923 7548: https://wa.me/60139237548");
+  assert.match(L.withWhatsappLink("Harga RM50.", "paka"), /wa\.me\/60185925343$/);
+  const has = "Boleh WhatsApp Paka di https://wa.me/60185925343 ya.";
+  assert.equal(L.withWhatsappLink(has, "dungun"), has);
+});
+
 console.log(`\nsocial channels: ${n} checks passed`);

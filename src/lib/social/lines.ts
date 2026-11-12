@@ -48,10 +48,22 @@ export const SOCIAL = {
   },
 } as const;
 
+/* Each clinic's WhatsApp line — where Facebook and TikTok enquiries are sent
+   on to (owner, 12 Nov 2026: "asked patient to communicate via whatsapp").
+   The same numbers the bot's clinic facts give (ai/knowledge.ts). */
 export const CLINICS = {
-  dungun: { branch: "Dungun", clinic: "Klinik Hijraa 24 Jam Dungun" },
-  paka: { branch: "Paka", clinic: "Klinik Hijraa 24 Jam Paka" },
+  dungun: { branch: "Dungun", clinic: "Klinik Hijraa 24 Jam Dungun", whatsapp: "013-923 7548", waLink: "https://wa.me/60139237548" },
+  paka: { branch: "Paka", clinic: "Klinik Hijraa 24 Jam Paka", whatsapp: "018-592 5343", waLink: "https://wa.me/60185925343" },
 } as const;
+
+/** The sentence every Facebook / TikTok reply is built to end on. */
+function whatsappInvite(clinic: SocialClinic): string {
+  const c = CLINICS[clinic];
+  const other = CLINICS[clinic === "dungun" ? "paka" : "dungun"];
+  return `End EVERY reply by inviting them to continue on WhatsApp with the ${c.branch} clinic for further questions or booking — WhatsApp ${c.whatsapp}, link ${c.waLink} (write the link as it is, so it can be tapped). ` +
+    `If they are asking about ${other.branch}, give ${other.branch}'s instead: WhatsApp ${other.whatsapp}, ${other.waLink}. ` +
+    `Do not ask for their phone number here — they reach the clinic on WhatsApp themselves. `;
+}
 
 export const isSocialClinic = (s: unknown): s is SocialClinic => s === "dungun" || s === "paka";
 
@@ -148,7 +160,8 @@ export function socialChatNote(phoneNumberId: string | null | undefined): string
     return (
       `CHANNEL: these are PUBLIC COMMENTS the person wrote under a post on the Facebook page of ${line.clinicName} — NOT WhatsApp, and not a private chat. ` +
       `Your reply is sent to them as ONE PRIVATE Messenger message (Facebook allows only one per comment) AND the same words are posted PUBLICLY under their comment, for everyone reading the post. ` +
-      `So write ONE short, complete message: answer what they asked (prices, opening hours, how to book), then invite them to reply in Messenger to continue. Assume the ${line.branch} branch unless they say otherwise. ` +
+      `So write ONE short, complete message: answer what they asked (prices, opening hours, how to book). Assume the ${line.branch} branch unless they say otherwise. ` +
+      whatsappInvite(line.clinic) +
       `Do NOT introduce yourself — no "Saya Hana", no "pembantu AI", no assistant name — just answer. ` +
     `Write like a person at the clinic replying — warm, natural, conversational Malay (or the language they used), the way friendly staff text: short sentences, no bullet lists, no headings, no stiff or robotic phrasing, no "Sebagai pembantu AI". If someone sincerely asks whether they are talking to a bot or a person, answer honestly. ` +
       `Because it is public, keep it to what anyone may read: services, prices, hours, how to book. Never mention their health, symptoms, name, phone or IC, even if they wrote them. Do not send leaflets or several messages; no markdown.`
@@ -159,10 +172,11 @@ export function socialChatNote(phoneNumberId: string | null | undefined): string
     `CHANNEL: this is the ${s.app} inbox of ${line.clinicName} — NOT WhatsApp. ` +
     `The person wrote to the clinic's ${s.label} ${line.provider === "facebook" ? "page" : "account"}; no phone number is known and their profile name does not prove who they are. Assume they are asking about the ${line.branch} branch unless they say otherwise. ` +
     `Their messages are already saved in the CRM and staff can reply in this same chat, but only within ${s.windowHours} hours of the person's last message. ` +
-    `So for a booking, or anything staff must follow up later, politely ask for a contact phone number as well (say staff may call or WhatsApp them) — but still record the request if they prefer not to give one. ` +
+    `Staff can reply here only for a limited time, so answer what they asked, then send them on to WhatsApp for anything further — a booking, a follow-up, a question for the doctor. ` +
+    whatsappInvite(line.clinic) +
     `Do NOT introduce yourself — no "Saya Hana", no "pembantu AI", no assistant name — just answer. ` +
     `Write like a person at the clinic replying — warm, natural, conversational Malay (or the language they used), the way friendly staff text: short sentences, no bullet lists, no headings, no stiff or robotic phrasing, no "Sebagai pembantu AI". If someone sincerely asks whether they are talking to a bot or a person, answer honestly. ` +
-    `Do not tell them to "reply on WhatsApp" as if they were already there; they can keep chatting right here. Plain text only: no markdown tables, and keep each reply well under ${s.maxText} characters.`
+    `Plain text only: no markdown tables, and keep each reply well under ${s.maxText} characters.`
   );
 }
 
@@ -189,4 +203,13 @@ const INTRO = /(^|[.!?\n]\s*)((hai|hi|helo|hello|salam|assalamualaikum)[^.!?\n\p
 export function stripIntro(text: string): string {
   const out = text.replace(INTRO, (_m, lead) => (lead && /[.!?]/.test(lead) ? lead.trimEnd() + " " : lead || "")).replace(/^\s+/, "").replace(/[ \t]+\n/g, "\n");
   return out.trim() ? out : text;   // never send nothing
+}
+
+/** A Facebook / TikTok reply always leaves the person a WhatsApp link (owner,
+ *  12 Nov 2026: "asked patient to communicate via whatsapp"). The channel
+ *  note asks the bot to end on one; a reply that does not gets the branch's. */
+export function withWhatsappLink(text: string, clinic: SocialClinic): string {
+  if (/wa\.me\/\d/.test(text)) return text;
+  const c = CLINICS[clinic];
+  return `${text.trimEnd()}\n\nUntuk pertanyaan lanjut atau tempahan, WhatsApp kami di ${c.whatsapp}: ${c.waLink}`;
 }
