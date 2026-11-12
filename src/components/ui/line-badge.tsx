@@ -20,6 +20,7 @@ function classify(displayName: string | null | undefined): {
   // Facebook Messenger / TikTok lines (lib/social) — also before the branch names.
   if (dn.includes("facebook") || dn.includes("tiktok")) {
     const where = dn.includes("paka") ? "Paka" : dn.includes("dungun") ? "Dungun" : "";
+    if (dn.includes("comments")) return { label: `FB Comments${where ? ` · ${where}` : ""}`, classes: "bg-indigo-100 text-indigo-800 ring-indigo-200" };
     return dn.includes("facebook")
       ? { label: `Facebook${where ? ` · ${where}` : ""}`, classes: "bg-blue-100 text-blue-800 ring-blue-200" }
       : { label: `TikTok${where ? ` · ${where}` : ""}`, classes: "bg-slate-800 text-white ring-slate-900" };

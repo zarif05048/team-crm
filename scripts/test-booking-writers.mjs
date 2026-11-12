@@ -32,7 +32,7 @@ const actions=load('src/app/(app)/inbox/[id]/actions.ts',name=>{
   if(name==='@/lib/supabase/admin')return{createAdminClient:()=>db};
   if(name==='@/lib/sheets/tca')return tca;
   if(name==='@/lib/data/conversations')return{WEIGHT_LOSS_TAG:'weight-loss'};
-  if(['@/lib/whatsapp/send','@/lib/types','@/lib/webchat','@/lib/social/lines'].includes(name))return{};
+  if(['@/lib/whatsapp/send','@/lib/types','@/lib/webchat','@/lib/social/lines','@/lib/social/send'].includes(name))return{};
   throw Error('Unexpected action import '+name);
 });
 const result=await actions.module.exports.addTcaEntry('test-conversation',{patientName:'TEST',procedure:'synthetic',branch:'Paka',date:'2026-10-26'});

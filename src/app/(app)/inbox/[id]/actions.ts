@@ -9,6 +9,7 @@ import { PIPELINES, isPipelineKey, type PipelineKey } from "@/lib/data/conversat
 import { recordBookingStage } from "@/lib/pipeline-booking";
 import { isWeb } from "@/lib/webchat";
 import { SOCIAL, socialLineOf, socialWindowOpen, windowClosedNote } from "@/lib/social/lines";
+import { sendSocial } from "@/lib/social/send";
 
 export type SendState = { ok: boolean; error?: string; conversationId?: string };
 
@@ -104,6 +105,8 @@ export async function sendReply(
   conversationId: string,
   body: string,
   viaNumberId?: string,
+  /** a Facebook post-comment thread: answer under the comment instead of privately */
+  publicReply?: boolean,
 ): Promise<SendState> {
   const text = body.trim();
   if (!text) return { ok: false, error: "Message is empty." };
@@ -129,12 +132,16 @@ export async function sendReply(
     if (viaNumberId && viaNumberId !== conv.whatsapp_number.id) {
       return { ok: false, error: `This person is on ${SOCIAL[social.provider].label} — reply in this thread.` };
     }
-    if (!socialWindowOpen(social.provider, conv.last_inbound_at)) {
+    // a public reply under a comment has no time limit; a private message does
+    const asPublic = social.provider === "fbcomments" && !!publicReply;
+    if (!asPublic && !socialWindowOpen(social.provider, conv.last_inbound_at)) {
       return { ok: false, error: windowClosedNote(social.provider) };
     }
-    const sent = await sendText(conv.whatsapp_number.phone_number_id, conv.contact.wa_id, text);
+    const sent = asPublic
+      ? await sendSocial(conv.whatsapp_number.phone_number_id, conv.contact.wa_id, { kind: "text", body: text, publicReply: true })
+      : await sendText(conv.whatsapp_number.phone_number_id, conv.contact.wa_id, text);
     if (!sent.ok) return { ok: false, error: sent.error };
-    await recordOutbound(conversationId, user.id, "text", text, sent.waMessageId);
+    await recordOutbound(conversationId, user.id, "text", asPublic ? `💬 Public reply: ${text}` : text, sent.waMessageId);
     return { ok: true };
   }
 

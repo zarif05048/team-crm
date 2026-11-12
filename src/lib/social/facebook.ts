@@ -13,14 +13,19 @@ function appSecret(): string {
 
 /** What the pages are asked for: list them, read and answer their messages,
  *  and switch on the webhook for each. */
-export const FB_SCOPES = ["pages_show_list", "pages_messaging", "pages_manage_metadata"];
+export const FB_SCOPES = [
+  "pages_show_list", "pages_messaging", "pages_manage_metadata",
+  // the comments under the page's posts (owner, 12 Nov 2026): read them, answer under them
+  "pages_read_engagement", "pages_read_user_content", "pages_manage_engagement",
+];
 /* The Meta app is a BUSINESS app, whose sign-in (Facebook Login for Business)
    ignores a scope list and asks for a saved configuration instead: "CRM
    Facebook pages inbox" in the app dashboard (Facebook Login for Business ->
    Configurations), a user access token with exactly FB_SCOPES. An identifier,
    not a secret. Without it Facebook asked only for a name and a picture. */
 export const fbLoginConfigId = () => process.env.FB_LOGIN_CONFIG_ID || "2210627403187183";
-const PAGE_FIELDS = "messages,messaging_postbacks,message_echoes";
+/** Messenger, and "feed" — which carries the comments under the page's posts. */
+const PAGE_FIELDS = "messages,messaging_postbacks,message_echoes,feed";
 
 async function graph<T>(path: string, init?: RequestInit & { query?: Record<string, string> }): Promise<T> {
   const url = new URL(`${GRAPH}/${version()}/${path}`);
@@ -100,19 +105,37 @@ export interface FbSendResult { ok: boolean; messageId?: string; error?: string;
 
 /** One Messenger message to a person (inside the 24-hour window). */
 export async function sendFacebookMessage(
-  pageId: string, pageToken: string, psid: string, message: Record<string, unknown>,
+  pageId: string, pageToken: string, psid: string | null, message: Record<string, unknown>,
+  /** a PRIVATE REPLY: the message goes to whoever wrote this comment (once per comment) */
+  to?: { commentId: string },
 ): Promise<FbSendResult> {
   try {
+    const recipient = to ? { comment_id: to.commentId } : { id: psid };
     const r = await graph<{ message_id?: string }>(`${pageId}/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       query: { access_token: pageToken },
-      body: JSON.stringify({ recipient: { id: psid }, messaging_type: "RESPONSE", message }),
+      body: JSON.stringify({ recipient, ...(to ? {} : { messaging_type: "RESPONSE" }), message }),
     });
     return { ok: true, messageId: r.message_id };
   } catch (e) {
     const err = e as Error & { code?: number };
     // 190: the page token no longer works (password change, access removed)
     return { ok: false, error: err.message, reconnect: err.code === 190 };
+  }
+}
+
+/** A public reply under a comment, as the page. */
+export async function replyToCommentPublicly(
+  commentId: string, pageToken: string, text: string,
+): Promise<{ ok: boolean; commentId?: string; error?: string }> {
+  if (!text.trim()) return { ok: false, error: "Message is empty." };
+  try {
+    const r = await graph<{ id?: string }>(`${commentId}/comments`, {
+      method: "POST", query: { access_token: pageToken, message: text.trim() },
+    });
+    return { ok: true, commentId: r.id };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
   }
 }

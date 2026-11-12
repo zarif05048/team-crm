@@ -83,7 +83,16 @@ function fakeAdmin() {
 await check("a line's id carries the provider, the clinic and the account", () => {
   const id = L.lineId("facebook", "paka", "61585001010235");
   assert.equal(id, "fb:paka:61585001010235");
-  eq((L.socialLineOf(id)), { provider: "facebook", clinic: "paka", externalId: "61585001010235", branch: "Paka", clinicName: "Klinik Hijraa 24 Jam Paka" });
+  eq((L.socialLineOf(id)), { provider: "facebook", account: "facebook", clinic: "paka", externalId: "61585001010235", branch: "Paka", clinicName: "Klinik Hijraa 24 Jam Paka" });
+  // the comments under the same page: a line of their own, on the page's connection
+  const cid = L.lineId("fbcomments", "paka", "61585001010235");
+  assert.equal(cid, "fbc:paka:61585001010235");
+  eq([L.socialLineOf(cid).provider, L.socialLineOf(cid).account, L.socialLineOf(cid).externalId], ["fbcomments", "facebook", "61585001010235"]);
+  assert.equal(L.providerOf("fbc:123"), "fbcomments");
+  assert.equal(L.providerOf("fb:123"), "facebook");
+  assert.equal(L.lineName("fbcomments", "dungun"), "Facebook Comments · Dungun");
+  assert.match(L.windowClosedNote("fbcomments"), /7 days/);
+  assert.match(L.socialChatNote("fbc:dungun:P1"), /ONE PRIVATE Messenger message/);
   assert.equal(L.socialLineOf(L.lineId("tiktok", "dungun", "abc:def")).externalId, "abc:def", "an account id may itself hold a colon");
   for (const other of ["web:dungun", "unofficial:hijraa-paka", "1244016635452219", "fb:kl:123", "fb:dungun:", "", null]) {
     assert.equal(L.socialLineOf(other), null, String(other));
@@ -285,13 +294,73 @@ await check("the CRM's own send coming back is not stored twice, and does not st
   await echo({ messageId: "t8", body: "Butiran. Butiran." });        // an earlier piece of the long reply
   await echo({ messageId: "t11", type: "image", body: "📷 Photo" }); // the poster
   await echo({ messageId: "t12", body: "Pakej Sunat" });             // the poster's caption, sent as its own message
-  await I.ingestSocialEvent(admin, PAGE, ev({ direction: "out", messageId: "e1", own: true, body: "Anything" }));   // Meta says it was ours
   assert.equal(admin.rows.messages.length, before);
   assert.equal(conv.bot_enabled, true);
   // …but words nobody here sent are staff on the phone
   await echo({ messageId: "t13", body: "Saya telefon Puan sekejap lagi ya." });
   assert.equal(admin.rows.messages.length, before + 1);
   assert.equal(conv.bot_enabled, false);
+});
+
+await check("Meta's echo of our own send: stored once (a private reply lands in Messenger), never stops the bot", async () => {
+  const admin = fakeAdmin();
+  await I.ingestSocialEvent(admin, PAGE, ev({}), async () => "Aminah");
+  const conv = admin.rows.conversations[0];
+  // sent in this thread and stored under its id: the echo is the same message
+  admin.rows.messages.push({ id: "own", conversation_id: conv.id, wa_message_id: "fb:mid-7", direction: "outbound", type: "text", body: "Boleh", sent_by: null, sent_by_bot: true, created_at: new Date().toISOString() });
+  const before = admin.rows.messages.length;
+  await I.ingestSocialEvent(admin, PAGE, ev({ direction: "out", own: true, messageId: "mid-7", body: "Boleh" }));
+  assert.equal(admin.rows.messages.length, before);
+  // a private reply to a comment, sent from the comments thread: shown in Messenger too
+  await I.ingestSocialEvent(admin, PAGE, ev({ direction: "out", own: true, messageId: "mid-8", body: "Harga sunat RM250" }));
+  eq(admin.rows.messages.slice(-1).map((m) => [m.wa_message_id, m.direction, m.body]), [["fb:mid-8", "outbound", "Harga sunat RM250"]]);
+  assert.equal(conv.bot_enabled, true);
+});
+
+/* ---------------------------- post comments ---------------------------- */
+
+const feed = (value) => ({ object: "page", entry: [{ id: "PAGE1", time: 1, changes: [{ field: "feed", value }] }] });
+const comment = (over) => ({ item: "comment", verb: "add", comment_id: "PAGE1_9_c1", post_id: "PAGE1_9", parent_id: "PAGE1_9",
+  message: "Berapa harga sunat?", created_time: 1794400000, from: { id: "CU1", name: "Siti Aminah" }, ...over });
+
+await check("a comment under a post is read; edits, removals and the page's own replies are not", () => {
+  const [e] = E.parseFacebookWebhook(feed(comment({})), APP);
+  eq([e.provider, e.accountId, e.userId, e.userName, e.direction, e.messageId, e.postId, e.type, e.body],
+    ["fbcomments", "PAGE1", "CU1", "Siti Aminah", "in", "PAGE1_9_c1", "PAGE1_9", "text", "Berapa harga sunat?"]);
+  assert.equal(e.at, new Date(1794400000 * 1000).toISOString());
+  eq(E.parseFacebookWebhook(feed(comment({ verb: "edited" })), APP), []);
+  eq(E.parseFacebookWebhook(feed(comment({ verb: "remove" })), APP), []);
+  eq(E.parseFacebookWebhook(feed(comment({ from: { id: "PAGE1", name: "Klinik" } })), APP), [], "the page answering");
+  eq(E.parseFacebookWebhook(feed({ item: "reaction", verb: "add", from: { id: "CU1" } }), APP), []);
+  const photo = E.parseFacebookWebhook(feed(comment({ message: "", photo: "https://cdn.example/x.jpg" })), APP)[0];
+  eq([photo.type, photo.body, photo.mediaUrl], ["image", "📷 Photo", "https://cdn.example/x.jpg"]);
+});
+
+await check("which comments the bot answers: questions and the clinic's services, not tags or 'mantap'", () => {
+  for (const yes of ["Berapa harga sunat?", "harga brp", "nak tanya pasal kurus", "PM", "Ada slot hari sabtu", "How much for the scan", "Buka pukul berapa", "info pakej pls"]) {
+    assert.equal(L.isEnquiryComment(yes), true, yes);
+  }
+  for (const no of ["Mantap", "😍😍", "@Ali Abu", "@[123:Ali] tengok ni", "Amin", "Nice", "👍", "", null, "Terbaik doktor"]) {
+    assert.equal(L.isEnquiryComment(no), false, String(no));
+  }
+});
+
+await check("a comment lands on the page's Comments line, with a link to its post; the bot only for a question", async () => {
+  const admin = fakeAdmin();
+  const [q] = E.parseFacebookWebhook(feed(comment({})), APP);
+  const t1 = await I.ingestSocialEvent(admin, PAGE, q);
+  eq(admin.rows.whatsapp_numbers.map((r) => [r.phone_number_id, r.display_name]), [["fbc:dungun:PAGE1", "Facebook Comments · Dungun"]]);
+  eq(admin.rows.contacts.map((r) => [r.wa_id, r.name]), [["fbc:CU1", "Siti Aminah"]]);
+  eq(admin.rows.tags.map((t) => t.name), ["facebook-comment"]);
+  eq(admin.rows.messages.map((m) => [m.wa_message_id, m.body]), [["fbc:PAGE1_9_c1", "Berapa harga sunat?\n\n🔗 Post: https://www.facebook.com/PAGE1_9"]]);
+  eq(t1, { conversationId: admin.rows.conversations[0].id, waMessageId: "fbc:PAGE1_9_c1" });
+  // the same person says "mantap" on another post: same thread, stored, no bot
+  const [m] = E.parseFacebookWebhook(feed(comment({ comment_id: "PAGE1_10_c2", post_id: "PAGE1_10", message: "Mantap" })), APP);
+  assert.equal(await I.ingestSocialEvent(admin, PAGE, m), null);
+  eq([admin.rows.conversations.length, admin.rows.messages.length], [1, 2]);
+  // Messenger and comments from one page are two lines
+  await I.ingestSocialEvent(admin, PAGE, ev({}), async () => "Siti");
+  eq(admin.rows.whatsapp_numbers.map((r) => r.display_name), ["Facebook Comments · Dungun", "Facebook · Dungun"]);
 });
 
 console.log(`\nsocial channels: ${n} checks passed`);

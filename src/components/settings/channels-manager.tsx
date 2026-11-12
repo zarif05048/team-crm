@@ -96,8 +96,10 @@ export function ChannelsManager({ channels, tiktokReady, notice }: {
         )}
       </div>
       <p className="px-4 pb-3 text-[11px] leading-relaxed text-slate-400">
-        Facebook pages are matched to a clinic by their name (Dungun / Paka). Replies are possible for 24 hours after a person&apos;s last
-        message on Facebook and 48 hours on TikTok; after that the chat reopens when they write again.
+        Facebook pages are matched to a clinic by their name (Dungun / Paka); each brings its Messenger messages and the comments under its
+        posts (a separate &quot;FB Comments&quot; line). Replies are possible for 24 hours after a person&apos;s last message on Facebook and 48 hours on
+        TikTok; a comment gets one private message within 7 days, or a public reply any time. Connect again after the CRM adds a feature, so the
+        page grants it.
       </p>
     </section>
   );

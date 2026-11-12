@@ -1,10 +1,11 @@
 // What Meta and TikTok post to the webhooks, read into one shape the inbox
 // stores (lib/social/ingest.ts). Pure: no database, no network.
 import crypto from "node:crypto";
-import type { SocialProvider } from "./lines";
+import type { SocialChannel } from "./lines";
 
 export interface SocialEvent {
-  provider: SocialProvider;
+  /** Messenger, a post comment, or TikTok — which inbox line it belongs on */
+  provider: SocialChannel;
   /** the Facebook page id / the TikTok business account id the event is about */
   accountId: string;
   /** who the clinic is talking to: a page-scoped user id / a TikTok conversation id */
@@ -21,6 +22,8 @@ export interface SocialEvent {
   mediaUrl?: string;
   /** ISO time the provider gives the message */
   at: string;
+  /** a post comment: the post it is under (its id, for its link) */
+  postId?: string;
 }
 
 /* ------------------------------ Facebook ------------------------------ */
@@ -33,9 +36,17 @@ interface FbMessaging {
   message?: { mid?: string; text?: string; is_echo?: boolean; app_id?: number | string; attachments?: FbAttachment[] };
   postback?: { mid?: string; title?: string; payload?: string };
 }
+/** A change on the page's feed — here, a comment under one of its posts. */
+interface FbFeedChange {
+  field?: string;
+  value?: {
+    item?: string; verb?: string; comment_id?: string; post_id?: string; parent_id?: string;
+    message?: string; created_time?: number; from?: { id?: string; name?: string }; photo?: string;
+  };
+}
 export interface FbWebhookBody {
   object?: string;
-  entry?: { id?: string; time?: number; messaging?: FbMessaging[] }[];
+  entry?: { id?: string; time?: number; messaging?: FbMessaging[]; changes?: FbFeedChange[] }[];
 }
 
 const ATTACHMENT_LABEL: Record<string, string> = {
@@ -64,6 +75,23 @@ export function parseFacebookWebhook(body: FbWebhookBody, appId: string): Social
   if (body?.object !== "page") return out;
   for (const entry of body.entry ?? []) {
     const pageId = String(entry.id ?? "");
+    /* Comments under the page's posts (owner, 12 Nov 2026: "yes add comments
+       too"). Only a NEW comment by someone other than the page: an edit, a
+       removal, a like or the page's own reply is not something to answer. */
+    for (const ch of entry.changes ?? []) {
+      const v = ch.value;
+      if (ch.field !== "feed" || v?.item !== "comment" || v.verb !== "add") continue;
+      const userId = String(v.from?.id ?? "");
+      if (!pageId || !userId || userId === pageId || !v.comment_id) continue;
+      const text = (v.message ?? "").trim();
+      if (!text && !v.photo) continue;
+      out.push({
+        provider: "fbcomments", accountId: pageId, userId, userName: (v.from?.name ?? "").trim() || undefined, direction: "in",
+        messageId: v.comment_id, postId: v.post_id,
+        type: v.photo && !text ? "image" : "text", body: text || "📷 Photo", mediaUrl: v.photo,
+        at: new Date(v.created_time ? v.created_time * 1000 : Date.now()).toISOString(),
+      });
+    }
     for (const ev of entry.messaging ?? []) {
       const at = new Date(ev.timestamp || Date.now()).toISOString();
       if (ev.message?.mid) {

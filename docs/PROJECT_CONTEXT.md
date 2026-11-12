@@ -299,7 +299,21 @@ like a WhatsApp chat; staff and the AI bot answer from the same thread.
   Access (App Review) before people WITHOUT a role on the app can be answered;
   until then only app admins/testers' messages arrive. TikTok — the developer
   app must be granted the Business Messaging API.
-- Tests: `scripts/test-social-channels.mjs` (14 checks, offline).
+- **Post comments (added same day, owner: "yes add comments too")**: the page
+  subscription includes `feed`; a NEW comment by someone other than the page
+  becomes a message on the page's second line `fbc:<clinic>:<page id>`
+  ("Facebook Comments · Dungun", badge "FB Comments"), contact
+  `fbc:<commenter id>`, message `fbc:<comment id>` with a link to the post.
+  Replying: ONE private Messenger message per comment within 7 days
+  (`recipient.comment_id`; marked `fbc:pr:<comment id>` so a second is refused),
+  then the page posts PUBLIC_ACK under the comment; or a public reply any time
+  (composer switch "Reply as", marked `fbc:pub:<id>`). The bot answers only
+  `isEnquiryComment` comments (a question or a service word; not tags, emoji,
+  "mantap"), one short message. Meta's echo of that private reply is stored in
+  the person's Messenger thread so the bot has context when they answer.
+  Needs pages_read_engagement, pages_read_user_content, pages_manage_engagement
+  in the Login config + App Review, and each page connected again.
+- Tests: `scripts/test-social-channels.mjs` (18 checks, offline).
 
 ## Bot provider: OpenRouter (2026-10-27)
 

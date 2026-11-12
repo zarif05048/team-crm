@@ -4,7 +4,7 @@
 import type { createAdminClient } from "@/lib/supabase/admin";
 import type { BotTrigger } from "@/lib/ai/bot";
 import type { SocialEvent } from "./events";
-import { SOCIAL, contactId, lineId, lineName, messageId, type SocialClinic, type SocialProvider } from "./lines";
+import { SOCIAL, contactId, isEnquiryComment, lineId, lineName, messageId, type SocialChannel, type SocialClinic, type SocialProvider } from "./lines";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -13,11 +13,13 @@ export interface IngestAccount { provider: SocialProvider; external_id: string; 
 /** How recent one of our own messages must be for an echo of it to be taken as ours. */
 const OWN_ECHO_WINDOW_MS = 2 * 60_000;
 
-async function ensureLine(admin: Admin, acc: IngestAccount): Promise<string> {
+/** The account's line for this kind of message — a Facebook page has two:
+ *  its Messenger, and the comments under its posts. */
+async function ensureLine(admin: Admin, acc: IngestAccount, channel: SocialChannel): Promise<string> {
   const { data, error } = await admin.from("whatsapp_numbers").upsert({
-    phone_number_id: lineId(acc.provider, acc.clinic, acc.external_id),
-    display_name: lineName(acc.provider, acc.clinic),
-    phone_display: acc.name || SOCIAL[acc.provider].app,
+    phone_number_id: lineId(channel, acc.clinic, acc.external_id),
+    display_name: lineName(channel, acc.clinic),
+    phone_display: acc.name || SOCIAL[channel].app,
   }, { onConflict: "phone_number_id", ignoreDuplicates: false }).select("id").single();
   if (error || !data) throw new Error(`social line: ${error?.message}`);
   return data.id as string;
@@ -39,7 +41,7 @@ async function ensureContact(admin: Admin, ev: SocialEvent, nameOf?: () => Promi
   throw new Error(`social contact: ${error?.message}`);
 }
 
-async function ensureConversation(admin: Admin, contact: string, line: string, provider: SocialProvider): Promise<string> {
+async function ensureConversation(admin: Admin, contact: string, line: string, provider: SocialChannel): Promise<string> {
   const find = () => admin.from("conversations").select("id").eq("contact_id", contact).eq("whatsapp_number_id", line).maybeSingle();
   const { data: existing } = await find();
   if (existing) return existing.id as string;
@@ -79,17 +81,25 @@ async function isOwnEcho(admin: Admin, conversation: string, ev: SocialEvent): P
 export async function ingestSocialEvent(
   admin: Admin, acc: IngestAccount, ev: SocialEvent, nameOf?: () => Promise<string | null>,
 ): Promise<BotTrigger | null> {
-  const line = await ensureLine(admin, acc);
+  const line = await ensureLine(admin, acc, ev.provider);
   const contact = await ensureContact(admin, ev, nameOf);
   const conversation = await ensureConversation(admin, contact, line, ev.provider);
   const waMessageId = messageId(ev.provider, ev.messageId);
 
-  if (ev.direction === "out" && (await isOwnEcho(admin, conversation, ev))) return null;
+  /* Meta marks a message this CRM's own app sent (ev.own). One sent in this
+     thread is already stored under the same id, and the insert below refuses
+     it. One that is NOT here is a private reply to a post comment, which
+     Facebook delivers into the person's Messenger: stored here, so this thread
+     (and the bot, when they answer) shows what was said. TikTok does not mark
+     its echoes, so for those the thread is searched (isOwnEcho). */
+  if (ev.direction === "out" && !ev.own && (await isOwnEcho(admin, conversation, ev))) return null;
 
   const { error } = await admin.from("messages").insert({
     conversation_id: conversation, wa_message_id: waMessageId,
     direction: ev.direction === "in" ? "inbound" : "outbound",
-    type: ev.type, body: ev.body, media_url: ev.mediaUrl ?? null,
+    // a comment carries a link to its post, so staff can open it in Facebook
+    type: ev.type, body: ev.postId ? `${ev.body}\n\n🔗 Post: https://www.facebook.com/${ev.postId}` : ev.body,
+    media_url: ev.mediaUrl ?? null,
     status: ev.direction === "in" ? "received" : "sent", created_at: ev.at,
   });
   if (error) {
@@ -98,9 +108,12 @@ export async function ingestSocialEvent(
   }
   if (ev.direction === "out") {
     // Staff answered from the Facebook / TikTok app itself: they own the
-    // thread now, exactly as when they answer from the CRM.
+    // thread now, exactly as when they answer from the CRM. Our own send does not.
+    if (ev.own) return null;
     await admin.from("conversations").update({ bot_enabled: false }).eq("id", conversation).eq("bot_enabled", true);
     return null;
   }
+  // a comment that asks nothing ("mantap", a tagged friend) waits for staff, not the bot (lines.ts)
+  if (ev.provider === "fbcomments" && !isEnquiryComment(ev.body)) return null;
   return { conversationId: conversation, waMessageId };
 }

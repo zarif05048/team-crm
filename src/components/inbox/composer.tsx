@@ -34,6 +34,7 @@ export function Composer({
   currentNumberId,
   sendableLines = [],
   closedNote,
+  commentThread = false,
 }: {
   conversationId: string;
   windowOpen: boolean;
@@ -44,6 +45,8 @@ export function Composer({
   /** Facebook / TikTok: what to say when the reply window has closed — there
    *  is no template to reopen those, so no template button either. */
   closedNote?: string;
+  /** a Facebook post-comment thread: choose a private message or a public reply */
+  commentThread?: boolean;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("reply");
@@ -59,6 +62,8 @@ export function Composer({
       ? currentNumberId
       : (sendableLines[0]?.id ?? "");
   const [fromLine, setFromLine] = useState(defaultLine);
+  // comment threads: Facebook allows ONE private message per comment; a public reply any time
+  const [publicReply, setPublicReply] = useState(false);
   const showLinePicker = sendableLines.length > 1;
 
   const insertCanned = (body: string) => {
@@ -95,7 +100,7 @@ export function Composer({
     start(async () => {
       const res =
         mode === "reply"
-          ? await sendReply(conversationId, body, fromLine || undefined)
+          ? await sendReply(conversationId, body, fromLine || undefined, commentThread ? publicReply : undefined)
           : await addNote(conversationId, body, mentions);
       if (res.ok) {
         setText("");
@@ -153,6 +158,26 @@ export function Composer({
         <p className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
           {error}
         </p>
+      )}
+
+      {/* Comment threads: how this reply goes out */}
+      {commentThread && mode === "reply" && (
+        <div className="mb-2 flex flex-wrap items-center gap-1.5 text-xs">
+          <span className="text-slate-500">Reply as:</span>
+          {([[false, "Private message (Messenger)"], [true, "Public reply under the comment"]] as const).map(([pub, label]) => (
+            <button key={label} type="button" onClick={() => setPublicReply(pub)}
+              className={publicReply === pub
+                ? "rounded-full bg-brand-600 px-2.5 py-1 font-semibold text-white"
+                : "rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600 hover:bg-slate-200"}>
+              {label}
+            </button>
+          ))}
+          <span className="basis-full text-[11px] text-slate-400">
+            {publicReply
+              ? "Everyone who reads the post sees this — no prices for one person's case, nothing about their health."
+              : "One private message per comment, within 7 days. The page also posts a short public note that a message was sent."}
+          </span>
+        </div>
       )}
 
       {/* Reply mode, window closed → template path */}

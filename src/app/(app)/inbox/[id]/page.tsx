@@ -70,7 +70,9 @@ export default async function ThreadPage({
   // Bridged threads (unofficial marketing number, delivered by the sender
   // program) have no Meta 24h-window rule — always open for free-text replies.
   const bridged = webChat || (conversation.whatsapp_number.phone_number_id?.startsWith("unofficial:") ?? false);
-  const windowOpen = bridged || (social
+  // a comment can always be answered publicly — the 7 days are for the private message
+  const comments = social?.provider === "fbcomments";
+  const windowOpen = bridged || comments || (social
     ? socialWindowOpen(social.provider, conversation.last_inbound_at)
     : isWindowOpen(conversation.last_inbound_at));
   const windowHours = social ? SOCIAL[social.provider].windowHours : 24;
@@ -116,7 +118,7 @@ export default async function ThreadPage({
                 : "rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700"
             }
           >
-            {bridged ? "Always open" : windowOpen ? `${windowHours}h window open` : "Window closed"}
+            {bridged ? "Always open" : comments ? "Post comment" : windowOpen ? `${windowHours}h window open` : "Window closed"}
           </span>
         </header>
 
@@ -159,6 +161,7 @@ export default async function ThreadPage({
           currentNumberId={conversation.whatsapp_number.id}
           sendableLines={sendableLines}
           closedNote={social ? windowClosedNote(social.provider) : undefined}
+          commentThread={comments}
         />
       </div>
     </ThreadSearchProvider>
