@@ -129,3 +129,24 @@ export async function renameNumber(
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
+
+/** Settings → Channels: stop a Facebook page or TikTok account feeding the
+ *  inbox. The page is told to stop sending; the chats already stored stay. */
+export async function disconnectChannel(id: string): Promise<AdminState> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { ok: false, error: auth.error };
+  const admin = createAdminClient();
+  const { data: acc } = await admin.from("channel_accounts").select("id, provider, external_id").eq("id", id).maybeSingle();
+  if (!acc) return { ok: false, error: "That channel is no longer connected." };
+  if (acc.provider === "facebook") {
+    // best effort: a page whose access was already removed cannot be told
+    try {
+      const { accessTokenFor } = await import("@/lib/social/accounts");
+      const { unsubscribePage } = await import("@/lib/social/facebook");
+      await unsubscribePage(acc.external_id, await accessTokenFor("facebook", acc.external_id, admin));
+    } catch (e) { console.warn("[settings] unsubscribe page:", (e as Error).message); }
+  }
+  const { error } = await admin.from("channel_accounts").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}

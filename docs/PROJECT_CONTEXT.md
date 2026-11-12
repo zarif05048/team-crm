@@ -243,6 +243,64 @@ number Meta can restrict. Patients chat on the clinic's own page instead:
   is made. No/unknown src = Google, as before. Test:
   `scripts/test-webchat-source.mjs`.
 
+## Facebook Messenger + TikTok messages in the inbox (added 2026-11-12)
+
+Owner: "connect team crm with tiktok … and also fb pages dungun and paka". A
+message to a connected Facebook page or TikTok account arrives in the inbox
+like a WhatsApp chat; staff and the AI bot answer from the same thread.
+
+- **Storage — no new message tables** (`src/lib/social/lines.ts`, pure): a
+  connected account is a `whatsapp_numbers` row `fb:<clinic>:<page id>` /
+  `tt:<clinic>:<business id>` (the clinic is IN the id, so the bot and screens
+  know the branch), shown as "Facebook · Dungun" / "TikTok · Paka". A person is
+  a contact `fb:<page-scoped id>` / `tt:<TikTok conversation id>` — exactly
+  what a reply is addressed to. Messages are `fb:<mid>` / `tt:<message id>`
+  (a webhook sent twice is one message). New threads are tagged `facebook` /
+  `tiktok`, the same tags the web chat's `?src=` gives.
+- **Accounts + tokens**: table `channel_accounts`
+  (`supabase/migrations/2026-11-12_channel_accounts.sql`), RLS on, no policy —
+  service role only. Token columns are SEALED (AES-256-GCM, `seal.ts`, key
+  derived from `META_APP_SECRET`): the table alone never shows a usable token.
+- **Connecting = the provider's own sign-in** (Settings → Channels, admins
+  only; `app/api/connect/{facebook,tiktok}/{start,callback}`). Nobody copies a
+  token. Facebook: one sign-in returns the pages; each whose NAME says Dungun
+  or Paka is subscribed (`messages, messaging_postbacks, message_echoes`) and
+  stored; the app's Page webhook is pointed at `/api/webhooks/facebook`
+  (`ensurePageWebhook`, same verify token as WhatsApp). TikTok: one button per
+  clinic; tokens stored; `/api/webhooks/tiktok` registered with TikTok.
+  Redirect addresses are fixed to `PUBLIC_BASE_URL` (must be registered with
+  each provider): `…/api/connect/facebook/callback`, `…/api/connect/tiktok/callback`.
+- **Webhooks**: `/api/webhooks/facebook` (Meta signature, same
+  `META_APP_SECRET`), `/api/webhooks/tiktok` (header `TikTok-Signature:
+  t=…,s=…`, HMAC of `t.body` with `TIKTOK_APP_SECRET`; older than 5 min
+  refused). Both parse to one shape (`events.ts`) and store via `ingest.ts`.
+- **Sending**: `lib/whatsapp/send.ts` `sendText` / `sendImage` hand any `fb:` /
+  `tt:` line to `lib/social/send.ts`, so the bot and `sendReply` are unchanged
+  code paths. Long text is cut at 2,000 chars. TikTok pictures are uploaded
+  then sent; where TikTok refuses pictures the link goes as text.
+- **Reply windows**: Facebook 24 h, TikTok 48 h after the person's last
+  message (`socialWindowOpen`). No template reopens them — the composer says
+  so (`closedNote`) instead of offering the WhatsApp template button.
+- **Staff answering in the Facebook / TikTok app itself** comes back as an
+  "echo": stored as an outbound message and the bot is switched off for that
+  thread (same as a manual CRM reply). The CRM's OWN sends also echo: Meta
+  marks them (`app_id`); TikTok does not, so `isOwnEcho` matches by id or by
+  a just-sent message containing the text (TikTok echoes wait 3 s first).
+- **TikTok tokens** last a day; renewed on use and by the daily cron
+  (`renewAllTikTok` in `api/cron/cleanup`) so the renewal token never lapses.
+  A failure shows on the account's row in Settings ("Connect again").
+- **Bot**: gets a CHANNEL note (`socialChatNote`) — not WhatsApp, branch from
+  the line, ask for a phone number for bookings because the window closes.
+- **Public pages** `/legal/privacy` and `/legal/terms` (left out of the proxy
+  matcher) — the URLs given to Meta and TikTok.
+- **Env**: `TIKTOK_APP_ID`, `TIKTOK_APP_SECRET` (owner adds on Vercel; empty =
+  TikTok buttons hidden). `META_APP_ID` optional (code knows the app id).
+- **Platform approvals (not code)**: Meta — `pages_messaging` needs Advanced
+  Access (App Review) before people WITHOUT a role on the app can be answered;
+  until then only app admins/testers' messages arrive. TikTok — the developer
+  app must be granted the Business Messaging API.
+- Tests: `scripts/test-social-channels.mjs` (14 checks, offline).
+
 ## Bot provider: OpenRouter (2026-10-27)
 
 `src/lib/ai/model.ts` — with `OPENROUTER_API_KEY` set, the bot runs on

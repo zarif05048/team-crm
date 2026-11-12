@@ -33,6 +33,7 @@ export function Composer({
   cannedReplies,
   currentNumberId,
   sendableLines = [],
+  closedNote,
 }: {
   conversationId: string;
   windowOpen: boolean;
@@ -40,6 +41,9 @@ export function Composer({
   cannedReplies: CannedReply[];
   currentNumberId?: string;
   sendableLines?: SendableLine[];
+  /** Facebook / TikTok: what to say when the reply window has closed — there
+   *  is no template to reopen those, so no template button either. */
+  closedNote?: string;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("reply");
@@ -152,7 +156,15 @@ export function Composer({
       )}
 
       {/* Reply mode, window closed → template path */}
-      {mode === "reply" && !windowOpen ? (
+      {mode === "reply" && !windowOpen && closedNote ? (
+        <div className="flex flex-col gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
+          <div className="flex items-center gap-2 font-medium">
+            <Lock className="h-4 w-4" />
+            Reply window closed
+          </div>
+          <p className="text-xs text-amber-700">{closedNote}</p>
+        </div>
+      ) : mode === "reply" && !windowOpen ? (
         <div className="flex flex-col gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
           <div className="flex items-center gap-2 font-medium">
             <Lock className="h-4 w-4" />

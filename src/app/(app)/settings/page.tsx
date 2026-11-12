@@ -6,8 +6,13 @@ import { TeamManager } from "@/components/settings/team-manager";
 import { CannedManager } from "@/components/settings/canned-manager";
 import { NumbersList } from "@/components/settings/numbers-list";
 import { AppearanceSettings } from "@/components/theme-controls";
+import { ChannelsManager } from "@/components/settings/channels-manager";
+import { listAccounts } from "@/lib/social/accounts";
+import { tiktokConfigured } from "@/lib/social/tiktok";
 
-export default async function SettingsPage() {
+export default async function SettingsPage({ searchParams }: {
+  searchParams: Promise<{ channel_ok?: string; channel_error?: string }>;
+}) {
   const profile = await getCurrentProfile();
 
   if (profile?.role !== "admin") {
@@ -24,11 +29,16 @@ export default async function SettingsPage() {
     );
   }
 
-  const [members, canned, numbers] = await Promise.all([
+  const [members, canned, numbers, channels, query] = await Promise.all([
     getTeamMembers(),
     getCannedReplies(),
     getWhatsappNumbers(),
+    listAccounts(),
+    searchParams,
   ]);
+  // what the last Connect did, said once on the way back from the provider
+  const notice = query.channel_ok ? { kind: "ok" as const, text: query.channel_ok }
+    : query.channel_error ? { kind: "error" as const, text: query.channel_error } : null;
 
   return (
     <div className="flex h-full flex-col">
@@ -41,6 +51,7 @@ export default async function SettingsPage() {
           <TeamManager members={members} currentUserId={profile.id} />
           <CannedManager replies={canned} />
           <NumbersList numbers={numbers} />
+          <ChannelsManager channels={channels} tiktokReady={tiktokConfigured()} notice={notice} />
         </div>
       </div>
     </div>

@@ -1,6 +1,8 @@
 // Outbound sending via the Meta WhatsApp Cloud API (Graph API).
 
 import { isWeb } from "@/lib/webchat";
+import { isSocial } from "@/lib/social/lines";
+import { sendSocial } from "@/lib/social/send";
 
 const GRAPH = "https://graph.facebook.com";
 
@@ -52,6 +54,8 @@ export function sendText(
   to: string,
   body: string,
 ): Promise<SendResult> {
+  // A Facebook page or TikTok account (lib/social): its own API, same result.
+  if (isSocial(phoneNumberId)) return sendSocial(phoneNumberId, to, { kind: "text", body });
   return postMessage(phoneNumberId, {
     recipient_type: "individual",
     to,
@@ -67,6 +71,7 @@ export function sendImage(
   link: string,
   caption?: string,
 ): Promise<SendResult> {
+  if (isSocial(phoneNumberId)) return sendSocial(phoneNumberId, to, { kind: "image", link, caption });
   return postMessage(phoneNumberId, {
     recipient_type: "individual",
     to,
@@ -86,6 +91,7 @@ export function sendTemplate(
   languageCode = "en_US",
   components?: unknown[],
 ): Promise<SendResult> {
+  if (isSocial(phoneNumberId)) return Promise.resolve({ ok: false, error: "Templates are a WhatsApp feature." });
   return postMessage(phoneNumberId, {
     to,
     type: "template",

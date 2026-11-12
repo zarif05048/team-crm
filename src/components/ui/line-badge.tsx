@@ -17,6 +17,13 @@ function classify(displayName: string | null | undefined): {
     const where = dn.includes("paka") ? "Paka" : dn.includes("dungun") ? "Dungun" : "";
     return { label: `Google${where ? ` · ${where}` : ""}`, classes: "bg-amber-100 text-amber-800 ring-amber-200" };
   }
+  // Facebook Messenger / TikTok lines (lib/social) — also before the branch names.
+  if (dn.includes("facebook") || dn.includes("tiktok")) {
+    const where = dn.includes("paka") ? "Paka" : dn.includes("dungun") ? "Dungun" : "";
+    return dn.includes("facebook")
+      ? { label: `Facebook${where ? ` · ${where}` : ""}`, classes: "bg-blue-100 text-blue-800 ring-blue-200" }
+      : { label: `TikTok${where ? ` · ${where}` : ""}`, classes: "bg-slate-800 text-white ring-slate-900" };
+  }
   // Order matters: the marketing line's name mentions both branches.
   if (dn.includes("marketing")) {
     return { label: "Marketing", classes: "bg-violet-100 text-violet-700 ring-violet-200" };

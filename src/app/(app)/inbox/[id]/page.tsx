@@ -25,6 +25,7 @@ import { getWhatsappNumbers } from "@/lib/data/numbers";
 import { isWindowOpen } from "@/lib/types";
 import { contactName, contactPhone } from "@/lib/contact-phone";
 import { isWeb } from "@/lib/webchat";
+import { SOCIAL, socialLineOf, socialWindowOpen, windowClosedNote } from "@/lib/social/lines";
 import { ThemeToggle } from "@/components/theme-controls";
 
 export default async function ThreadPage({
@@ -56,8 +57,12 @@ export default async function ThreadPage({
   // thread (no line picker) and there is no 24h window (lib/webchat.ts).
   const webChat = isWeb(conversation.whatsapp_number.phone_number_id);
 
+  // Facebook Messenger / TikTok (lib/social): the reply stays on this thread
+  // too, inside that provider's own window (24 h / 48 h) — no template reopens it.
+  const social = socialLineOf(conversation.whatsapp_number.phone_number_id);
+
   // Lines staff can send from: the clinic bot lines (Dungun / Paka / Marketing).
-  const sendableLines = webChat ? [] : allNumbers
+  const sendableLines = webChat || social ? [] : allNumbers
     .filter((n) => n.phone_number_id.startsWith("unofficial:") && n.is_active !== false)
     .map((n) => ({ id: n.id, display_name: n.display_name }));
 
@@ -65,7 +70,10 @@ export default async function ThreadPage({
   // Bridged threads (unofficial marketing number, delivered by the sender
   // program) have no Meta 24h-window rule — always open for free-text replies.
   const bridged = webChat || (conversation.whatsapp_number.phone_number_id?.startsWith("unofficial:") ?? false);
-  const windowOpen = bridged || isWindowOpen(conversation.last_inbound_at);
+  const windowOpen = bridged || (social
+    ? socialWindowOpen(social.provider, conversation.last_inbound_at)
+    : isWindowOpen(conversation.last_inbound_at));
+  const windowHours = social ? SOCIAL[social.provider].windowHours : 24;
   const memberNames = Object.fromEntries(
     members.map((m) => [m.id, m.full_name ?? m.email ?? "Unknown"]),
   );
@@ -93,7 +101,9 @@ export default async function ThreadPage({
               <LineBadge displayName={conversation.whatsapp_number.display_name} />
             </div>
             <p className="truncate text-xs text-slate-400">
-              {webChat && !conversation.contact.phone_number ? "No phone provided — reply in web chat" : contactPhone(conversation.contact)} · via{" "}
+              {webChat && !conversation.contact.phone_number ? "No phone provided — reply in web chat"
+                : social && !conversation.contact.phone_number ? `${SOCIAL[social.provider].app} — no phone given`
+                  : contactPhone(conversation.contact)} · via{" "}
               {conversation.whatsapp_number.display_name}
             </p>
           </div>
@@ -106,7 +116,7 @@ export default async function ThreadPage({
                 : "rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700"
             }
           >
-            {bridged ? "Always open" : windowOpen ? "24h window open" : "Window closed"}
+            {bridged ? "Always open" : windowOpen ? `${windowHours}h window open` : "Window closed"}
           </span>
         </header>
 
@@ -148,6 +158,7 @@ export default async function ThreadPage({
           cannedReplies={cannedReplies}
           currentNumberId={conversation.whatsapp_number.id}
           sendableLines={sendableLines}
+          closedNote={social ? windowClosedNote(social.provider) : undefined}
         />
       </div>
     </ThreadSearchProvider>

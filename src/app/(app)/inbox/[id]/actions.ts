@@ -8,6 +8,7 @@ import { isWindowOpen, type LeadStage } from "@/lib/types";
 import { PIPELINES, isPipelineKey, type PipelineKey } from "@/lib/data/conversations";
 import { recordBookingStage } from "@/lib/pipeline-booking";
 import { isWeb } from "@/lib/webchat";
+import { SOCIAL, socialLineOf, socialWindowOpen, windowClosedNote } from "@/lib/social/lines";
 
 export type SendState = { ok: boolean; error?: string; conversationId?: string };
 
@@ -121,6 +122,22 @@ export async function sendReply(
     return { ok: true };
   }
 
+  // Facebook Messenger / TikTok (lib/social): the person is only reachable on
+  // the page or account they wrote to, and only inside that provider's window.
+  const social = socialLineOf(conv.whatsapp_number.phone_number_id);
+  if (social) {
+    if (viaNumberId && viaNumberId !== conv.whatsapp_number.id) {
+      return { ok: false, error: `This person is on ${SOCIAL[social.provider].label} — reply in this thread.` };
+    }
+    if (!socialWindowOpen(social.provider, conv.last_inbound_at)) {
+      return { ok: false, error: windowClosedNote(social.provider) };
+    }
+    const sent = await sendText(conv.whatsapp_number.phone_number_id, conv.contact.wa_id, text);
+    if (!sent.ok) return { ok: false, error: sent.error };
+    await recordOutbound(conversationId, user.id, "text", text, sent.waMessageId);
+    return { ok: true };
+  }
+
   // "Send from" a different clinic line: reply to this same patient from another
   // of our WhatsApp numbers. That number is a separate WhatsApp chat, so the
   // reply is recorded and delivered on THAT line's own thread, and we hand the
@@ -231,6 +248,9 @@ export async function sendTemplateReply(
   const { user, conv } = loaded;
   if (isWeb(conv.whatsapp_number.phone_number_id)) {
     return { ok: false, error: "Templates are for WhatsApp — on the Google web chat just type a reply." };
+  }
+  if (socialLineOf(conv.whatsapp_number.phone_number_id)) {
+    return { ok: false, error: "Templates are for WhatsApp — they cannot reopen a Facebook or TikTok chat." };
   }
 
   const result = await sendTemplate(

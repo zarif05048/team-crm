@@ -328,6 +328,33 @@ create index if not exists cron_runs_created_idx
 alter table public.cron_runs enable row level security;
 
 -- ============================================================================
+--  channel_accounts : connected Facebook pages and TikTok accounts
+-- ============================================================================
+-- Their messages come into the inbox (src/lib/social). Tokens are stored
+-- sealed. Full rationale: supabase/migrations/2026-11-12_channel_accounts.sql
+create table if not exists public.channel_accounts (
+  id                  uuid primary key default gen_random_uuid(),
+  provider            text not null check (provider in ('facebook', 'tiktok')),
+  external_id         text not null,                 -- Facebook page id / TikTok business account id
+  clinic              text not null check (clinic in ('dungun', 'paka')),
+  name                text,                          -- the page's name / the account's @username
+  access_token        text not null,                 -- sealed
+  refresh_token       text,                          -- sealed; TikTok only
+  expires_at          timestamptz,                   -- TikTok: the access token lasts a day
+  refresh_expires_at  timestamptz,
+  status              text not null default 'active' check (status in ('active', 'reauth')),
+  last_error          text,
+  connected_by        uuid references public.profiles(id) on delete set null,
+  connected_at        timestamptz not null default now(),
+  updated_at          timestamptz not null default now(),
+  unique (provider, external_id)
+);
+
+-- RLS on with no policies: service-role (server routes) only. No staff
+-- browser, and no realtime subscription, can read a row.
+alter table public.channel_accounts enable row level security;
+
+-- ============================================================================
 --  Search indexes : inbox search by message text, name or phone
 -- ============================================================================
 -- ILIKE '%...%' cannot use a normal btree index, so message search would scan

@@ -24,6 +24,7 @@ import { scopedRosterText, guardDutyReply } from "./roster";
 import { recordBookingStage } from "@/lib/pipeline-booking";
 import { createMessage, aiConfigured } from "./model";
 import { webChatNote, webClinicOf } from "@/lib/webchat";
+import { socialChatNote, socialLineOf } from "@/lib/social/lines";
 import { buildConversationContext } from "./conversation-context";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -82,6 +83,11 @@ const LEAFLETS: Record<string, { file: string; caption: string }> = {
 
 const LEAFLET_BASE =
   process.env.PUBLIC_BASE_URL ?? "https://team-crm-one.vercel.app";
+
+/** The clinic a thread's line belongs to, when the line itself says so: the
+ *  web chat pages and the Facebook / TikTok lines do; the WhatsApp line serves both. */
+const lineBranch = (phoneNumberId: string | null | undefined): string | null =>
+  webClinicOf(phoneNumberId)?.branch ?? socialLineOf(phoneNumberId)?.branch ?? null;
 
 export interface BotTrigger {
   conversationId: string;
@@ -395,7 +401,7 @@ export async function runBotReply(trigger: BotTrigger): Promise<void> {
       trigger.conversationId,
       sendCtx,
       messages,
-      webChatNote(number.phone_number_id),
+      webChatNote(number.phone_number_id) ?? socialChatNote(number.phone_number_id),
     );
     if (!modelText) return;
     // A duty answer naming a doctor who is not on the rota for that clinic and
@@ -486,7 +492,7 @@ async function converse(
     .filter((m) => m.role === "user" && typeof m.content === "string")
     .map((m) => m.content as string);
   // The owner's live rules from the CRM (bot-rules.ts), LAST so they win.
-  const rules = await botRulesSection(supabase, webClinicOf(sendCtx.phoneNumberId)?.branch ?? null);
+  const rules = await botRulesSection(supabase, lineBranch(sendCtx.phoneNumberId));
   const systemText = BOT_SYSTEM_PROMPT + (prices ? `
 
 ${prices}` : "") + (rules ? `
@@ -570,11 +576,15 @@ async function sunatFormLink(sendCtx: SendContext): Promise<string> {
   const token = process.env.CMS_REMINDER_TOKEN ?? "";
   if (!base || !token) return asBefore("The sunat interest form is not connected here.");
   const web = webClinicOf(sendCtx.phoneNumberId);
+  const social = socialLineOf(sendCtx.phoneNumberId);
   try {
     const res = await fetch(`${base}/api/bot/sunat-link`, {
       method: "POST",
       headers: { "content-type": "application/json", "x-reminder-token": token },
-      body: JSON.stringify({ phone: web ? "" : (sendCtx.phoneNumber ?? ""), bot: web ? `webchat-${web.branch}` : "crm-whatsapp" }),
+      body: JSON.stringify({
+        phone: web ? "" : (sendCtx.phoneNumber ?? ""),
+        bot: web ? `webchat-${web.branch}` : social ? `${social.provider}-${social.branch}` : "crm-whatsapp",
+      }),
       signal: AbortSignal.timeout(15_000),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -645,7 +655,7 @@ async function executeTool(
       return "Leaflet image sent to the patient. Now send a short text follow-up.";
     }
     if (tool.name === "book_appointment") {
-      const rules = await botRulesSection(supabase, webClinicOf(sendCtx.phoneNumberId)?.branch ?? null);
+      const rules = await botRulesSection(supabase, lineBranch(sendCtx.phoneNumberId));
       if (houseCallBlocked(rules, input.service, input.extra_notes)) return HOUSE_CALL_REFUSAL;
       const body =
         `📅 Booking request (via AI bot)\n` +
@@ -702,7 +712,7 @@ async function executeTool(
     if (tool.name === "alert_staff") {
       // emergencies always reach staff, whatever the reason mentions
       if (input.urgency !== "urgent") {
-        const rules = await botRulesSection(supabase, webClinicOf(sendCtx.phoneNumberId)?.branch ?? null);
+        const rules = await botRulesSection(supabase, lineBranch(sendCtx.phoneNumberId));
         if (houseCallBlocked(rules, input.reason)) return HOUSE_CALL_REFUSAL;
       }
       await alertStaff(supabase, conversationId, {
