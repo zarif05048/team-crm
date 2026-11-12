@@ -16,6 +16,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { isPekaB40Enquiry } from "./peka-b40";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendText, sendImage } from "@/lib/whatsapp/send";
+import { sendSocial } from "@/lib/social/send";
 import { addToTcaList, malaysiaToday } from "@/lib/sheets/tca";
 import { BOT_SYSTEM_PROMPT } from "./knowledge";
 import { pricingSection, lookupMedication } from "./pricing";
@@ -411,7 +412,10 @@ export async function runBotReply(trigger: BotTrigger): Promise<void> {
       `[bot] reply for ${trigger.conversationId}: ${replyText.slice(0, 800)}`,
     );
 
-    const result = await sendText(number.phone_number_id, contact.wa_id, replyText);
+    // a Facebook post comment: privately in Messenger AND under the comment (lib/social/send.ts)
+    const result = socialLineOf(number.phone_number_id)?.provider === "fbcomments"
+      ? await sendSocial(number.phone_number_id, contact.wa_id, { kind: "text", body: replyText, alsoPublic: true })
+      : await sendText(number.phone_number_id, contact.wa_id, replyText);
     if (!result.ok) {
       console.error("[bot] WhatsApp send failed:", result.error);
       return;

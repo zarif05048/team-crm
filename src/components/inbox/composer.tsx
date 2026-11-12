@@ -62,8 +62,9 @@ export function Composer({
       ? currentNumberId
       : (sendableLines[0]?.id ?? "");
   const [fromLine, setFromLine] = useState(defaultLine);
-  // comment threads: Facebook allows ONE private message per comment; a public reply any time
-  const [publicReply, setPublicReply] = useState(false);
+  // comment threads: Facebook allows ONE private message per comment; a public reply any time.
+  // Public is the default (owner, 12 Nov 2026: "make by default to reply under comment section").
+  const [publicReply, setPublicReply] = useState(true);
   const showLinePicker = sendableLines.length > 1;
 
   const insertCanned = (body: string) => {
@@ -164,7 +165,7 @@ export function Composer({
       {commentThread && mode === "reply" && (
         <div className="mb-2 flex flex-wrap items-center gap-1.5 text-xs">
           <span className="text-slate-500">Reply as:</span>
-          {([[false, "Private message (Messenger)"], [true, "Public reply under the comment"]] as const).map(([pub, label]) => (
+          {([[true, "Public reply under the comment"], [false, "Private message (Messenger)"]] as const).map(([pub, label]) => (
             <button key={label} type="button" onClick={() => setPublicReply(pub)}
               className={publicReply === pub
                 ? "rounded-full bg-brand-600 px-2.5 py-1 font-semibold text-white"

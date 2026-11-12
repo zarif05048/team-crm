@@ -9,12 +9,21 @@ import { sendTikTokImage, sendTikTokText } from "./tiktok";
 
 export interface SocialSendResult { ok: boolean; waMessageId?: string; error?: string }
 export type SocialPayload =
-  | { kind: "text"; body: string; /** post comments only: answer under the comment instead of privately */ publicReply?: boolean }
+  | {
+      kind: "text"; body: string;
+      /** post comments only: answer under the comment instead of privately */
+      publicReply?: boolean;
+      /** post comments only: the BOT's answer — sent privately AND posted under the comment */
+      alsoPublic?: boolean;
+    }
   | { kind: "image"; link: string; caption?: string };
 
 /** What the page posts under a comment once it has been answered privately —
  *  so the commenter, and everyone reading the post, sees it was answered. */
 export const PUBLIC_ACK = "Terima kasih. Kami telah menghantar maklumat kepada anda melalui Messenger.";
+/** Hana's answer as it goes up under the comment (owner, 12 Nov 2026: "can hana
+ *  comment in the facebook page also"): her words, and that she messaged them. */
+export const publicAnswer = (answer: string) => `${answer.trim()}\n\nKami juga telah menghantar mesej kepada anda melalui Messenger.`;
 
 /** Marks in wa_message_id: which comment a private message answered, and a
  *  public reply's own comment id. A comment gets ONE private message ever. */
@@ -117,13 +126,16 @@ async function sendOnComments(
   // and say so under the comment. The private message already went, so a
   // refusal here does not fail the send — but it is shown in the thread: the
   // public note when it posts, Facebook's own words when it does not.
-  const ack = await replyToCommentPublicly(c.commentId, token, PUBLIC_ACK)
+  // the bot's answer is posted as it is (people reading the post see it too);
+  // a staff member's private message stays private — only the short note
+  const publicText = payload.kind === "text" && payload.alsoPublic ? publicAnswer(text) : PUBLIC_ACK;
+  const ack = await replyToCommentPublicly(c.commentId, token, publicText)
     .catch((e) => ({ ok: false, error: (e as Error).message, commentId: undefined }));
   const admin = createAdminClient();
   if (ack.ok) {
     await admin.from("messages").insert({
       conversation_id: c.conversationId, wa_message_id: ack.commentId ? publicReplyId(ack.commentId) : null,
-      direction: "outbound", type: "text", body: `💬 Public reply: ${PUBLIC_ACK}`, status: "sent",
+      direction: "outbound", type: "text", body: `💬 Public reply: ${publicText}`, status: "sent",
       sent_by: null, sent_by_bot: false, created_at: new Date().toISOString(),
     });
   } else {

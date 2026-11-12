@@ -20,6 +20,7 @@ const bot=load('src/lib/ai/bot.ts',name=>{
   if(name==='./peka-b40')return{isPekaB40Enquiry:()=>false};
   if(name==='@/lib/webchat')return{webClinicOf:()=>null};
   if(name==='@/lib/social/lines')return{socialLineOf:()=>null,socialChatNote:()=>null};
+  if(name==='@/lib/social/send')return{sendSocial:async()=>({ok:true})};
   if(name==='./bot-rules')return{botRulesSection:async()=>'',houseCallBlocked:()=>false,HOUSE_CALL_REFUSAL:'refused'};
   if(['@/lib/supabase/admin','@/lib/whatsapp/send','./pricing','./roster','./model','./conversation-context'].includes(name))return{};
   throw Error('Unexpected import '+name);

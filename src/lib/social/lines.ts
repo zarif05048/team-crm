@@ -147,9 +147,9 @@ export function socialChatNote(phoneNumberId: string | null | undefined): string
   if (line.provider === "fbcomments") {
     return (
       `CHANNEL: these are PUBLIC COMMENTS the person wrote under a post on the Facebook page of ${line.clinicName} — NOT WhatsApp, and not a private chat. ` +
-      `Your reply is sent to them as ONE PRIVATE Messenger message (Facebook allows only one per comment), and the page then posts a short public note under the comment saying a message was sent. ` +
+      `Your reply is sent to them as ONE PRIVATE Messenger message (Facebook allows only one per comment) AND the same words are posted PUBLICLY under their comment, for everyone reading the post. ` +
       `So write ONE short, complete message: answer what they asked (prices, opening hours, how to book), then invite them to reply in Messenger to continue. Assume the ${line.branch} branch unless they say otherwise. ` +
-      `Do not send leaflets or several messages; no markdown. Never repeat anything about their health back to them as if in public.`
+      `Because it is public, keep it to what anyone may read: services, prices, hours, how to book. Never mention their health, symptoms, name, phone or IC, even if they wrote them. Do not send leaflets or several messages; no markdown.`
     );
   }
   const s = SOCIAL[line.provider];
