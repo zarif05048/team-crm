@@ -41,12 +41,14 @@ async function ensureContact(admin: Admin, ev: SocialEvent, nameOf?: () => Promi
   throw new Error(`social contact: ${error?.message}`);
 }
 
-async function ensureConversation(admin: Admin, contact: string, line: string, provider: SocialChannel): Promise<string> {
+async function ensureConversation(admin: Admin, contact: string, line: string, provider: SocialChannel, at: string): Promise<string> {
   const find = () => admin.from("conversations").select("id").eq("contact_id", contact).eq("whatsapp_number_id", line).maybeSingle();
   const { data: existing } = await find();
   if (existing) return existing.id as string;
   const { data: created, error } = await admin.from("conversations")
-    .insert({ contact_id: contact, whatsapp_number_id: line }).select("id").single();
+    // dated by its first message, not by now: a Google review brought in months
+    // after it was written must not jump to the top of the inbox
+    .insert({ contact_id: contact, whatsapp_number_id: line, last_message_at: at }).select("id").single();
   if (!created) {
     const { data: again } = await find();
     if (again) return again.id as string;
@@ -83,7 +85,7 @@ export async function ingestSocialEvent(
 ): Promise<BotTrigger | null> {
   const line = await ensureLine(admin, acc, ev.provider);
   const contact = await ensureContact(admin, ev, nameOf);
-  const conversation = await ensureConversation(admin, contact, line, ev.provider);
+  const conversation = await ensureConversation(admin, contact, line, ev.provider, ev.at);
   const waMessageId = messageId(ev.provider, ev.messageId);
 
   /* Meta marks a message this CRM's own app sent (ev.own). One sent in this

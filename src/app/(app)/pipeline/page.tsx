@@ -48,8 +48,10 @@ export default async function PipelinePage({
                 href={k === "weight-loss" ? "/pipeline" : `/pipeline?p=${k}`}
                 aria-current={k === key ? "page" : undefined}
                 className={cn(
-                  "rounded-md px-3 py-1 transition-colors",
-                  k === key ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800",
+                  "rounded-md px-3 py-1.5 font-semibold transition-colors",
+                  // the board you are on in the brand blue, readable in light AND dark (bg-white with
+                  // text-slate-900 turned white-on-white in dark mode, where slate-900 is near white)
+                  k === key ? "bg-brand-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-200 hover:text-slate-900",
                 )}
               >
                 {PIPELINES[k].label}
