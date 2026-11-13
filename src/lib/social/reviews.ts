@@ -12,7 +12,7 @@ import { accessTokenFor, noteAccountError } from "./accounts";
 import { googleReviewEvents } from "./events";
 import { listGoogleReviews } from "./google";
 import { ingestSocialEvent } from "./ingest";
-import type { SocialClinic } from "./lines";
+import { messageId, type SocialClinic } from "./lines";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -27,12 +27,24 @@ export async function syncGoogleReviews(admin: Admin = createAdminClient()): Pro
       const token = await accessTokenFor("google", row.external_id, admin);
       const reviews = await listGoogleReviews(token, row.external_id);
       // oldest first, so each thread's messages arrive in the order they happened
-      for (const r of [...reviews].reverse()) {
-        for (const ev of googleReviewEvents(row.external_id, r)) {
-          result.seen++;
-          const trigger = await ingestSocialEvent(admin, { provider: "google", external_id: row.external_id, clinic: row.clinic, name: row.name }, ev);
-          if (trigger) result.triggers.push(trigger);
-        }
+      const events = [...reviews].reverse().flatMap((r) => googleReviewEvents(row.external_id, r));
+      result.seen += events.length;
+      /* Only what is not stored yet. Every run reads the newest 50 reviews, and
+         nearly all of them are already here; handing each to ingest anyway cost
+         ~4 Supabase requests apiece just to be refused — some 57,000 a day at
+         one run every 10 minutes, on the free plan's request-log quota
+         (memory: supabase-free-quota). One query says which are new. */
+      const ids = events.map((ev) => messageId("greviews", ev.messageId));
+      const stored = new Set<string>();
+      if (ids.length) {
+        const { data: have, error } = await admin.from("messages").select("wa_message_id").in("wa_message_id", ids);
+        if (error) throw new Error(`checking stored reviews: ${error.message}`);
+        for (const m of (have as { wa_message_id: string }[] | null) ?? []) stored.add(m.wa_message_id);
+      }
+      for (const ev of events) {
+        if (stored.has(messageId("greviews", ev.messageId))) continue;
+        const trigger = await ingestSocialEvent(admin, { provider: "google", external_id: row.external_id, clinic: row.clinic, name: row.name }, ev);
+        if (trigger) result.triggers.push(trigger);
       }
     } catch (e) {
       const err = e as Error & { reconnect?: boolean };
