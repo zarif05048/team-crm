@@ -190,3 +190,15 @@ body {
 [data-theme="dark"] .chan-other  { --chan-bg: #1c1c1c; --chan-fg: #c2c2c2; --chan-bd: #383838; }
 .chan-badge { background: var(--chan-bg); color: var(--chan-fg); box-shadow: inset 0 0 0 1px var(--chan-bd); }
 .chan-stripe { box-shadow: inset 3px 0 0 var(--chan-stripe); }
+
+/* Paka's badges are solid, Dungun's outlined: the same channel colour, the branch
+ told apart at a glance (owner, 13 Nov 2026). Same in both themes. */
+.chan-wa     { --chan-solid: #15803d; --chan-solid-fg: #ffffff; }
+.chan-review { --chan-solid: #f5b301; --chan-solid-fg: #1f1600; }
+.chan-fb     { --chan-solid: #1d4ed8; --chan-solid-fg: #ffffff; }
+.chan-fbc    { --chan-solid: #4f46e5; --chan-solid-fg: #ffffff; }
+.chan-tt     { --chan-solid: #db2777; --chan-solid-fg: #ffffff; }
+.chan-web    { --chan-solid: #0f766e; --chan-solid-fg: #ffffff; }
+.chan-mkt    { --chan-solid: #7c3aed; --chan-solid-fg: #ffffff; }
+.chan-other  { --chan-solid: #475569; --chan-solid-fg: #ffffff; }
+.chan-badge.chan-solid { background: var(--chan-solid); color: var(--chan-solid-fg); box-shadow: none; }

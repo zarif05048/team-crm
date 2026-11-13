@@ -21,7 +21,10 @@ export const CHANNEL_TAG: Partial<Record<ChannelTone, string>> = {
   review: "google-review", fb: "facebook", fbc: "facebook-comment", tt: "tiktok",
 };
 
-function classify(displayName: string | null | undefined): { label: string; tone: ChannelTone } {
+function classify(displayName: string | null | undefined): { label: string; tone: ChannelTone; paka: boolean } {
+  return { ...classifyTone(displayName), paka: /paka/i.test(displayName ?? "") && !/marketing/i.test(displayName ?? "") };
+}
+function classifyTone(displayName: string | null | undefined): { label: string; tone: ChannelTone } {
   const dn = (displayName ?? "").toLowerCase();
   const where = dn.includes("paka") ? "Paka" : dn.includes("dungun") ? "Dungun" : "";
   const at = (s: string) => (where ? `${s} · ${where}` : s);
@@ -53,13 +56,16 @@ export function LineBadge({
   displayName: string | null | undefined;
   className?: string;
 }) {
-  const { label, tone } = classify(displayName);
+  const { label, tone, paka } = classify(displayName);
   const Icon = ICON[tone];
   return (
     <span
       className={cn(
         "chan-badge inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold",
         `chan-${tone}`,
+        // Paka solid, Dungun outlined — the same channel colour, the branch told apart at a glance
+        // (owner, 13 Nov 2026: "make dungun and paka in different font or bubble colour")
+        paka && "chan-solid font-bold",
         className,
       )}
     >
