@@ -595,7 +595,31 @@ ${rules}` : "");
    its number so the parent is not asked again; the web chat has no number, so
    the form asks for one. No date and no fee at this stage. While the CMS has
    the form switched off — or cannot be reached — the bot books a sunat as it
-   always did. */
+   always did. While the Sunathon tab says FULLY BOOKED (owner, 17 Nov 2026:
+   "new booking currently closed (fully booked) until further notice") nothing
+   is booked; an open interest form becomes the list for the next programme. */
+const SUNAT_FULL =
+  "SUNAT IS FULLY BOOKED: new sunat/khatan bookings are CLOSED until further notice. Do NOT book it (no book_minor_surgery), do NOT send the sunat poster, do NOT collect names, ICs or dates, and do not promise a date. Tell the patient kindly that the sunat programme is fully booked and new bookings are closed until further notice; the clinic will announce when bookings open again.";
+
+/** Fully booked? Asked only for the sunat poster — no link is made. */
+async function sunatFull(): Promise<boolean> {
+  const base = (process.env.CMS_URL ?? "").replace(/\/$/, "");
+  const token = process.env.CMS_REMINDER_TOKEN ?? "";
+  if (!base || !token) return false;
+  try {
+    const res = await fetch(`${base}/api/bot/sunat-link`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-reminder-token": token },
+      body: JSON.stringify({ peek: true, bot: "crm" }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return false;
+    return ((await res.json()) as { full?: boolean }).full === true;
+  } catch {
+    return false;
+  }
+}
+
 async function sunatFormLink(sendCtx: SendContext): Promise<string> {
   const asBefore = (why: string) =>
     `${why} Handle it as before: record a sunat request with book_minor_surgery (CIRCUMCISION SURGERY) once you have the name, branch and preferred date, and tell the patient staff will confirm.`;
@@ -615,8 +639,13 @@ async function sunatFormLink(sendCtx: SendContext): Promise<string> {
       signal: AbortSignal.timeout(15_000),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const r = (await res.json()) as { open?: boolean; url?: string };
+    const r = (await res.json()) as { open?: boolean; full?: boolean; url?: string };
+    if (r.full && (!r.open || !r.url)) return SUNAT_FULL;
     if (!r.open || !r.url) return asBefore("The sunat interest form is CLOSED right now.");
+    if (r.full) {
+      return `${SUNAT_FULL}\nINTEREST FORM FOR THE NEXT PROGRAMME: ${r.url}\n`
+        + "Give the patient this link EXACTLY as written, on its own line, and say they can fill it in if they are interested in the next programme — clinic staff will contact them by WhatsApp when bookings open again.";
+    }
     return `SUNAT INTEREST FORM LINK: ${r.url}\n`
       + "Give the patient this link EXACTLY as written, on its own line, and say: fill in each child's name and MyKid/IC, the address and the branch — one form for several children. There is no date and no payment yet: clinic staff will get back to them by WhatsApp with the dates and how to book. Do not ask for their details in the chat, and do not promise a date or a slot.";
   } catch (err) {
@@ -654,6 +683,10 @@ async function executeTool(
       }
       const leaflet = LEAFLETS[input.leaflet ?? ""];
       if (!leaflet) return `Unknown leaflet: ${input.leaflet}`;
+      // the sunat promo poster invites a booking — not while sunat is fully booked
+      if (input.leaflet === "sunat_promo" && (await sunatFull())) {
+        return `The sunat poster was NOT sent. ${SUNAT_FULL} You may still give the price if asked (clamp or laser, same price).`;
+      }
       const url = `${LEAFLET_BASE}/leaflets/${leaflet.file}`;
       const result = await sendImage(
         sendCtx.phoneNumberId,
